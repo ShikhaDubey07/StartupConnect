@@ -449,17 +449,17 @@
     <div class="container text-center" data-aos="zoom-in">
         @if (User.Identity?.IsAuthenticated == true)
         {
-            <h2 class="mb-3">Continue Building Your Dream</h2>
-            <p class="mb-4 opacity-75">Head to your dashboard to manage your startup journey.</p>
-            <a asp-controller="Account" asp-action="Dashboard" class="btn btn-dark btn-lg px-5">
+            <h2 class="mb-3" style="color: #FFFFFF !important;">Continue Building Your Dream</h2>
+            <p class="mb-4 opacity-75" style="color: #FFFFFF !important;">Head to your dashboard to manage your startup journey.</p>
+            <a asp-controller="Account" asp-action="Dashboard" class="btn btn-dark btn-lg px-5" style="color: #FFFFFF !important;">
                 <i class="bi bi-speedometer2 me-2"></i>Go to Dashboard
             </a>
         }
         else
         {
-            <h2 class="mb-3">Ready to Build India's Next Big Startup?</h2>
-            <p class="mb-4 opacity-75">Join thousands of young entrepreneurs. It's free to register.</p>
-            <a asp-controller="Account" asp-action="Register" class="btn btn-dark btn-lg px-5">
+            <h2 class="mb-3" style="color: #FFFFFF !important;">Ready to Build India's Next Big Startup?</h2>
+            <p class="mb-4 opacity-75" style="color: #FFFFFF !important;">Join thousands of young entrepreneurs. It's free to register.</p>
+            <a asp-controller="Account" asp-action="Register" class="btn btn-dark btn-lg px-5" style="color: #FFFFFF !important;">
                 <i class="bi bi-rocket-takeoff me-2"></i>Get Started Now
             </a>
         }
