@@ -1,0 +1,132 @@
+@model ProfileViewModel
+@{
+    ViewData["Title"] = "My Profile";
+    var categories = ViewBag.Categories as List<StartupConnect.Models.Category>;
+}
+
+<section class="sc-page-header">
+    <div class="container">
+        <h1>My Profile</h1>
+        <p class="opacity-75 mb-0">Complete your profile to submit ideas and show interest</p>
+    </div>
+</section>
+
+<div class="container pb-5">
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="sc-form-card text-center">
+                <div class="rounded-circle bg-primary d-inline-flex align-items-center justify-content-center mb-3" style="width:80px;height:80px;font-size:2rem;color:#000">
+                    @(Model.FullName?.FirstOrDefault())
+                </div>
+                <h5>@Model.FullName</h5>
+                <p class="text-muted small">@Model.Email</p>
+                <div class="mt-3">
+                    <div class="d-flex justify-content-between small mb-1">
+                        <span>Profile Completion</span>
+                        <strong>@Model.ProfileCompletionPercent%</strong>
+                    </div>
+                    <div class="sc-progress-bar-custom">
+                        <div class="fill" style="width:@Model.ProfileCompletionPercent%"></div>
+                    </div>
+                </div>
+                @if (Model.ProfileCompletionPercent < 60)
+                {
+                    <div class="alert alert-warning small mt-3 mb-0">
+                        Complete 60% to submit ideas & show interest
+                    </div>
+                }
+            </div>
+        </div>
+        <div class="col-lg-8">
+            <div class="sc-form-card">
+                <form asp-action="Profile" method="post">
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label asp-for="Bio" class="form-label fw-semibold">About You</label>
+                            <textarea asp-for="Bio" class="form-control" rows="3" placeholder="Tell us about yourself and your startup aspirations..."></textarea>
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="City" class="form-label fw-semibold"></label>
+                            <input asp-for="City" class="form-control" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="State" class="form-label fw-semibold"></label>
+                            <input asp-for="State" class="form-control" />
+                        </div>
+                        <div class="col-md-4">
+                            <label asp-for="Age" class="form-label fw-semibold"></label>
+                            <input asp-for="Age" class="form-control" type="number" />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="TimeAvailability" class="form-label fw-semibold"></label>
+                            <select asp-for="TimeAvailability" class="form-select" asp-items="Html.GetEnumSelectList<TimeAvailability>()"></select>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="HoursPerWeek" class="form-label fw-semibold"></label>
+                            <input asp-for="HoursPerWeek" class="form-control" type="number" min="1" max="80" />
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="InvestmentCapacity" class="form-label fw-semibold"></label>
+                            <select asp-for="InvestmentCapacity" class="form-select" asp-items="Html.GetEnumSelectList<InvestmentCapacity>()"></select>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="LinkedInUrl" class="form-label fw-semibold">LinkedIn URL</label>
+                            <input asp-for="LinkedInUrl" class="form-control" placeholder="https://linkedin.com/in/..." />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Areas of Interest</label>
+                            <div class="d-flex flex-wrap gap-2">
+                                @if (categories != null)
+                                {
+                                    foreach (var cat in categories)
+                                    {
+                                        <label class="sc-checkbox-card border rounded px-3 py-2 @(Model.SelectedCategoryIds.Contains(cat.Id) ? "selected" : "")" style="cursor:pointer">
+                                            <input type="checkbox" name="SelectedCategoryIds" value="@cat.Id"
+                                                   @(Model.SelectedCategoryIds.Contains(cat.Id) ? "checked" : "") class="form-check-input me-1" />
+                                            <i class="bi @cat.IconClass me-1"></i>@cat.Name
+                                        </label>
+                                    }
+                                }
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Skills</label>
+                            <div class="d-flex flex-wrap gap-2">
+                                @foreach (var skill in ProfileViewModel.AvailableSkills)
+                                {
+                                    <label class="sc-checkbox-card border rounded px-3 py-2 @(Model.SelectedSkills.Contains(skill) ? "selected" : "")" style="cursor:pointer">
+                                        <input type="checkbox" name="SelectedSkills" value="@skill"
+                                               @(Model.SelectedSkills.Contains(skill) ? "checked" : "") class="form-check-input me-1" />
+                                        @skill
+                                    </label>
+                                }
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input asp-for="IsInvestor" class="form-check-input" />
+                                <label asp-for="IsInvestor" class="form-check-label fw-semibold">I'm open to investing in startups</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-accent btn-lg">
+                                <i class="bi bi-check-lg me-2"></i>Save Profile
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.sc-checkbox-card.selected { background: rgba(245,158,11,0.15); border-color: var(--sc-accent) !important; }
+</style>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

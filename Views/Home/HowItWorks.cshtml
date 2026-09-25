@@ -1,0 +1,41 @@
+@{
+    ViewData["Title"] = "How It Works";
+}
+
+<section class="sc-page-header" data-aos="fade-down">
+    <div class="container text-center">
+        <h1>How StartupConnect Works</h1>
+        <p class="opacity-75 mb-0">Your journey from idea to launched startup</p>
+    </div>
+</section>
+
+<div class="container pb-5">
+    <div class="row g-4 mb-5">
+        @foreach (var (num, icon, title, desc, color) in new[] {
+            ("01", "bi-person-plus", "Register & Build Profile", "Sign up free, select your interests, skills, time availability (full-time/part-time), and how much you can invest.", "red"),
+            ("02", "bi-lightbulb", "Submit or Discover Ideas", "Share your startup idea with funding needs, or browse verified ideas from other youth across India.", "orange"),
+            ("03", "bi-shield-check", "Expert Panel Verification", "Our panel reviews every idea for feasibility. Only quality, genuine ideas get published.", "blue"),
+            ("04", "bi-hand-index", "Show Your Interest", "Found something exciting? Choose to work on it, invest in it, or both — with your preferred amount.", "purple"),
+            ("05", "bi-people", "Team Formation", "When enough teammates and funding come together, we help form your startup team.", "green"),
+            ("06", "bi-rocket-takeoff", "Launch with Support", "Get platform guidance, connect with mentors, and launch your startup together!", "orange")
+        })
+        {
+            <div class="col-md-6 col-lg-4" data-aos="fade-up">
+                <div class="sc-problem-card h-100">
+                    <div class="d-flex align-items-center gap-3 mb-3">
+                        <div class="sc-problem-icon @color" style="width:48px;height:48px;font-size:1.2rem;margin:0"><i class="bi @icon"></i></div>
+                        <span class="text-muted fw-bold">Step @num</span>
+                    </div>
+                    <h5>@title</h5>
+                    <p class="text-muted mb-0">@desc</p>
+                </div>
+            </div>
+        }
+    </div>
+
+    <div class="sc-cta-section rounded-4 text-center p-5" data-aos="zoom-in">
+        <h2 class="mb-3">Ready to Start?</h2>
+        <p class="mb-4">Join India's youth startup revolution today.</p>
+        <a asp-controller="Account" asp-action="Register" class="btn btn-dark btn-lg px-5">Get Started Free</a>
+    </div>
+</div>

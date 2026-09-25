@@ -1,0 +1,327 @@
+@model StartupConnect.ViewModels.IdeaAnalyticsViewModel
+@using StartupConnect.Models
+@using System.Text.Json
+
+@{
+    ViewData["Title"] = "Idea Analytics - " + Model.Idea.Title;
+}
+
+<div class="container py-5 mt-4">
+    <div class="d-flex align-items-center mb-5">
+        <a asp-action="MyIdeas" class="btn btn-dark rounded-circle me-3" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;"><i class="bi bi-arrow-left"></i></a>
+        <div>
+            <h2 class="fw-bold mb-1">Analytics for "@Model.Idea.Title"</h2>
+            <div class="text-muted small">
+                Status: @Model.Idea.Status.ToString() • Created @Model.Idea.CreatedAt.ToString("MMM dd, yyyy")
+            </div>
+        </div>
+        <div class="ms-auto text-end">
+            <span class="d-block text-muted small mb-1">Idea Progress Stage</span>
+            <span class="badge bg-primary rounded-pill px-3 py-2">@Model.Idea.ProgressStage.ToString()</span>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-4 col-lg-2">
+            <div class="card border-0 shadow-sm rounded-4 h-100 text-center py-4 bg-primary text-black" style="background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%); cursor: pointer; transition: transform 0.2s;" onclick="fetchAnalyticsDetails(@Model.Idea.Id, 'views', 'Views')" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                <i class="bi bi-eye display-5 mb-2 opacity-75"></i>
+                <h2 class="fw-bold mb-0">@Model.TotalViews</h2>
+                <div class="small opacity-75">Total Views</div>
+            </div>
+        </div>
+        <div class="col-md-4 col-lg-2">
+            <div class="card border-0 shadow-sm rounded-4 h-100 text-center py-4 bg-danger text-black" style="background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%); cursor: pointer; transition: transform 0.2s;" onclick="fetchAnalyticsDetails(@Model.Idea.Id, 'likes', 'Likes')" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                <i class="bi bi-heart display-5 mb-2 opacity-75"></i>
+                <h2 class="fw-bold mb-0">@Model.TotalLikes</h2>
+                <div class="small opacity-75">Likes</div>
+            </div>
+        </div>
+        <div class="col-md-4 col-lg-2">
+            <div class="card border-0 shadow-sm rounded-4 h-100 text-center py-4 bg-success text-black" style="background: linear-gradient(135deg, #198754 0%, #146c43 100%); cursor: pointer; transition: transform 0.2s;" onclick="fetchAnalyticsDetails(@Model.Idea.Id, 'saves', 'Saves')" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                <i class="bi bi-bookmark display-5 mb-2 opacity-75"></i>
+                <h2 class="fw-bold mb-0">@Model.TotalSaves</h2>
+                <div class="small opacity-75">Saves</div>
+            </div>
+        </div>
+        <div class="col-md-4 col-lg-2">
+            <div class="card border-0 shadow-sm rounded-4 h-100 text-center py-4 bg-warning text-dark" style="background: linear-gradient(135deg, #ffc107 0%, #ffcd39 100%); cursor: pointer; transition: transform 0.2s;" onclick="fetchAnalyticsDetails(@Model.Idea.Id, 'comments', 'Comments')" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                <i class="bi bi-chat-dots display-5 mb-2 opacity-75"></i>
+                <h2 class="fw-bold mb-0">@Model.TotalComments</h2>
+                <div class="small opacity-75">Comments</div>
+            </div>
+        </div>
+        <div class="col-md-4 col-lg-2">
+            <div class="card border-0 shadow-sm rounded-4 h-100 text-center py-4 bg-info text-dark" style="background: linear-gradient(135deg, #0dcaf0 0%, #3dd5f3 100%); cursor: pointer; transition: transform 0.2s;" onclick="fetchAnalyticsDetails(@Model.Idea.Id, 'requests', 'Requests')" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                <i class="bi bi-briefcase display-5 mb-2 opacity-75"></i>
+                <h2 class="fw-bold mb-0">@Model.TotalInterests</h2>
+                <div class="small opacity-75">Requests</div>
+            </div>
+        </div>
+        <div class="col-md-4 col-lg-2">
+            <div class="card border-0 shadow-sm rounded-4 h-100 text-center py-4 bg-white text-black" style="background: linear-gradient(135deg, #212529 0%, #1a1e21 100%); cursor: pointer; transition: transform 0.2s;" onclick="fetchAnalyticsDetails(@Model.Idea.Id, 'matches', 'Matches')" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                <i class="bi bi-diagram-3 display-5 mb-2 opacity-75"></i>
+                <h2 class="fw-bold mb-0">@Model.TotalMatches</h2>
+                <div class="small opacity-75">Matches</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="row g-4 mb-5">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body p-4 p-lg-5">
+                    <h4 class="fw-bold mb-4">Engagement Trends (Last 30 Days)</h4>
+                    <div style="height: 400px; width: 100%;">
+                        <canvas id="engagementChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Idea Progress Stepper -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body p-4 p-lg-5">
+                    <h4 class="fw-bold mb-4">Idea Lifecycle Progress</h4>
+                    
+                    @{
+                        var stages = Enum.GetValues(typeof(IdeaProgressStage)).Cast<IdeaProgressStage>().ToList();
+                        var currentStageIndex = stages.IndexOf(Model.Idea.ProgressStage);
+                    }
+                    
+                    <div class="position-relative m-4">
+                        <div class="progress position-absolute" style="height: 4px; top: 50%; transform: translateY(-50%); width: 100%; z-index: 1;">
+                            @{
+                                var progressPercent = (currentStageIndex * 100) / Math.Max(1, stages.Count - 1);
+                            }
+                            <div class="progress-bar bg-primary" role="progressbar" style="width: @progressPercent%" aria-valuenow="@progressPercent" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between position-relative" style="z-index: 2;">
+                            @for (int i = 0; i < stages.Count; i++)
+                            {
+                                var stage = stages[i];
+                                var isCompleted = i <= currentStageIndex;
+                                var isCurrent = i == currentStageIndex;
+                                
+                                <div class="text-center" style="width: 120px; margin-left: -60px; margin-right: -60px;">
+                                    <div class="rounded-circle d-flex align-items-center justify-content-center mx-auto mb-2 @(isCompleted ? "bg-primary text-black" : "bg-white text-muted border")" 
+                                         style="width: 40px; height: 40px; transition: all 0.3s ease; @(isCurrent ? "box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.25);" : "")">
+                                        @if (isCompleted)
+                                        {
+                                            <i class="bi bi-check-lg"></i>
+                                        }
+                                        else
+                                        {
+                                            <span class="small fw-bold">@(i + 1)</span>
+                                        }
+                                    </div>
+                                    <div class="small fw-bold @(isCompleted ? "text-primary" : "text-muted")">@stage.ToString()</div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Details Modal -->
+<div class="modal fade" id="analyticsDetailsModal" tabindex="-1" aria-labelledby="analyticsDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-bottom-0">
+                <h5 class="modal-title fw-bold" id="analyticsDetailsModalLabel">Activity Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div id="analyticsLoading" class="text-center py-5 d-none">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <div id="analyticsDetailsContent" class="list-group list-group-flush">
+                    <!-- Dynamic content will be injected here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const ctx = document.getElementById('engagementChart').getContext('2d');
+            
+            const dates = @Html.Raw(JsonSerializer.Serialize(Model.Dates));
+            const viewsData = @Html.Raw(JsonSerializer.Serialize(Model.ViewsData));
+            const likesData = @Html.Raw(JsonSerializer.Serialize(Model.LikesData));
+            const savesData = @Html.Raw(JsonSerializer.Serialize(Model.SavesData));
+            const commentsData = @Html.Raw(JsonSerializer.Serialize(Model.CommentsData));
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [
+                        {
+                            label: 'Views',
+                            data: viewsData,
+                            borderColor: '#0d6efd',
+                            backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: 'Likes',
+                            data: likesData,
+                            borderColor: '#dc3545',
+                            backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: 'Saves',
+                            data: savesData,
+                            borderColor: '#198754',
+                            backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: 'Comments',
+                            data: commentsData,
+                            borderColor: '#ffc107',
+                            backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                            borderWidth: 2,
+                            tension: 0.4,
+                            fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20,
+                                font: {
+                                    family: "'Inter', sans-serif",
+                                    size: 13
+                                }
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0, 0.9)',
+                            titleColor: '#212529',
+                            bodyColor: '#212529',
+                            borderColor: '#dee2e6',
+                            borderWidth: 1,
+                            padding: 12,
+                            boxPadding: 6,
+                            usePointStyle: true
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1,
+                                font: { family: "'Inter', sans-serif" }
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)',
+                                drawBorder: false
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                maxTicksLimit: 10,
+                                font: { family: "'Inter', sans-serif" }
+                            },
+                            grid: {
+                                display: false,
+                                drawBorder: false
+                            }
+                        }
+                    }
+                }
+            });
+        });
+
+        function fetchAnalyticsDetails(ideaId, type, typeLabel) {
+            const modal = new bootstrap.Modal(document.getElementById('analyticsDetailsModal'));
+            document.getElementById('analyticsDetailsModalLabel').innerText = `${typeLabel} Details`;
+            
+            const contentDiv = document.getElementById('analyticsDetailsContent');
+            const loadingDiv = document.getElementById('analyticsLoading');
+            
+            contentDiv.innerHTML = '';
+            contentDiv.classList.add('d-none');
+            loadingDiv.classList.remove('d-none');
+            
+            modal.show();
+
+            fetch(`/Ideas/AnalyticsDetails?id=${ideaId}&type=${type}`)
+                .then(response => response.json())
+                .then(data => {
+                    loadingDiv.classList.add('d-none');
+                    contentDiv.classList.remove('d-none');
+                    
+                    if (!data || data.length === 0) {
+                        contentDiv.innerHTML = '<div class="text-center py-5 text-muted">No activity found.</div>';
+                        return;
+                    }
+
+                    data.forEach(item => {
+                        const date = new Date(item.activityDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                        const photoUrl = item.userProfilePhoto ? item.userProfilePhoto : '/images/default-avatar.png';
+                        
+                        let extraDetailsHtml = '';
+                        if (item.extraDetails) {
+                            extraDetailsHtml = `<div class="mt-2 text-muted small p-2 bg-white rounded">${item.extraDetails}</div>`;
+                        }
+
+                        const itemHtml = `
+                            <div class="list-group-item list-group-item-action p-4 border-0 border-bottom">
+                                <div class="d-flex w-100 justify-content-between align-items-center mb-2">
+                                    <div class="d-flex align-items-center">
+                                        <img src="${photoUrl}" class="rounded-circle me-3 border" style="width: 40px; height: 40px; object-fit: cover;" alt="User">
+                                        <div>
+                                            <h6 class="mb-0 fw-bold">${item.userName}</h6>
+                                            <span class="badge bg-secondary opacity-75 fw-normal mt-1">${item.activityType}</span>
+                                        </div>
+                                    </div>
+                                    <small class="text-muted text-end ms-3" style="min-width: 80px;">${date}</small>
+                                </div>
+                                ${extraDetailsHtml}
+                            </div>
+                        `;
+                        contentDiv.insertAdjacentHTML('beforeend', itemHtml);
+                    });
+                })
+                .catch(error => {
+                    loadingDiv.classList.add('d-none');
+                    contentDiv.classList.remove('d-none');
+                    contentDiv.innerHTML = '<div class="text-center py-5 text-danger"><i class="bi bi-exclamation-triangle fs-1 d-block mb-2"></i>Failed to load details.</div>';
+                    console.error('Error fetching analytics details:', error);
+                });
+        }
+    </script>
+}

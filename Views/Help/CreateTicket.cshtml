@@ -1,0 +1,57 @@
+@model StartupConnect.ViewModels.CreateTicketViewModel
+
+@{
+    ViewData["Title"] = "Submit Support Ticket";
+}
+
+<div class="container py-5 mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body p-4 p-lg-5">
+                    <div class="text-center mb-4">
+                        <i class="bi bi-life-preserver display-4 text-primary mb-3"></i>
+                        <h3 class="fw-bold">Submit a Support Ticket</h3>
+                        <p class="text-muted">Describe your issue in detail and our support team will respond as soon as possible.</p>
+                    </div>
+
+                    <form asp-action="CreateTicket" method="post">
+                        <div class="mb-3">
+                            <label asp-for="IssueCategory" class="form-label fw-medium"></label>
+                            <select asp-for="IssueCategory" class="form-select">
+                                <option value="">Select a category...</option>
+                                <option value="Account Issues">Account Issues</option>
+                                <option value="Bug Report">Bug Report</option>
+                                <option value="Feature Request">Feature Request</option>
+                                <option value="Billing & Payments">Billing & Payments</option>
+                                <option value="Other">Other</option>
+                            </select>
+                            <span asp-validation-for="IssueCategory" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Subject" class="form-label fw-medium"></label>
+                            <input asp-for="Subject" class="form-control" placeholder="Briefly describe the issue..." />
+                            <span asp-validation-for="Subject" class="text-danger small"></span>
+                        </div>
+
+                        <div class="mb-4">
+                            <label asp-for="Description" class="form-label fw-medium"></label>
+                            <textarea asp-for="Description" class="form-control" rows="5" placeholder="Provide as much detail as possible to help us understand the issue..."></textarea>
+                            <span asp-validation-for="Description" class="text-danger small"></span>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary rounded-pill py-2 fw-semibold">Submit Ticket</button>
+                            <a asp-action="Index" class="btn btn-dark text-muted rounded-pill py-2 fw-semibold">Cancel</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

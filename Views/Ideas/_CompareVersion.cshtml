@@ -1,0 +1,199 @@
+@{
+    var old = ViewBag.OldVersion as StartupConnect.ViewModels.IdeaHistoryViewModel;
+    var current = ViewBag.CurrentVersion as StartupConnect.ViewModels.IdeaHistoryViewModel;
+    var versionNum = (int)ViewBag.VersionNumber;
+}
+
+@if (old == null || current == null)
+{
+    <div class="p-4 text-center text-danger">
+        <i class="bi bi-exclamation-triangle fs-1"></i>
+        <p class="mt-2">Could not load comparison data.</p>
+    </div>
+}
+else
+{
+    <div class="p-4">
+        <div class="d-flex justify-content-center gap-3 mb-4">
+            <span class="badge bg-danger bg-opacity-10 text-danger px-3 py-2 fs-6">
+                <i class="bi bi-clock-history me-1"></i>Version @versionNum
+            </span>
+            <span class="text-muted align-self-center"><i class="bi bi-arrow-right"></i></span>
+            <span class="badge bg-success bg-opacity-10 text-success px-3 py-2 fs-6">
+                <i class="bi bi-check-circle me-1"></i>Current Version
+            </span>
+        </div>
+
+        <!-- Title -->
+        @{
+            var titleChanged = old.Title != current.Title;
+        }
+        <div class="mb-4">
+            <h6 class="fw-bold text-dark mb-2"><i class="bi bi-type-h1 me-2"></i>Title</h6>
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <div class="p-3 rounded @(titleChanged ? "border border-danger bg-danger bg-opacity-10" : "border bg-white")" style="border-radius: 8px !important;">
+                        <small class="fw-semibold text-muted d-block mb-1">Version @versionNum</small>
+                        <p class="mb-0 @(titleChanged ? "text-danger" : "text-muted")">@old.Title</p>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="p-3 rounded @(titleChanged ? "border border-success bg-success bg-opacity-10" : "border bg-white")" style="border-radius: 8px !important;">
+                        <small class="fw-semibold text-muted d-block mb-1">Current</small>
+                        <p class="mb-0 @(titleChanged ? "text-success fw-semibold" : "text-muted")">@current.Title</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Category & Fund -->
+        @{
+            var catChanged = old.CategoryName != current.CategoryName;
+            var fundChanged = old.MinimumFundRequired != current.MinimumFundRequired;
+        }
+        <div class="row g-3 mb-4">
+            <div class="col-md-6">
+                <h6 class="fw-bold text-dark mb-2"><i class="bi bi-tag me-2"></i>Category</h6>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <div class="p-2 rounded text-center @(catChanged ? "border border-danger bg-danger bg-opacity-10" : "border bg-white")" style="border-radius: 8px !important;">
+                            <small class="text-muted d-block">V@(versionNum)</small>
+                            <span class="@(catChanged ? "text-danger" : "text-muted")">@old.CategoryName</span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 rounded text-center @(catChanged ? "border border-success bg-success bg-opacity-10" : "border bg-white")" style="border-radius: 8px !important;">
+                            <small class="text-muted d-block">Current</small>
+                            <span class="@(catChanged ? "text-success fw-semibold" : "text-muted")">@current.CategoryName</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h6 class="fw-bold text-dark mb-2"><i class="bi bi-cash me-2"></i>Fund Required</h6>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <div class="p-2 rounded text-center @(fundChanged ? "border border-danger bg-danger bg-opacity-10" : "border bg-white")" style="border-radius: 8px !important;">
+                            <small class="text-muted d-block">V@(versionNum)</small>
+                            <span class="@(fundChanged ? "text-danger" : "text-muted")">₹@old.MinimumFundRequired.ToString("N0")</span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 rounded text-center @(fundChanged ? "border border-success bg-success bg-opacity-10" : "border bg-white")" style="border-radius: 8px !important;">
+                            <small class="text-muted d-block">Current</small>
+                            <span class="@(fundChanged ? "text-success fw-semibold" : "text-muted")">₹@current.MinimumFundRequired.ToString("N0")</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Description -->
+        @{
+            var descChanged = old.Description != current.Description;
+        }
+        <div class="mb-4">
+            <h6 class="fw-bold text-dark mb-2"><i class="bi bi-file-text me-2"></i>Description</h6>
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <div class="p-3 rounded @(descChanged ? "border border-danger bg-danger bg-opacity-10" : "border bg-white")" style="border-radius: 8px !important; max-height: 200px; overflow-y: auto;">
+                        <small class="fw-semibold text-muted d-block mb-1">Version @versionNum</small>
+                        <p class="mb-0 small @(descChanged ? "text-danger" : "text-muted")">@old.Description</p>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="p-3 rounded @(descChanged ? "border border-success bg-success bg-opacity-10" : "border bg-white")" style="border-radius: 8px !important; max-height: 200px; overflow-y: auto;">
+                        <small class="fw-semibold text-muted d-block mb-1">Current</small>
+                        <p class="mb-0 small @(descChanged ? "text-success" : "text-muted")">@current.Description</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Problem Statement -->
+        @{
+            var probChanged = old.ProblemStatement != current.ProblemStatement;
+        }
+        <div class="mb-4">
+            <h6 class="fw-bold text-dark mb-2"><i class="bi bi-exclamation-triangle me-2"></i>Problem Statement</h6>
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <div class="p-3 rounded @(probChanged ? "border border-danger bg-danger bg-opacity-10" : "border bg-white")" style="border-radius: 8px !important; max-height: 200px; overflow-y: auto;">
+                        <small class="fw-semibold text-muted d-block mb-1">Version @versionNum</small>
+                        <p class="mb-0 small @(probChanged ? "text-danger" : "text-muted")">@old.ProblemStatement</p>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="p-3 rounded @(probChanged ? "border border-success bg-success bg-opacity-10" : "border bg-white")" style="border-radius: 8px !important; max-height: 200px; overflow-y: auto;">
+                        <small class="fw-semibold text-muted d-block mb-1">Current</small>
+                        <p class="mb-0 small @(probChanged ? "text-success" : "text-muted")">@current.ProblemStatement</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Solution -->
+        @{
+            var solChanged = old.Solution != current.Solution;
+        }
+        <div class="mb-4">
+            <h6 class="fw-bold text-dark mb-2"><i class="bi bi-lightbulb me-2"></i>Solution</h6>
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <div class="p-3 rounded @(solChanged ? "border border-danger bg-danger bg-opacity-10" : "border bg-white")" style="border-radius: 8px !important; max-height: 200px; overflow-y: auto;">
+                        <small class="fw-semibold text-muted d-block mb-1">Version @versionNum</small>
+                        <p class="mb-0 small @(solChanged ? "text-danger" : "text-muted")">@old.Solution</p>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="p-3 rounded @(solChanged ? "border border-success bg-success bg-opacity-10" : "border bg-white")" style="border-radius: 8px !important; max-height: 200px; overflow-y: auto;">
+                        <small class="fw-semibold text-muted d-block mb-1">Current</small>
+                        <p class="mb-0 small @(solChanged ? "text-success" : "text-muted")">@current.Solution</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Target Market & Business Model -->
+        @{
+            var tmChanged = old.TargetMarket != current.TargetMarket;
+            var bmChanged = old.BusinessModel != current.BusinessModel;
+        }
+        <div class="row g-3">
+            <div class="col-md-6">
+                <h6 class="fw-bold text-dark mb-2"><i class="bi bi-bullseye me-2"></i>Target Market</h6>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <div class="p-2 rounded @(tmChanged ? "border border-danger bg-danger bg-opacity-10" : "border bg-white")" style="border-radius: 8px !important;">
+                            <small class="text-muted d-block">V@(versionNum)</small>
+                            <span class="small @(tmChanged ? "text-danger" : "text-muted")">@old.TargetMarket</span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 rounded @(tmChanged ? "border border-success bg-success bg-opacity-10" : "border bg-white")" style="border-radius: 8px !important;">
+                            <small class="text-muted d-block">Current</small>
+                            <span class="small @(tmChanged ? "text-success fw-semibold" : "text-muted")">@current.TargetMarket</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h6 class="fw-bold text-dark mb-2"><i class="bi bi-briefcase me-2"></i>Business Model</h6>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <div class="p-2 rounded @(bmChanged ? "border border-danger bg-danger bg-opacity-10" : "border bg-white")" style="border-radius: 8px !important;">
+                            <small class="text-muted d-block">V@(versionNum)</small>
+                            <span class="small @(bmChanged ? "text-danger" : "text-muted")">@old.BusinessModel</span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 rounded @(bmChanged ? "border border-success bg-success bg-opacity-10" : "border bg-white")" style="border-radius: 8px !important;">
+                            <small class="text-muted d-block">Current</small>
+                            <span class="small @(bmChanged ? "text-success fw-semibold" : "text-muted")">@current.BusinessModel</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}

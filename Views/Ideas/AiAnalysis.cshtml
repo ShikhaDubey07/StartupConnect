@@ -1,0 +1,129 @@
+@model IdeaDetailViewModel
+@{
+    ViewData["Title"] = "AI Analysis - " + Model.Title;
+}
+
+<section class="sc-page-header">
+    <div class="container d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h1><i class="bi bi-robot text-accent me-2"></i> AI Idea Analysis</h1>
+            <p class="opacity-75 mb-0">Analysis for: <strong>@Model.Title</strong></p>
+        </div>
+        <div>
+            <a asp-action="MyIdeas" class="btn btn-outline-dark"><i class="bi bi-arrow-left me-2"></i>Back to My Ideas</a>
+        </div>
+    </div>
+</section>
+
+<div class="container pb-5">
+    @if (Model.Analysis != null)
+    {
+        <div class="sc-detail-section mb-4 shadow-sm bg-white" style="border-radius: 12px; position: relative;">
+            <div class="position-absolute top-0 end-0 p-3">
+                <span class="badge bg-accent bg-opacity-10 text-accent fs-5 px-3 py-2">
+                    <i class="bi bi-stars me-1"></i> AI Score: @Model.Analysis.OverallScore/100
+                </span>
+            </div>
+            
+            <div class="mb-5 mt-2">
+                <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">Executive Summary</h5>
+                <p class="text-muted fs-5">@Model.Analysis.Summary</p>
+            </div>
+            
+            <div class="mb-5">
+                <h5 class="fw-bold text-dark border-bottom pb-2 mb-3">Problem & Solution Assessment</h5>
+                <p class="text-muted" style="white-space: pre-wrap;">@Model.Analysis.ProblemsAndSolutions</p>
+            </div>
+            
+            <div class="row g-4 mb-5">
+                <div class="col-md-6">
+                    <div class="h-100 p-4 bg-white rounded shadow-sm border-start border-4 border-primary">
+                        <h6 class="fw-bold fs-5"><i class="bi bi-bullseye me-2 text-primary"></i>Target Users</h6>
+                        <p class="mb-0 text-muted" style="white-space: pre-wrap;">@Model.Analysis.TargetUsers</p>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="h-100 p-4 bg-white rounded shadow-sm border-start border-4 border-success">
+                        <h6 class="fw-bold fs-5"><i class="bi bi-graph-up-arrow me-2 text-success"></i>Market Potential</h6>
+                        <p class="mb-0 text-muted" style="white-space: pre-wrap;">@Model.Analysis.MarketPotential</p>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="h-100 p-4 bg-white rounded shadow-sm border-start border-4 border-warning">
+                        <h6 class="fw-bold fs-5"><i class="bi bi-cash-stack me-2 text-warning"></i>Revenue Models</h6>
+                        <p class="mb-0 text-muted" style="white-space: pre-wrap;">@Model.Analysis.RevenueModels</p>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="h-100 p-4 bg-white rounded shadow-sm border-start border-4 border-danger">
+                        <h6 class="fw-bold fs-5"><i class="bi bi-shield-exclamation me-2 text-danger"></i>Risks & Challenges</h6>
+                        <p class="mb-0 text-muted" style="white-space: pre-wrap;">@Model.Analysis.Risks</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-5">
+                <h5 class="fw-bold text-dark border-bottom pb-2 mb-3"><i class="bi bi-people-fill me-2 text-info"></i>Team Suggestions</h5>
+                <p class="text-muted">@Model.Analysis.TeamSuggestions</p>
+            </div>
+
+            @if (Model.Analysis.SimilarIdeas.Any())
+            {
+                <div class="mb-4">
+                    <h5 class="fw-bold text-dark border-bottom pb-2 mb-3"><i class="bi bi-files me-2 text-secondary"></i>Similar Concepts Detected</h5>
+                    <div class="row g-3">
+                        @foreach (var similar in Model.Analysis.SimilarIdeas)
+                        {
+                            <div class="col-md-6">
+                                <div class="card h-100 border-0 bg-white shadow-sm">
+                                    <div class="card-body p-4">
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <strong class="text-dark fs-5">@similar.Title</strong>
+                                            <span class="badge bg-secondary fs-6">@similar.MatchPercentage% match</span>
+                                        </div>
+                                        <p class="text-muted mb-0">@similar.Detail</p>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+            
+            <div class="text-end mt-5 pt-3 border-top">
+                <small class="text-muted me-3">Analysis generated on @Model.Analysis.GeneratedAt.ToString("MMM dd, yyyy HH:mm")</small>
+                @if (Model.IsOwner || User.IsInRole("Admin"))
+                {
+                    <form asp-action="RegenerateAnalysis" method="post" class="d-inline">
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <!-- Redirect back to AiAnalysis instead of Detail after regeneration -->
+                        <input type="hidden" name="returnUrl" value="AiAnalysis" />
+                        <button type="submit" class="btn btn-accent" onclick="this.innerHTML='<span class=\'spinner-border spinner-border-sm me-1\'></span> Regenerating...';">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Regenerate Analysis
+                        </button>
+                    </form>
+                }
+            </div>
+        </div>
+    }
+    else if (ViewBag.AiError != null)
+    {
+        <div class="sc-detail-section mb-4 text-center p-5 bg-white rounded shadow-sm border border-danger">
+            <i class="bi bi-exclamation-triangle text-danger" style="font-size: 3rem;"></i>
+            <h4 class="fw-bold text-danger mt-3">Configuration Error</h4>
+            <p class="text-muted fs-5 mb-4">@ViewBag.AiError</p>
+            <a asp-action="MyIdeas" class="btn btn-outline-danger"><i class="bi bi-arrow-left me-2"></i>Return to My Ideas</a>
+        </div>
+    }
+    else
+    {
+        <div class="sc-detail-section mb-4 text-center p-5 bg-white rounded shadow-sm">
+            <div class="spinner-border text-accent mb-3" style="width: 3rem; height: 3rem;" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <h4 class="fw-bold text-accent">AI is currently analyzing this idea...</h4>
+            <p class="text-muted fs-5 mb-4">The insights will appear here shortly. Please refresh the page in a few moments.</p>
+            <a href="javascript:location.reload();" class="btn btn-outline-accent"><i class="bi bi-arrow-clockwise me-2"></i>Refresh Page</a>
+        </div>
+    }
+</div>

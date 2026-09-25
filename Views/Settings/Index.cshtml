@@ -1,0 +1,350 @@
+@model StartupConnect.ViewModels.SettingsIndexViewModel
+@using StartupConnect.Models
+
+@{
+    ViewData["Title"] = "Settings";
+}
+
+<div class="container py-5 mt-4">
+    <div class="row">
+        <!-- Sidebar Navigation -->
+        <div class="col-md-3 mb-4">
+            <h3 class="fw-bold mb-4">Settings</h3>
+            <div class="nav flex-column nav-pills custom-nav-pills shadow-sm bg-white rounded-4 p-3" id="v-pills-tab" role="tablist" aria-orientation="vertical">
+                <button class="nav-link @(Model.ActiveTab == "profile" ? "active" : "") text-start fw-semibold py-3 mb-2 rounded-3" id="v-pills-profile-tab" data-bs-toggle="pill" data-bs-target="#v-pills-profile" type="button" role="tab" aria-controls="v-pills-profile" aria-selected="@(Model.ActiveTab == "profile" ? "true" : "false")">
+                    <i class="bi bi-person me-2"></i> Profile
+                </button>
+                <button class="nav-link @(Model.ActiveTab == "security" ? "active" : "") text-start fw-semibold py-3 mb-2 rounded-3" id="v-pills-security-tab" data-bs-toggle="pill" data-bs-target="#v-pills-security" type="button" role="tab" aria-controls="v-pills-security" aria-selected="@(Model.ActiveTab == "security" ? "true" : "false")">
+                    <i class="bi bi-shield-lock me-2"></i> Security
+                </button>
+                <button class="nav-link @(Model.ActiveTab == "notifications" ? "active" : "") text-start fw-semibold py-3 mb-2 rounded-3" id="v-pills-notifications-tab" data-bs-toggle="pill" data-bs-target="#v-pills-notifications" type="button" role="tab" aria-controls="v-pills-notifications" aria-selected="@(Model.ActiveTab == "notifications" ? "true" : "false")">
+                    <i class="bi bi-bell me-2"></i> Notifications
+                </button>
+                <button class="nav-link @(Model.ActiveTab == "privacy" ? "active" : "") text-start fw-semibold py-3 mb-2 rounded-3" id="v-pills-privacy-tab" data-bs-toggle="pill" data-bs-target="#v-pills-privacy" type="button" role="tab" aria-controls="v-pills-privacy" aria-selected="@(Model.ActiveTab == "privacy" ? "true" : "false")">
+                    <i class="bi bi-eye me-2"></i> Privacy
+                </button>
+                <button class="nav-link @(Model.ActiveTab == "account" ? "active" : "") text-start fw-semibold py-3 rounded-3" id="v-pills-account-tab" data-bs-toggle="pill" data-bs-target="#v-pills-account" type="button" role="tab" aria-controls="v-pills-account" aria-selected="@(Model.ActiveTab == "account" ? "true" : "false")">
+                    <i class="bi bi-gear me-2"></i> Account
+                </button>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="col-md-9">
+            <div class="tab-content" id="v-pills-tabContent">
+                
+                <!-- Profile Tab -->
+                <div class="tab-pane fade @(Model.ActiveTab == "profile" ? "show active" : "")" id="v-pills-profile" role="tabpanel" aria-labelledby="v-pills-profile-tab">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body p-4 p-lg-5">
+                            <h4 class="fw-bold mb-4">Public Profile</h4>
+                            <form asp-action="UpdateProfile" method="post">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label asp-for="Profile.FullName" class="form-label fw-medium"></label>
+                                        <input asp-for="Profile.FullName" class="form-control" />
+                                        <span asp-validation-for="Profile.FullName" class="text-danger small"></span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label asp-for="Profile.Age" class="form-label fw-medium"></label>
+                                        <input asp-for="Profile.Age" class="form-control" />
+                                        <span asp-validation-for="Profile.Age" class="text-danger small"></span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label asp-for="Profile.City" class="form-label fw-medium"></label>
+                                        <input asp-for="Profile.City" class="form-control" />
+                                        <span asp-validation-for="Profile.City" class="text-danger small"></span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label asp-for="Profile.State" class="form-label fw-medium"></label>
+                                        <input asp-for="Profile.State" class="form-control" />
+                                        <span asp-validation-for="Profile.State" class="text-danger small"></span>
+                                    </div>
+                                    <div class="col-12">
+                                        <label asp-for="Profile.Bio" class="form-label fw-medium"></label>
+                                        <textarea asp-for="Profile.Bio" class="form-control" rows="4" placeholder="Tell us about yourself..."></textarea>
+                                        <span asp-validation-for="Profile.Bio" class="text-danger small"></span>
+                                    </div>
+
+                                    <hr class="my-4" />
+                                    <h5 class="fw-bold mb-3">Professional Details</h5>
+                                    
+                                    <div class="col-md-6">
+                                        <label asp-for="Profile.LinkedInUrl" class="form-label fw-medium"></label>
+                                        <input asp-for="Profile.LinkedInUrl" class="form-control" placeholder="https://linkedin.com/in/..." />
+                                        <span asp-validation-for="Profile.LinkedInUrl" class="text-danger small"></span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label asp-for="Profile.PortfolioUrl" class="form-label fw-medium"></label>
+                                        <input asp-for="Profile.PortfolioUrl" class="form-control" placeholder="https://..." />
+                                        <span asp-validation-for="Profile.PortfolioUrl" class="text-danger small"></span>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label asp-for="Profile.TimeAvailability" class="form-label fw-medium"></label>
+                                        <select asp-for="Profile.TimeAvailability" class="form-select" asp-items="Html.GetEnumSelectList<TimeAvailability>()"></select>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label asp-for="Profile.HoursPerWeek" class="form-label fw-medium"></label>
+                                        <input asp-for="Profile.HoursPerWeek" class="form-control" />
+                                    </div>
+                                    
+                                    <div class="col-12 mt-3">
+                                        <div class="form-check form-switch">
+                                            <input asp-for="Profile.IsInvestor" class="form-check-input" type="checkbox" id="investorSwitch" />
+                                            <label class="form-check-label fw-medium" for="investorSwitch">I am looking to invest</label>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-12" id="investmentCapacityDiv" style="display: @(Model.Profile.IsInvestor ? "block" : "none")">
+                                        <label asp-for="Profile.InvestmentCapacity" class="form-label fw-medium"></label>
+                                        <select asp-for="Profile.InvestmentCapacity" class="form-select" asp-items="Html.GetEnumSelectList<InvestmentCapacity>()"></select>
+                                    </div>
+
+                                    <hr class="my-4" />
+                                    <h5 class="fw-bold mb-3">Interests & Skills</h5>
+                                    
+                                    <div class="col-12">
+                                        <label class="form-label fw-medium">Interested Categories</label>
+                                        <div class="d-flex flex-wrap gap-2">
+                                            @foreach (var cat in (ViewBag.Categories as List<Category>) ?? new List<Category>())
+                                            {
+                                                bool isChecked = Model.Profile.SelectedCategoryIds.Contains(cat.Id);
+                                                <input type="checkbox" class="btn-check" name="Profile.SelectedCategoryIds" value="@cat.Id" id="cat_@cat.Id" autocomplete="off" @(isChecked ? "checked" : "")>
+                                                <label class="btn btn-outline-primary rounded-pill px-3 py-1" for="cat_@cat.Id">
+                                                    <i class="bi @cat.IconClass me-1"></i>@cat.Name
+                                                </label>
+                                            }
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12 mt-4">
+                                        <label class="form-label fw-medium">Your Skills</label>
+                                        <div class="d-flex flex-wrap gap-2">
+                                            @foreach (var skill in (ViewBag.Skills as string[]) ?? Array.Empty<string>())
+                                            {
+                                                bool isChecked = Model.Profile.SelectedSkills.Contains(skill);
+                                                <input type="checkbox" class="btn-check" name="Profile.SelectedSkills" value="@skill" id="skill_@skill.Replace(" ", "")" autocomplete="off" @(isChecked ? "checked" : "")>
+                                                <label class="btn btn-outline-secondary rounded-pill px-3 py-1" for="skill_@skill.Replace(" ", "")">
+                                                    @skill
+                                                </label>
+                                            }
+                                        </div>
+                                    </div>
+
+                                    <div class="col-12 mt-4 text-end">
+                                        <button type="submit" class="btn btn-primary rounded-pill px-4">Save Changes</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Security Tab -->
+                <div class="tab-pane fade @(Model.ActiveTab == "security" ? "show active" : "")" id="v-pills-security" role="tabpanel" aria-labelledby="v-pills-security-tab">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body p-4 p-lg-5">
+                            <h4 class="fw-bold mb-4">Security Settings</h4>
+                            <form asp-action="UpdateSecurity" method="post">
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <label asp-for="Security.CurrentPassword" class="form-label fw-medium"></label>
+                                        <input asp-for="Security.CurrentPassword" class="form-control" />
+                                        <span asp-validation-for="Security.CurrentPassword" class="text-danger small"></span>
+                                    </div>
+                                    <div class="col-12">
+                                        <label asp-for="Security.NewPassword" class="form-label fw-medium"></label>
+                                        <input asp-for="Security.NewPassword" class="form-control" />
+                                        <span asp-validation-for="Security.NewPassword" class="text-danger small"></span>
+                                    </div>
+                                    <div class="col-12">
+                                        <label asp-for="Security.ConfirmPassword" class="form-label fw-medium"></label>
+                                        <input asp-for="Security.ConfirmPassword" class="form-control" />
+                                        <span asp-validation-for="Security.ConfirmPassword" class="text-danger small"></span>
+                                    </div>
+                                    <div class="col-12 mt-4 text-end">
+                                        <button type="submit" class="btn btn-primary rounded-pill px-4">Update Password</button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notifications Tab -->
+                <div class="tab-pane fade @(Model.ActiveTab == "notifications" ? "show active" : "")" id="v-pills-notifications" role="tabpanel" aria-labelledby="v-pills-notifications-tab">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body p-4 p-lg-5">
+                            <h4 class="fw-bold mb-4">Notification Preferences</h4>
+                            <form asp-action="UpdateNotifications" method="post">
+                                <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                                    <div>
+                                        <div class="fw-medium">Email Notifications</div>
+                                        <div class="text-muted small">Receive important updates and daily summaries via email.</div>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input fs-5" type="checkbox" asp-for="Notifications.EmailNotifications" />
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                                    <div>
+                                        <div class="fw-medium">In-App Notifications</div>
+                                        <div class="text-muted small">Show real-time toast alerts while you are browsing.</div>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input fs-5" type="checkbox" asp-for="Notifications.InAppNotifications" />
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                                    <div>
+                                        <div class="fw-medium">Match Alerts</div>
+                                        <div class="text-muted small">Get notified when a highly relevant idea matches your profile.</div>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input fs-5" type="checkbox" asp-for="Notifications.NotifyOnMatches" />
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <div>
+                                        <div class="fw-medium">Message Alerts</div>
+                                        <div class="text-muted small">Get notified when someone sends you a message or request.</div>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input fs-5" type="checkbox" asp-for="Notifications.NotifyOnMessages" />
+                                    </div>
+                                </div>
+                                <div class="mt-4 text-end">
+                                    <button type="submit" class="btn btn-primary rounded-pill px-4">Save Preferences</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Privacy Tab -->
+                <div class="tab-pane fade @(Model.ActiveTab == "privacy" ? "show active" : "")" id="v-pills-privacy" role="tabpanel" aria-labelledby="v-pills-privacy-tab">
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body p-4 p-lg-5">
+                            <h4 class="fw-bold mb-4">Privacy Settings</h4>
+                            <form asp-action="UpdatePrivacy" method="post">
+                                <div class="mb-4">
+                                    <label class="form-label fw-medium">Profile Visibility</label>
+                                    <select asp-for="Privacy.ProfileVisibility" class="form-select">
+                                        <option value="Public">Public (Everyone can see your profile)</option>
+                                        <option value="RegisteredUsers">Registered Users (Only logged in users can see)</option>
+                                        <option value="Private">Private (Hide profile from search and matching)</option>
+                                    </select>
+                                </div>
+                                
+                                <h6 class="fw-bold mb-3">Visible Information</h6>
+                                
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" asp-for="Privacy.ShowEmail" />
+                                    <label class="form-check-label fw-medium" asp-for="Privacy.ShowEmail"></label>
+                                    <div class="text-muted small">If enabled, others can see your email address on your profile.</div>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" asp-for="Privacy.ShowLocation" />
+                                    <label class="form-check-label fw-medium" asp-for="Privacy.ShowLocation"></label>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" asp-for="Privacy.ShowAge" />
+                                    <label class="form-check-label fw-medium" asp-for="Privacy.ShowAge"></label>
+                                </div>
+                                
+                                <div class="mt-4 text-end">
+                                    <button type="submit" class="btn btn-primary rounded-pill px-4">Save Privacy</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Account Tab -->
+                <div class="tab-pane fade @(Model.ActiveTab == "account" ? "show active" : "")" id="v-pills-account" role="tabpanel" aria-labelledby="v-pills-account-tab">
+                    <div class="card border-0 shadow-sm rounded-4 mb-4">
+                        <div class="card-body p-4 p-lg-5">
+                            <h4 class="fw-bold mb-4">Account Preferences</h4>
+                            <form asp-action="UpdateAccount" method="post">
+                                <div class="mb-4">
+                                    <label class="form-label fw-medium">Theme Preference</label>
+                                    <select asp-for="Account.ThemePreference" class="form-select w-50">
+                                        <option value="Light">Light Mode</option>
+                                        <option value="Dark">Dark Mode</option>
+                                        <option value="System">System Default</option>
+                                    </select>
+                                    <div class="text-muted small mt-1">Changes are applied immediately after saving.</div>
+                                </div>
+                                <div class="mt-4 text-end">
+                                    <button type="submit" class="btn btn-primary rounded-pill px-4">Save Account</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="card border-danger border border-2 shadow-sm rounded-4 bg-danger bg-opacity-10">
+                        <div class="card-body p-4 p-lg-5">
+                            <h4 class="fw-bold text-danger mb-3">Danger Zone</h4>
+                            <p class="mb-4 text-danger">Deleting your account is permanent. All your submitted ideas, matches, and profile data will be erased and cannot be recovered.</p>
+                            <button type="button" class="btn btn-danger rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">
+                                Delete Account
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Account Modal -->
+<div class="modal fade" id="deleteAccountModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-bottom-0 pb-0">
+                <h5 class="modal-title fw-bold text-danger">Confirm Deletion</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you absolutely sure you want to delete your account? This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer border-top-0 pt-0">
+                <button type="button" class="btn btn-dark rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                <form asp-action="DeleteAccount" method="post">
+                    <button type="submit" class="btn btn-danger rounded-pill px-4">Yes, Delete My Account</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        $(document).ready(function () {
+            $('#investorSwitch').on('change', function () {
+                if ($(this).is(':checked')) {
+                    $('#investmentCapacityDiv').slideDown(200);
+                } else {
+                    $('#investmentCapacityDiv').slideUp(200);
+                }
+            });
+            
+            // To properly persist the tab via URL hash on click
+            $('.nav-pills .nav-link').on('shown.bs.tab', function (e) {
+                var target = $(e.target).attr("data-bs-target");
+                window.location.hash = target;
+            });
+            
+            // On load, if there's a hash, select that tab
+            var hash = window.location.hash;
+            if (hash) {
+                var tab = $('.nav-pills .nav-link[data-bs-target="' + hash + '"]');
+                if (tab.length) {
+                    tab.tab('show');
+                }
+            }
+        });
+    </script>
+}

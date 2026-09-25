@@ -1,0 +1,221 @@
+@model StartupConnect.ViewModels.VideosIndexViewModel
+@{
+    ViewData["Title"] = "Startup Videos & Masterclasses";
+}
+
+
+<!-- Hero Section -->
+<section class="sc-video-hero py-5 text-black position-relative overflow-hidden">
+    <div class="sc-video-hero-glow"></div>
+    <div class="container position-relative z-2 py-4">
+        <div class="row align-items-center g-4">
+            <div class="col-lg-7" data-aos="fade-right">
+                <div class="d-inline-flex align-items-center gap-2 px-3 py-1 rounded-pill bg-white bg-opacity-10 border border-white border-opacity-20 mb-3 shadow-sm">
+                    <i class="bi bi-play-circle-fill text-cashmere"></i>
+                    <span class="small fw-semibold">Startup Knowledge Hub</span>
+                </div>
+                <h1 class="display-5 fw-bold mb-3">Startup & Founder Masterclasses</h1>
+                <p class="lead text-black text-opacity-75 mb-4" style="max-width: 600px;">
+                    Learn from world-class founders, venture capitalists, and operators. Watch practical playbooks on pitch decks, co-founder equity, MVP validation, and fundraising.
+                </p>
+
+                <!-- Search Form -->
+                <form method="get" asp-action="Index" class="sc-video-search-bar d-flex gap-2 p-2 rounded-pill bg-white bg-opacity-10 border border-white border-opacity-20 shadow-lg">
+                    <div class="input-group input-group-lg border-0 bg-transparent">
+                        <span class="input-group-text bg-transparent border-0 text-black ps-3"><i class="bi bi-search"></i></span>
+                        <input type="text" name="search" value="@Model.SearchQuery" class="form-control bg-transparent border-0 text-black placeholder-white-50 shadow-none" placeholder="Search by topic, speaker, or keyword..." />
+                    </div>
+                    @if (!string.IsNullOrEmpty(Model.CurrentCategory) && Model.CurrentCategory != "All")
+                    {
+                        <input type="hidden" name="category" value="@Model.CurrentCategory" />
+                    }
+                    <button type="submit" class="btn btn-copper rounded-pill px-4 fw-semibold text-nowrap">
+                        Find Videos
+                    </button>
+                </form>
+            </div>
+
+            <!-- Spotlight Featured Card -->
+            @if (Model.FeaturedVideo != null)
+            {
+                <div class="col-lg-5" data-aos="fade-left">
+                    <div class="sc-spotlight-card rounded-4 p-3 position-relative overflow-hidden shadow-2xl">
+                        <a href="@Model.FeaturedVideo.YouTubeUrl" target="_blank" rel="noopener noreferrer" class="text-decoration-none d-block">
+                            <div class="sc-spotlight-thumb position-relative rounded-3 overflow-hidden sc-img-treatment-wrapper">
+                                <img src="@Model.FeaturedVideo.ThumbnailUrl" alt="@Model.FeaturedVideo.Title" class="w-100 object-fit-cover sc-img-treated" style="height: 220px;" onerror="this.src='https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=800&q=80'" />
+                                <div class="sc-thumb-overlay d-flex align-items-center justify-content-center">
+                                    <div class="sc-play-btn pulse-glow">
+                                        <i class="bi bi-play-fill fs-2"></i>
+                                    </div>
+                                </div>
+                                <span class="badge badge-surface position-absolute bottom-0 end-0 m-2 px-2 py-1 rounded">
+                                    <i class="bi bi-clock me-1"></i>@Model.FeaturedVideo.Duration
+                                </span>
+                                <span class="badge badge-cashmere position-absolute top-0 start-0 m-2 px-2 py-1 rounded-pill fw-bold">
+                                    <i class="bi bi-star-fill me-1"></i> Featured Masterclass
+                                </span>
+                            </div>
+                        </a>
+                        <div class="p-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="badge badge-sage">@Model.FeaturedVideo.Category</span>
+                                <small class="text-black-50"><i class="bi bi-eye me-1"></i>@Model.FeaturedVideo.Views views</small>
+                            </div>
+                            <h5 class="fw-bold text-black mb-1">
+                                <a href="@Model.FeaturedVideo.YouTubeUrl" target="_blank" rel="noopener noreferrer" class="text-black text-decoration-none sc-video-title">
+                                    @Model.FeaturedVideo.Title
+                                </a>
+                            </h5>
+                            <p class="text-black-50 small mb-3 text-truncate-2">@Model.FeaturedVideo.Description</p>
+                            <div class="d-flex align-items-center justify-content-between pt-2 border-top border-white border-opacity-10">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="rounded-circle bg-accent text-black d-flex align-items-center justify-content-center fw-bold" style="width: 32px; height: 32px; font-size: 13px;">
+                                        @Model.FeaturedVideo.Speaker.Substring(0, 1)
+                                    </div>
+                                    <div>
+                                        <div class="text-black small fw-bold">@Model.FeaturedVideo.Speaker</div>
+                                        <div class="text-black-50 fs-8">@Model.FeaturedVideo.SpeakerRole</div>
+                                    </div>
+                                </div>
+                                <a href="@Model.FeaturedVideo.YouTubeUrl" target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-copper rounded-pill px-3 fw-bold shadow-sm">
+                                    <i class="bi bi-youtube me-1"></i> Watch Video
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</section>
+
+<!-- Category Filter Tabs & Toolbar -->
+<div class="container py-4">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 border-bottom pb-3 mb-4">
+        <!-- Categories Pills -->
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+            @foreach (var cat in Model.CategoryCounts)
+            {
+                var isSelected = (string.IsNullOrEmpty(Model.CurrentCategory) && cat.Key == "All") || Model.CurrentCategory == cat.Key;
+                <a asp-action="Index" asp-route-category="@cat.Key" asp-route-search="@Model.SearchQuery" asp-route-sort="@Model.SortBy"
+                   class="sc-cat-pill @(isSelected ? "active" : "")">
+                    <span>@cat.Key</span>
+                    <span class="sc-cat-count">@cat.Value</span>
+                </a>
+            }
+        </div>
+
+        <!-- Sort & Count -->
+        <div class="d-flex align-items-center gap-3 ms-md-auto">
+            <span class="text-muted small fw-medium">@Model.TotalVideos video@(Model.TotalVideos == 1 ? "" : "s")</span>
+            <form method="get" asp-action="Index" class="d-inline-flex align-items-center gap-2">
+                <input type="hidden" name="category" value="@Model.CurrentCategory" />
+                @if (!string.IsNullOrEmpty(Model.SearchQuery))
+                {
+                    <input type="hidden" name="search" value="@Model.SearchQuery" />
+                }
+                <select name="sort" class="form-select form-select-sm rounded-pill border-0 shadow-sm" style="min-width: 150px;" onchange="this.form.submit()">
+                    <option value="featured" selected="@(Model.SortBy == "featured")">Featured</option>
+                    <option value="popular" selected="@(Model.SortBy == "popular")">Most Popular</option>
+                    <option value="shortest" selected="@(Model.SortBy == "shortest")">Shortest Duration</option>
+                    <option value="longest" selected="@(Model.SortBy == "longest")">Longest Duration</option>
+                </select>
+            </form>
+        </div>
+    </div>
+
+    <!-- Active Search Filter Badge -->
+    @if (!string.IsNullOrWhiteSpace(Model.SearchQuery))
+    {
+        <div class="alert alert-light border rounded-pill d-inline-flex align-items-center gap-2 py-2 px-3 mb-4 shadow-sm">
+            <span class="small text-muted">Showing results for: <strong>"@Model.SearchQuery"</strong></span>
+            <a asp-action="Index" asp-route-category="@Model.CurrentCategory" class="btn-close btn-close-sm" style="font-size: 0.65rem;" title="Clear search"></a>
+        </div>
+    }
+
+    <!-- Video Cards Grid -->
+    @if (Model.Videos.Any())
+    {
+        <div class="row g-4 mb-5">
+            @foreach (var video in Model.Videos)
+            {
+                <div class="col-md-6 col-lg-4" data-aos="fade-up">
+                    <div class="card h-100 border-0 shadow-sm rounded-4 sc-video-card overflow-hidden">
+                        <!-- Thumbnail linking to YouTube -->
+                        <a href="@video.YouTubeUrl" target="_blank" rel="noopener noreferrer" class="sc-video-card-thumb position-relative overflow-hidden d-block text-decoration-none sc-img-treatment-wrapper">
+                            <img src="@video.ThumbnailUrl" alt="@video.Title" class="w-100 object-fit-cover sc-video-img sc-img-treated" style="height: 200px;" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80'" />
+                            
+                            <div class="sc-thumb-overlay d-flex align-items-center justify-content-center">
+                                <div class="sc-play-btn pulse-glow">
+                                    <i class="bi bi-play-fill fs-3"></i>
+                                </div>
+                            </div>
+
+                            <!-- Duration Pill -->
+                            <span class="badge badge-surface position-absolute bottom-0 end-0 m-2 px-2 py-1 rounded small">
+                                <i class="bi bi-clock me-1"></i>@video.Duration
+                            </span>
+
+                            <!-- Level Pill -->
+                            <span class="badge badge-cashmere position-absolute top-0 start-0 m-2 px-2 py-1 rounded-pill small">
+                                @video.Level
+                            </span>
+                        </a>
+
+                        <!-- Card Body -->
+                        <div class="card-body p-4 d-flex flex-column">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span class="badge badge-sage px-2 py-1">@video.Category</span>
+                                <span class="text-muted small"><i class="bi bi-eye me-1"></i>@video.Views</span>
+                            </div>
+
+                            <h5 class="card-title fw-bold text-dark mb-2">
+                                <a href="@video.YouTubeUrl" target="_blank" rel="noopener noreferrer" class="text-dark text-decoration-none sc-video-title">
+                                    @video.Title
+                                </a>
+                            </h5>
+
+                            <p class="card-text text-muted small mb-3 sc-video-desc">
+                                @video.Description
+                            </p>
+
+                            <!-- Tags -->
+                            <div class="d-flex flex-wrap gap-1 mb-4">
+                                @foreach (var tag in video.Tags.Take(3))
+                                {
+                                    <span class="badge bg-white text-muted border fs-8">#@tag</span>
+                                }
+                            </div>
+
+                            <!-- Footer & Speaker -->
+                            <div class="mt-auto pt-3 border-top d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center gap-2">
+                                    <div class="rounded-circle bg-accent text-black d-flex align-items-center justify-content-center fw-bold shadow-sm" style="width: 32px; height: 32px; font-size: 13px;">
+                                        @video.Speaker.Substring(0, 1)
+                                    </div>
+                                    <div class="text-truncate" style="max-width: 140px;">
+                                        <div class="fw-bold text-dark small text-truncate">@video.Speaker</div>
+                                        <div class="text-muted fs-8 text-truncate">@video.SpeakerRole</div>
+                                    </div>
+                                </div>
+                                <a href="@video.YouTubeUrl" target="_blank" rel="noopener noreferrer" class="btn btn-outline-copper btn-sm rounded-pill px-3 fw-semibold shadow-sm">
+                                    <i class="bi bi-youtube me-1"></i> Watch
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <!-- Empty State -->
+        <div class="text-center py-5 bg-white rounded-4 border border-dashed my-4">
+            <i class="bi bi-camera-video-off display-1 text-muted opacity-50 mb-3 d-block"></i>
+            <h4 class="fw-bold text-muted">No videos found</h4>
+            <p class="text-muted mb-4">Try searching for other keywords or explore different categories.</p>
+            <a asp-action="Index" class="btn btn-copper rounded-pill px-4">Reset All Filters</a>
+        </div>
+    }
+</div>

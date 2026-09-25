@@ -1,0 +1,88 @@
+@model IEnumerable<StartupConnect.ViewModels.AdminIdeaViewModel>
+@{
+    ViewData["Title"] = "Manage Ideas";
+    Layout = "_Layout";
+    
+    var currentFilter = ViewBag.CurrentStatusFilter as StartupConnect.Models.IdeaStatus?;
+}
+
+<div class="sc-admin-dashboard pt-4 pb-5">
+    <div class="container">
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4 fade-in-up">
+            <div>
+                <a asp-action="Dashboard" class="btn btn-sm btn-outline-secondary mb-2"><i class="bi bi-arrow-left"></i> Back to Dashboard</a>
+                <h1 class="h3 fw-bold text-dark mb-1"><i class="bi bi-lightbulb-fill text-primary me-2"></i>Manage Ideas</h1>
+            </div>
+            <div>
+                <div class="btn-group shadow-sm">
+                    <a asp-action="Ideas" class="btn btn-outline-primary @(!currentFilter.HasValue ? "active" : "")">All</a>
+                    <a asp-action="Ideas" asp-route-status="@StartupConnect.Models.IdeaStatus.Submitted" class="btn btn-outline-warning @(currentFilter == StartupConnect.Models.IdeaStatus.Submitted ? "active" : "")">Pending</a>
+                    <a asp-action="Ideas" asp-route-status="@StartupConnect.Models.IdeaStatus.Approved" class="btn btn-outline-success @(currentFilter == StartupConnect.Models.IdeaStatus.Approved ? "active" : "")">Approved</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 fade-in-up delay-1">
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="px-4 py-3">Idea</th>
+                                <th class="px-4 py-3">Submitter</th>
+                                <th class="px-4 py-3">Category</th>
+                                <th class="px-4 py-3">Status</th>
+                                <th class="px-4 py-3 text-end">Min Fund</th>
+                                <th class="px-4 py-3">Submitted</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model != null && Model.Any())
+                            {
+                                foreach (var idea in Model)
+                                {
+                                    <tr>
+                                        <td class="px-4 py-3">
+                                            <a asp-controller="Ideas" asp-action="Detail" asp-route-id="@idea.Id" class="fw-bold text-decoration-none text-primary">@idea.Title</a>
+                                        </td>
+                                        <td class="px-4 py-3 text-muted">@idea.SubmitterName</td>
+                                        <td class="px-4 py-3">
+                                            <span class="badge bg-white text-dark border">@idea.CategoryName</span>
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            @if (idea.Status == StartupConnect.Models.IdeaStatus.Approved)
+                                            {
+                                                <span class="badge bg-success bg-opacity-10 text-success border border-success">Approved</span>
+                                            }
+                                            else if (idea.Status == StartupConnect.Models.IdeaStatus.Submitted || idea.Status == StartupConnect.Models.IdeaStatus.UnderReview)
+                                            {
+                                                <span class="badge bg-warning bg-opacity-10 text-dark border border-warning">Pending</span>
+                                            }
+                                            else if (idea.Status == StartupConnect.Models.IdeaStatus.Rejected)
+                                            {
+                                                <span class="badge bg-danger bg-opacity-10 text-danger border border-danger">Rejected</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary bg-opacity-10 text-secondary border">@idea.Status.ToString()</span>
+                                            }
+                                        </td>
+                                        <td class="px-4 py-3 text-end">₹@idea.MinimumFundRequired.ToString("N0")</td>
+                                        <td class="px-4 py-3">@idea.CreatedAt.ToString("MMM dd, yyyy")</td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="6" class="text-center py-4 text-muted">No ideas found matching the criteria.</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

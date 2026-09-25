@@ -1,0 +1,136 @@
+@model StartupConnect.ViewModels.HelpIndexViewModel
+
+@{
+    ViewData["Title"] = "Help & Support";
+}
+
+<div class="container py-5 mt-4">
+    <div class="row mb-5">
+        <div class="col-12 text-center">
+            <h2 class="fw-bold display-6">Help & Support</h2>
+            <p class="text-muted fs-5">How can we help you today?</p>
+        </div>
+    </div>
+
+    <div class="row g-5">
+        <div class="col-md-8">
+            <h4 class="fw-bold mb-4">Frequently Asked Questions</h4>
+            <div class="accordion shadow-sm rounded-4" id="faqAccordion">
+                <div class="accordion-item border-0 border-bottom">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#faq1">
+                            How do I pitch my idea?
+                        </button>
+                    </h2>
+                    <div id="faq1" class="accordion-collapse collapse show" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body text-muted">
+                            You can pitch your idea by navigating to the Dashboard and clicking "Submit an Idea". Make sure your profile is at least 60% complete before submitting.
+                        </div>
+                    </div>
+                </div>
+                <div class="accordion-item border-0 border-bottom">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#faq2">
+                            How do I contact an investor?
+                        </button>
+                    </h2>
+                    <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body text-muted">
+                            If an investor shows interest in your idea, you will receive a notification. You can review their offer in the "Collaboration Requests" section and accept or reject it.
+                        </div>
+                    </div>
+                </div>
+                <div class="accordion-item border-0">
+                    <h2 class="accordion-header">
+                        <button class="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#faq3">
+                            Is StartupConnect free?
+                        </button>
+                    </h2>
+                    <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                        <div class="accordion-body text-muted">
+                            Yes, creating a profile, browsing ideas, and submitting your own ideas is completely free for all users in India.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm rounded-4 text-center p-4 h-100 bg-accent text-black" style="background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);">
+                <div class="card-body d-flex flex-column justify-content-center">
+                    <i class="bi bi-headset display-4 mb-3"></i>
+                    <h4 class="fw-bold mb-3">Still need help?</h4>
+                    <p class="mb-4">Can't find the answer you're looking for? Submit a support ticket and our team will get back to you shortly.</p>
+                    <a asp-action="CreateTicket" class="btn btn-dark rounded-pill fw-semibold px-4 py-2 mt-auto text-primary">Submit a Ticket</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-5 pt-5 border-top">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4 class="fw-bold m-0">My Support Tickets</h4>
+                <a asp-action="CreateTicket" class="btn btn-primary rounded-pill btn-sm px-3"><i class="bi bi-plus-lg"></i> New Ticket</a>
+            </div>
+            
+            @if (Model.MyTickets.Any())
+            {
+                <div class="table-responsive bg-white shadow-sm rounded-4">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light text-muted">
+                            <tr>
+                                <th class="ps-4">Ticket ID</th>
+                                <th>Subject</th>
+                                <th>Category</th>
+                                <th>Status</th>
+                                <th>Last Updated</th>
+                                <th class="pe-4 text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var ticket in Model.MyTickets)
+                            {
+                                <tr>
+                                    <td class="ps-4 fw-semibold text-muted">#@ticket.Id</td>
+                                    <td class="fw-medium">@ticket.Subject</td>
+                                    <td><span class="badge bg-secondary bg-opacity-10 text-secondary border">@ticket.IssueCategory</span></td>
+                                    <td>
+                                        @if (ticket.Status == StartupConnect.Models.TicketStatus.Open)
+                                        {
+                                            <span class="badge bg-warning text-dark"><i class="bi bi-envelope me-1"></i> Open</span>
+                                        }
+                                        else if (ticket.Status == StartupConnect.Models.TicketStatus.InProgress)
+                                        {
+                                            <span class="badge bg-info text-dark"><i class="bi bi-arrow-repeat me-1"></i> In Progress</span>
+                                        }
+                                        else if (ticket.Status == StartupConnect.Models.TicketStatus.Resolved)
+                                        {
+                                            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i> Resolved</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-secondary"><i class="bi bi-x-circle me-1"></i> Closed</span>
+                                        }
+                                    </td>
+                                    <td class="text-muted small">@ticket.UpdatedAt.ToString("MMM dd, yyyy HH:mm")</td>
+                                    <td class="pe-4 text-end">
+                                        <a asp-action="Ticket" asp-route-id="@ticket.Id" class="btn btn-outline-primary btn-sm rounded-pill px-3">View</a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="text-center py-5 bg-white rounded-4 border border-dashed">
+                    <i class="bi bi-ticket-detailed display-1 text-muted mb-3 opacity-50"></i>
+                    <h5 class="fw-bold text-muted">No Support Tickets</h5>
+                    <p class="text-muted">You haven't submitted any support tickets yet.</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>

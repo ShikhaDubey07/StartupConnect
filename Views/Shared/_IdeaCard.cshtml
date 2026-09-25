@@ -1,0 +1,45 @@
+@model StartupConnect.ViewModels.IdeaCardViewModel
+<div class="sc-idea-card">
+    <div class="sc-idea-card-header position-relative">
+        @if (User.Identity?.IsAuthenticated == true)
+        {
+            <form asp-controller="Ideas" asp-action="ToggleSave" asp-route-id="@Model.Id" method="post" class="position-absolute top-0 end-0 mt-3 me-3 toggle-save-form">
+                <button type="submit" class="btn btn-sm btn-dark rounded-circle shadow-sm save-btn" data-id="@Model.Id" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
+                    <i class="bi @(Model.IsSavedByCurrentUser ? "bi-bookmark-fill text-primary" : "bi-bookmark text-muted") fs-6 save-icon"></i>
+                </button>
+            </form>
+        }
+        @if (Model.AiScore.HasValue)
+        {
+            var scoreColor = Model.AiScore >= 70 ? "success" : (Model.AiScore >= 45 ? "warning" : "secondary");
+            <span class="position-absolute top-0 start-0 mt-3 ms-3 badge bg-@scoreColor bg-opacity-90 rounded-pill px-2 py-1" style="font-size:0.68rem;" title="AI Score: @Model.AiScore/100">
+                🤖 @Model.AiScore
+            </span>
+        }
+        <span class="sc-idea-category"><i class="bi @Model.CategoryIcon"></i> @Model.CategoryName</span>
+        <h5 class="mt-2 mb-0 text-black pe-4">@Model.Title</h5>
+    </div>
+    <div class="sc-idea-card-body">
+        <p class="text-muted small flex-grow-1">@Model.Tagline</p>
+        <div class="mb-2">
+            @foreach (var role in Model.RolesNeeded.Take(3))
+            {
+                <span class="sc-role-tag">@role</span>
+            }
+            @if (Model.RolesNeeded.Count > 3)
+            {
+                <span class="sc-role-tag">+@(Model.RolesNeeded.Count - 3)</span>
+            }
+        </div>
+        <div class="sc-idea-meta">
+            <span><i class="bi bi-cash"></i> <span class="sc-fund-badge">₹@Model.MinimumFundRequired.ToString("N0")</span></span>
+            <span><i class="bi bi-people"></i> @Model.InterestCount</span>
+            <span><i class="bi bi-heart-fill text-danger"></i> @Model.LikesCount</span>
+            <span><i class="bi bi-person-badge"></i> @Model.ExpectedTeamSize</span>
+        </div>
+        <a asp-controller="Ideas" asp-action="Detail" asp-route-id="@Model.Id" class="btn btn-primary-sc btn-sm w-100 mt-3">
+            View Details <i class="bi bi-arrow-right ms-1"></i>
+        </a>
+    </div>
+</div>
+

@@ -1,0 +1,89 @@
+@{
+    ViewData["Title"] = "Investor Dashboard";
+    var matchedIdeas = ViewBag.MatchedIdeas as List<StartupConnect.Models.Idea>;
+    var totalFundsRequested = ViewBag.TotalFundsRequested as decimal?;
+}
+
+<div class="container py-5">
+    <div class="row mb-5">
+        <div class="col-12">
+            <h1 class="fw-bold mb-2">Investor Dashboard</h1>
+            <p class="text-muted">Curated startup ideas based on your investment interests and tags.</p>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-5">
+        <div class="col-md-4">
+            <div class="card sc-idea-card h-100 bg-primary text-black border-0">
+                <div class="card-body p-4 text-center">
+                    <i class="bi bi-briefcase display-4 mb-3 d-block opacity-75"></i>
+                    <h5 class="fw-bold opacity-75">Matched Opportunities</h5>
+                    <h2 class="display-4 fw-bold mb-0">@(matchedIdeas?.Count ?? 0)</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card sc-idea-card h-100 bg-success text-black border-0">
+                <div class="card-body p-4 text-center">
+                    <i class="bi bi-cash-stack display-4 mb-3 d-block opacity-75"></i>
+                    <h5 class="fw-bold opacity-75">Total Capital Needed</h5>
+                    <h2 class="fw-bold mb-0">₹@(totalFundsRequested?.ToString("N0") ?? "0")</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card sc-idea-card h-100 border-0 bg-white text-black">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-3">Your Interest Tags</h5>
+                    <div class="d-flex flex-wrap gap-2">
+                        <!-- Normally we'd pass tags from viewbag, static for now -->
+                        <span class="badge bg-white bg-opacity-25 px-3 py-2">FinTech</span>
+                        <span class="badge bg-white bg-opacity-25 px-3 py-2">AI</span>
+                        <span class="badge bg-white bg-opacity-25 px-3 py-2">SaaS</span>
+                    </div>
+                    <a asp-controller="Profile" asp-action="Index" class="btn btn-outline-dark btn-sm mt-4 w-100">Update Interests</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h3 class="fw-bold mb-4">Top Matches For You</h3>
+    @if (matchedIdeas != null && matchedIdeas.Any())
+    {
+        <div class="row g-4">
+            @foreach (var idea in matchedIdeas)
+            {
+                <div class="col-md-6 col-lg-4">
+                    <div class="card h-100 sc-idea-card border-0 shadow-sm rounded-4">
+                        <div class="card-body p-4">
+                            <span class="badge bg-primary bg-opacity-10 text-primary mb-2">@idea.Category?.Name</span>
+                            <h5 class="fw-bold mb-1">
+                                <a asp-controller="Ideas" asp-action="Detail" asp-route-id="@idea.Id" class="text-dark text-decoration-none">@idea.Title</a>
+                            </h5>
+                            <p class="text-muted small mb-3">@idea.Tagline</p>
+                            
+                            <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
+                                <div>
+                                    <small class="text-muted d-block">Ask</small>
+                                    <strong class="text-success">₹@idea.MinimumFundRequired.ToString("N0")</strong>
+                                </div>
+                                <div>
+                                    <small class="text-muted d-block">Engagement</small>
+                                    <strong class="text-primary"><i class="bi bi-fire text-warning"></i> @idea.EngagementScore</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info text-center py-5">
+            <i class="bi bi-search display-4 mb-3 d-block"></i>
+            <h5>No matches found right now.</h5>
+            <p>Try updating your interest tags in your profile to see more startups.</p>
+        </div>
+    }
+</div>

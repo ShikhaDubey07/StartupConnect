@@ -1,0 +1,198 @@
+@{
+    ViewData["Title"] = "Smart Matches";
+    var coFounders = (List<(StartupConnect.Models.UserProfile Profile, double Score)>)ViewBag.CoFounders;
+    var investors = (List<StartupConnect.Models.UserProfile>)ViewBag.Investors;
+    var ideas = (List<StartupConnect.Models.Idea>)ViewBag.IdeasToInvest;
+    var coFounderRationales = ViewBag.CoFounderRationales as Dictionary<string, string> ?? new Dictionary<string, string>();
+    var investorPitches = ViewBag.InvestorPitches as Dictionary<int, string> ?? new Dictionary<int, string>();
+}
+
+<div class="container py-5 mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold"><i class="bi bi-people-fill text-primary me-2"></i>Smart Matches</h2>
+    </div>
+
+    <ul class="nav nav-pills mb-4" id="matchesTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active rounded-pill px-4" id="cofounders-tab" data-bs-toggle="tab" data-bs-target="#cofounders" type="button" role="tab">
+                Co-founders
+            </button>
+        </li>
+        @if (investors.Any())
+        {
+            <li class="nav-item" role="presentation">
+                <button class="nav-link rounded-pill px-4 ms-2" id="investors-tab" data-bs-toggle="tab" data-bs-target="#investors" type="button" role="tab">
+                    Investors for You
+                </button>
+            </li>
+        }
+        @if (ideas.Any())
+        {
+            <li class="nav-item" role="presentation">
+                <button class="nav-link rounded-pill px-4 ms-2" id="ideas-tab" data-bs-toggle="tab" data-bs-target="#ideas" type="button" role="tab">
+                    Ideas to Invest In
+                </button>
+            </li>
+        }
+    </ul>
+
+    <div class="tab-content" id="matchesTabsContent">
+        <!-- Co-founders Tab -->
+        <div class="tab-pane fade show active" id="cofounders" role="tabpanel">
+            @if (coFounders.Any())
+            {
+                <div class="row g-4">
+                    @foreach (var match in coFounders)
+                    {
+                        <div class="col-md-6 col-lg-4">
+                            <div class="card h-100 shadow-sm border-0 sc-hover-card text-center p-4">
+                                <div class="sc-avatar bg-accent text-black rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3 fs-3" style="width:80px;height:80px">
+                                    @(match.Profile.User.FullName.FirstOrDefault().ToString().ToUpper())
+                                </div>
+                                <h5 class="fw-bold mb-1">@match.Profile.User.FullName</h5>
+                                <div class="text-muted small mb-2 fw-semibold">
+                                    @(match.Profile.IsInvestor ? "Investor" : "Founder")
+                                </div>
+                                <p class="text-muted small mb-2"><i class="bi bi-geo-alt"></i> @match.Profile.User.City, @match.Profile.User.State</p>
+                                <div class="badge bg-success-subtle text-success mb-3 fs-6 px-3 py-2 border border-success border-opacity-25 rounded-pill shadow-sm">
+                                    🔥 @match.Score% Match
+                                </div>
+                                
+                                <div class="mb-3 text-start">
+                                    <small class="text-muted d-block mb-1 fw-bold">Skills</small>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        @foreach (var skill in match.Profile.Skills.Take(3))
+                                        {
+                                            <span class="sc-role-tag">@skill.SkillName</span>
+                                        }
+                                        @if(match.Profile.Skills.Count > 3)
+                                        {
+                                            <span class="sc-role-tag bg-white text-muted">+@(match.Profile.Skills.Count - 3)</span>
+                                        }
+                                    </div>
+                                </div>
+
+                                <div class="mb-4 text-start">
+                                    <small class="text-muted d-block mb-1 fw-bold">Industries & Interests</small>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        @foreach (var interest in match.Profile.InterestTags.Take(3))
+                                        {
+                                            <span class="badge bg-white text-dark border">@interest.Category.Name</span>
+                                        }
+                                    </div>
+                                </div>
+
+                                @if (coFounderRationales.TryGetValue(match.Profile.UserId, out var rationale))
+                                {
+                                    <div class="text-start mb-3 px-2 py-2 rounded-3" style="background:rgba(var(--bs-primary-rgb),.06);border-left:3px solid var(--bs-primary)">
+                                        <small class="text-muted fst-italic"><i class="bi bi-robot me-1 text-primary"></i>@rationale</small>
+                                    </div>
+                                }
+
+                                <div class="d-flex gap-2 mt-auto">
+                                    <a asp-controller="Profile" asp-action="Detail" asp-route-id="@match.Profile.UserId" class="btn btn-outline-primary rounded-pill flex-grow-1">View</a>
+                                    <button onclick="connectUser('@match.Profile.UserId', this)" class="btn btn-primary-sc rounded-pill flex-grow-1">
+                                        <i class="bi bi-person-plus-fill me-1"></i> Connect
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-light border text-center p-5 rounded-4">
+                    <i class="bi bi-person-x fs-1 text-muted mb-3 d-block"></i>
+                    <h5>No co-founder matches yet</h5>
+                    <p class="text-muted mb-0">Update your profile with more skills and interests to get better matches.</p>
+                </div>
+            }
+        </div>
+
+        <!-- Investors Tab -->
+        <div class="tab-pane fade" id="investors" role="tabpanel">
+            <div class="row g-4">
+                @foreach (var inv in investors)
+                {
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card h-100 shadow-sm border-0 sc-hover-card p-4">
+                            <h5 class="fw-bold">@inv.User.FullName</h5>
+                            <p class="text-muted small mb-3">Capacity: @inv.InvestmentCapacity</p>
+                            <a asp-controller="Profile" asp-action="Detail" asp-route-id="@inv.UserId" class="btn btn-primary-sc rounded-pill mt-auto">View Investor</a>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <!-- Ideas to Invest In Tab -->
+        <div class="tab-pane fade" id="ideas" role="tabpanel">
+            <div class="row g-4">
+                @foreach (var idea in ideas)
+                {
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card h-100 shadow-sm border-0 sc-hover-card p-4">
+                            <h5 class="fw-bold">@idea.Title</h5>
+                            <p class="text-muted small">By: @idea.Submitter.FullName</p>
+                            <p class="mb-3">Requires: ₹@idea.MinimumFundRequired.ToString("N0")</p>
+                            @if (investorPitches.TryGetValue(idea.Id, out var pitch))
+                            {
+                                <div class="mb-3 px-3 py-2 rounded-3" style="background:rgba(var(--bs-success-rgb),.07);border-left:3px solid var(--bs-success)">
+                                    <small class="text-muted fst-italic"><i class="bi bi-robot me-1 text-success"></i>@pitch</small>
+                                </div>
+                            }
+                            <a asp-controller="Ideas" asp-action="Detail" asp-route-id="@idea.Id" class="btn btn-primary-sc rounded-pill mt-auto">View Idea</a>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@Html.AntiForgeryToken()
+
+@section Scripts {
+    <script>
+        function connectUser(userId, button) {
+            button.disabled = true;
+            const originalContent = button.innerHTML;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...';
+
+            // We need AntiForgeryToken for POST
+            const tokenElement = document.querySelector('input[name="__RequestVerificationToken"]');
+            const token = tokenElement ? tokenElement.value : '';
+
+            fetch('/Matches/Connect', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': token
+                },
+                body: new URLSearchParams({
+                    'targetUserId': userId
+                })
+            })
+            .then(response => {
+                if(response.ok) {
+                    button.classList.remove('btn-primary-sc');
+                    button.classList.add('btn-success');
+                    button.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Sent';
+                } else {
+                    response.text().then(text => {
+                        alert('Failed to send request: ' + text);
+                        button.disabled = false;
+                        button.innerHTML = originalContent;
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+                button.disabled = false;
+                button.innerHTML = originalContent;
+            });
+        }
+    </script>
+}

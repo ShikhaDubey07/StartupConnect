@@ -1,0 +1,200 @@
+@model List<StartupConnect.ViewModels.IdeaMatchViewModel>
+@{
+    ViewData["Title"] = "Idea Matches";
+}
+
+<section class="sc-page-header">
+    <div class="container d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h1>Idea Matches</h1>
+            <p class="opacity-75 mb-0">Discover similar ideas and potential collaborators based on your submitted ideas</p>
+        </div>
+        <a asp-action="Submit" class="btn btn-accent"><i class="bi bi-plus-lg me-2"></i>New Idea</a>
+    </div>
+</section>
+
+<div class="container pb-5 mt-4">
+    @if (Model.Any())
+    {
+        @foreach (var entry in Model)
+        {
+            <div class="card shadow-sm border-0 mb-5 rounded-4 overflow-hidden">
+                <div class="card-header bg-primary text-black border-0 py-3 px-4">
+                    <h5 class="fw-bold mb-1">
+                        <i class="bi bi-lightbulb-fill text-warning me-2"></i> Your Idea: @entry.MyIdea.Title
+                    </h5>
+                    <div class="small opacity-75 d-flex gap-3">
+                        <span><i class="bi bi-tag"></i> @entry.MyIdea.Category?.Name</span>
+                        <span><i class="bi bi-bullseye"></i> @entry.MyIdea.TargetMarket</span>
+                    </div>
+                </div>
+                <div class="card-body p-4 bg-white">
+                    <h6 class="text-muted fw-bold mb-4">We found @entry.Matches.Count similar ideas:</h6>
+                    <div class="row g-4">
+                        @foreach (var match in entry.Matches)
+                        {
+                            <div class="col-md-6 col-lg-6">
+                                <div class="card h-100 shadow-sm border-0 sc-hover-card">
+                                    <div class="card-body p-4 d-flex flex-column">
+                                        
+                                        <div class="d-flex justify-content-between align-items-start mb-3 border-bottom pb-3">
+                                            <div>
+                                                <span class="text-muted small fw-semibold text-uppercase tracking-wider">Matched With</span>
+                                                <div class="d-flex align-items-center mt-1 gap-2">
+                                                    <div class="sc-avatar bg-accent text-black rounded-circle d-flex align-items-center justify-content-center fs-6 fw-bold" style="width: 32px; height: 32px;">
+                                                        @(match.SubmitterName.FirstOrDefault().ToString().ToUpper())
+                                                    </div>
+                                                    <h6 class="mb-0 fw-bold">@match.SubmitterName</h6>
+                                                </div>
+                                            </div>
+                                            <div class="text-end">
+                                                <span class="badge bg-success fs-6 py-2 px-3 rounded-pill shadow-sm">
+                                                    @(Math.Round(match.MatchScore))% Match
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        <h5 class="card-title fw-bold text-dark mb-1">@match.Idea.Title</h5>
+                                        <div class="mb-3 d-flex gap-2 flex-wrap">
+                                            <span class="badge bg-white text-primary border"><i class="bi bi-tag me-1"></i> @match.CategoryName</span>
+                                            @if (match.Idea.MinimumFundRequired > 0)
+                                            {
+                                                <span class="badge bg-white text-success border"><i class="bi bi-cash me-1"></i> ₹@match.Idea.MinimumFundRequired.ToString("N0")</span>
+                                            }
+                                        </div>
+
+                                        <p class="card-text text-muted small mb-4">@match.Idea.Tagline</p>
+
+                                        <div class="bg-white p-3 rounded-3 mb-4 flex-grow-1">
+                                            <h6 class="fw-bold fs-7 text-muted mb-2"><i class="bi bi-lightning-charge me-1"></i> Why it matched:</h6>
+                                            <ul class="list-unstyled small mb-0 d-flex flex-column gap-1">
+                                                @if (match.SameCategory)
+                                                {
+                                                    <li class="text-success"><i class="bi bi-check-circle me-1"></i> Same category (@match.CategoryName)</li>
+                                                }
+                                                @if (match.SameTargetMarket)
+                                                {
+                                                    <li class="text-success"><i class="bi bi-check-circle me-1"></i> Similar target audience</li>
+                                                }
+                                                @if (match.CommonKeywords.Any())
+                                                {
+                                                    <li class="text-secondary"><i class="bi bi-hash me-1"></i> Shared topics: 
+                                                        @foreach(var kw in match.CommonKeywords)
+                                                        {
+                                                            <span class="badge bg-secondary-subtle text-secondary me-1">@kw</span>
+                                                        }
+                                                    </li>
+                                                }
+                                            </ul>
+                                        </div>
+
+                                        <div class="d-flex gap-2 mt-auto pt-3 border-top">
+                                            <a asp-controller="Ideas" asp-action="Detail" asp-route-id="@match.Idea.Id" class="btn btn-outline-primary rounded-pill flex-grow-1 btn-sm">
+                                                <i class="bi bi-lightbulb me-1"></i> View Idea
+                                            </a>
+                                            <a asp-controller="Profile" asp-action="Detail" asp-route-id="@match.SubmitterId" class="btn btn-outline-secondary rounded-pill flex-grow-1 btn-sm">
+                                                <i class="bi bi-person me-1"></i> Profile
+                                            </a>
+                                            <button type="button" class="btn btn-primary-sc rounded-pill flex-grow-1 btn-sm" data-bs-toggle="modal" data-bs-target="#collabModal-@match.Idea.Id">
+                                                <i class="bi bi-chat-text me-1"></i> Collaborate
+                                            </button>
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Collab Modal for this Match -->
+                            <div class="modal fade" id="collabModal-@match.Idea.Id" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content rounded-4 border-0 shadow-lg">
+                                        <div class="modal-header border-0 pb-0">
+                                            <h5 class="modal-title fw-bold">Connect with @match.SubmitterName</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p class="text-muted small">Send a message to express your interest in collaborating on <strong>@match.Idea.Title</strong>, since your idea <strong>@entry.MyIdea.Title</strong> shares similarities.</p>
+                                            <form asp-controller="Ideas" asp-action="Collaborate" method="post" class="collab-form">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="IdeaId" value="@match.Idea.Id" />
+                                                <input type="hidden" name="MyIdeaId" value="@entry.MyIdea.Id" />
+                                                <div class="mb-3">
+                                                    <label class="form-label fw-bold small">Message</label>
+                                                    <textarea name="Message" class="form-control" rows="4" placeholder="Hi @match.SubmitterName, I noticed our ideas are very similar. Would you be open to collaborating?"></textarea>
+                                                </div>
+                                                <button type="submit" class="btn btn-accent w-100 rounded-pill">Send Request</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="text-center py-5">
+            <i class="bi bi-search fs-1 text-muted d-block mb-3"></i>
+            <h5>No matches found yet</h5>
+            <p class="text-muted mb-4">We couldn't find any similar ideas at the moment, or you haven't submitted any approved ideas yet.</p>
+            <a asp-action="Submit" class="btn btn-accent btn-lg">Submit a New Idea</a>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const forms = document.querySelectorAll('.collab-form');
+            forms.forEach(form => {
+                form.addEventListener('submit', async function (e) {
+                    e.preventDefault();
+                    const btn = form.querySelector('button[type="submit"]');
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Sending...';
+                    btn.disabled = true;
+
+                    try {
+                        const formData = new FormData(form);
+                        const response = await fetch(form.action, {
+                            method: 'POST',
+                            body: formData
+                        });
+                        const data = await response.json();
+                        
+                        if (data.success) {
+                            btn.innerHTML = '<i class="bi bi-check-lg me-1"></i> Sent!';
+                            btn.classList.remove('btn-accent');
+                            btn.classList.add('btn-success');
+                            
+                            // Optionally hide modal after a delay
+                            setTimeout(() => {
+                                const modalEl = form.closest('.modal');
+                                const modal = bootstrap.Modal.getInstance(modalEl);
+                                if (modal) modal.hide();
+                                
+                                // Reset button state
+                                btn.innerHTML = originalText;
+                                btn.disabled = false;
+                                btn.classList.remove('btn-success');
+                                btn.classList.add('btn-accent');
+                                form.reset();
+                            }, 2000);
+                        } else {
+                            alert(data.message || 'Failed to send request.');
+                            btn.innerHTML = originalText;
+                            btn.disabled = false;
+                        }
+                    } catch (error) {
+                        alert('A network error occurred while sending the request.');
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }
+                });
+            });
+        });
+    </script>
+}

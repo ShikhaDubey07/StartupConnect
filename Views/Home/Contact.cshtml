@@ -1,0 +1,70 @@
+@model ContactViewModel
+@{
+    ViewData["Title"] = "Contact Us";
+}
+
+<section class="sc-page-header">
+    <div class="container text-center">
+        <h1>Contact Us</h1>
+        <p class="opacity-75 mb-0">We'd love to hear from you</p>
+    </div>
+</section>
+
+<div class="container pb-5">
+    <div class="row g-4 justify-content-center">
+        <div class="col-lg-4">
+            <div class="sc-form-card h-100">
+                <h5 class="fw-bold mb-4">Get in Touch</h5>
+                <div class="d-flex gap-3 mb-3">
+                    <div class="sc-problem-icon blue" style="width:40px;height:40px;font-size:1rem;flex-shrink:0"><i class="bi bi-envelope"></i></div>
+                    <div><strong>Email</strong><br><span class="text-muted">support@startupconnect.in</span></div>
+                </div>
+                <div class="d-flex gap-3 mb-3">
+                    <div class="sc-problem-icon green" style="width:40px;height:40px;font-size:1rem;flex-shrink:0"><i class="bi bi-geo-alt"></i></div>
+                    <div><strong>Location</strong><br><span class="text-muted">India 🇮🇳</span></div>
+                </div>
+                <div class="d-flex gap-3">
+                    <div class="sc-problem-icon orange" style="width:40px;height:40px;font-size:1rem;flex-shrink:0"><i class="bi bi-clock"></i></div>
+                    <div><strong>Response Time</strong><br><span class="text-muted">Within 24-48 hours</span></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-7">
+            <div class="sc-form-card">
+                <form asp-action="Contact" method="post">
+                    @Html.AntiForgeryToken()
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label asp-for="Name" class="form-label fw-semibold"></label>
+                            <input asp-for="Name" class="form-control" />
+                            <span asp-validation-for="Name" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Email" class="form-label fw-semibold"></label>
+                            <input asp-for="Email" class="form-control" />
+                            <span asp-validation-for="Email" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Subject" class="form-label fw-semibold"></label>
+                            <input asp-for="Subject" class="form-control" />
+                            <span asp-validation-for="Subject" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Message" class="form-label fw-semibold"></label>
+                            <textarea asp-for="Message" class="form-control" rows="5"></textarea>
+                            <span asp-validation-for="Message" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-accent btn-lg"><i class="bi bi-send me-2"></i>Send Message</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

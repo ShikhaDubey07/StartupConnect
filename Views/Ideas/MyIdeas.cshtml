@@ -1,0 +1,74 @@
+@model List<StartupConnect.ViewModels.IdeaCardViewModel>
+@{
+    ViewData["Title"] = "My Ideas";
+    var statuses = ViewBag.IdeaStatuses as Dictionary<int, (StartupConnect.Models.IdeaStatus Status, string? RejectionReason)>;
+}
+
+<section class="sc-page-header">
+    <div class="container d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h1>My Ideas</h1>
+            <p class="opacity-75 mb-0">Track your submitted startup ideas</p>
+        </div>
+        <a asp-action="Submit" class="btn btn-accent"><i class="bi bi-plus-lg me-2"></i>New Idea</a>
+    </div>
+</section>
+
+<div class="container pb-5">
+    @if (Model.Any())
+    {
+        <div class="row g-4">
+            @foreach (var idea in Model)
+            {
+                <div class="col-md-6 col-lg-4">
+                    <div class="sc-idea-card">
+                        <div class="sc-idea-card-header">
+                            <span class="sc-idea-category"><i class="bi @idea.CategoryIcon"></i> @idea.CategoryName</span>
+                            <h5 class="mt-2 mb-0 text-black">@idea.Title</h5>
+                        </div>
+                        <div class="sc-idea-card-body">
+                            <p class="text-muted small">@idea.Tagline</p>
+                            @{
+                                var status = statuses != null && statuses.ContainsKey(idea.Id) ? statuses[idea.Id].Status : StartupConnect.Models.IdeaStatus.Draft;
+                                var rejectionReason = statuses != null && statuses.ContainsKey(idea.Id) ? statuses[idea.Id].RejectionReason : null;
+                            }
+                            <span class="badge badge-@status.ToString().ToLower() mb-2">@status</span>
+                            @if (status == StartupConnect.Models.IdeaStatus.Rejected && !string.IsNullOrEmpty(rejectionReason))
+                            {
+                                <div class="alert alert-danger small py-2">@rejectionReason</div>
+                            }
+                            <div class="sc-idea-meta">
+                                <span><i class="bi bi-cash"></i> ₹@idea.MinimumFundRequired.ToString("N0")</span>
+                                <span><i class="bi bi-people"></i> @idea.InterestCount interested</span>
+                            </div>
+                            @if (status == StartupConnect.Models.IdeaStatus.Approved)
+                            {
+                                <div class="d-grid gap-2 mt-3">
+                                    <a asp-action="Detail" asp-route-id="@idea.Id" class="btn btn-primary-sc btn-sm">View Public Page</a>
+                                    <a asp-action="Submit" asp-route-id="@idea.Id" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil me-1"></i>Edit</a>
+                                    <a asp-action="Analytics" asp-route-id="@idea.Id" class="btn btn-outline-primary btn-sm"><i class="bi bi-graph-up me-1"></i>Analytics</a>
+                                    <a asp-action="AiAnalysis" asp-route-id="@idea.Id" class="btn btn-outline-accent btn-sm">🤖 AI Idea Analysis</a>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="d-grid gap-2 mt-3">
+                                    <a asp-action="Submit" asp-route-id="@idea.Id" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil me-1"></i>Edit</a>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="text-center py-5">
+            <i class="bi bi-lightbulb fs-1 text-muted d-block mb-3"></i>
+            <h5>No ideas submitted yet</h5>
+            <p class="text-muted mb-4">Share your startup vision with the community</p>
+            <a asp-action="Submit" class="btn btn-accent btn-lg">Submit Your First Idea</a>
+        </div>
+    }
+</div>

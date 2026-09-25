@@ -1,0 +1,39 @@
+@model IEnumerable<StartupConnect.Models.StartupChallenge>
+@{
+    ViewData["Title"] = "Startup Challenges";
+}
+
+<div class="container py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold">Active Startup Challenges</h2>
+        <span class="badge bg-success">@Model.Count() Active</span>
+    </div>
+    
+    <div class="row g-4">
+        @foreach(var challenge in Model)
+        {
+            <div class="col-md-6 col-lg-4">
+                <div class="card h-100 sc-idea-card">
+                    <div class="card-body">
+                        <h4 class="card-title text-primary fw-bold">@challenge.Title</h4>
+                        <p class="card-text text-muted">@challenge.Description</p>
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <div>
+                                <small class="d-block text-muted">Prize Pool</small>
+                                <strong class="text-success">@challenge.Prize</strong>
+                            </div>
+                            <div>
+                                <small class="d-block text-muted">Deadline</small>
+                                <strong>@challenge.Deadline.ToString("MMM dd, yyyy")</strong>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-transparent border-top-0 pt-0">
+                        <a asp-action="Details" asp-route-id="@challenge.Id" class="btn btn-primary w-100">View Challenge</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>

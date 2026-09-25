@@ -1,0 +1,87 @@
+@model List<StartupConnect.ViewModels.IdeaCardViewModel>
+@{
+    ViewData["Title"] = "Saved Ideas";
+}
+
+<div class="container py-5 mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1"><i class="bi bi-bookmark-fill text-primary me-2"></i>Saved Ideas</h2>
+            <p class="text-muted mb-0">Ideas you've bookmarked for later</p>
+        </div>
+        <a asp-action="Browse" class="btn btn-outline-primary rounded-pill px-4">Browse More</a>
+    </div>
+
+    @if (Model.Any())
+    {
+        <div class="row g-4">
+            @foreach (var idea in Model)
+            {
+                <div class="col-md-6 col-lg-4" id="idea-card-@idea.Id">
+                    <div class="card h-100 shadow-sm border-0 rounded-4 hover-lift">
+                        <div class="card-body p-4 position-relative">
+                            
+                            <!-- Save Button -->
+                            <form asp-action="ToggleSave" asp-route-id="@idea.Id" method="post" class="position-absolute top-0 end-0 mt-3 me-3 toggle-save-form">
+                                <button type="submit" class="btn btn-dark rounded-circle shadow-sm btn-sm save-btn" data-id="@idea.Id">
+                                    <i class="bi @(idea.IsSavedByCurrentUser ? "bi-bookmark-fill text-primary" : "bi-bookmark") fs-5"></i>
+                                </button>
+                            </form>
+                            
+                            <div class="d-flex align-items-center gap-3 mb-3">
+                                <div class="bg-white p-3 rounded-3 text-primary">
+                                    <i class="bi @idea.CategoryIcon fs-4"></i>
+                                </div>
+                                <div>
+                                    <span class="badge bg-primary bg-opacity-10 text-primary mb-1">@idea.CategoryName</span>
+                                    <h5 class="card-title fw-bold mb-0 text-truncate" style="max-width: 200px;">@idea.Title</h5>
+                                </div>
+                            </div>
+                            
+                            <p class="card-text text-muted small mb-4" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+                                @idea.Tagline
+                            </p>
+                            
+                            <div class="d-flex justify-content-between text-muted small mb-4">
+                                <div>
+                                    <i class="bi bi-currency-rupee"></i> @idea.MinimumFundRequired.ToString("N0")
+                                </div>
+                                <div>
+                                    <i class="bi bi-people"></i> Team: @idea.ExpectedTeamSize
+                                </div>
+                            </div>
+                            
+                            <div class="d-flex flex-wrap gap-1 mb-4">
+                                @foreach (var role in idea.RolesNeeded.Take(3))
+                                {
+                                    <span class="badge bg-white text-dark border">@role</span>
+                                }
+                                @if (idea.RolesNeeded.Count > 3)
+                                {
+                                    <span class="badge bg-white text-dark border">+@(idea.RolesNeeded.Count - 3)</span>
+                                }
+                            </div>
+                            
+                            <div class="d-flex justify-content-between align-items-center mt-auto">
+                                <div class="d-flex gap-3 text-muted small">
+                                    <span><i class="bi bi-briefcase"></i> @idea.InterestCount</span>
+                                    <span><i class="bi bi-heart"></i> @idea.LikesCount</span>
+                                </div>
+                                <a asp-action="Detail" asp-route-id="@idea.Id" class="btn btn-outline-primary btn-sm rounded-pill px-3">View</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="text-center py-5 bg-white rounded-4 border mt-4">
+            <i class="bi bi-bookmark-dash fs-1 text-muted mb-3 d-block"></i>
+            <h4 class="fw-bold">No saved ideas yet</h4>
+            <p class="text-muted mb-4">When you find an interesting idea, click the bookmark icon to save it here.</p>
+            <a asp-action="Browse" class="btn btn-primary rounded-pill px-4 py-2">Explore Ideas</a>
+        </div>
+    }
+</div>

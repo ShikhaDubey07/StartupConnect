@@ -1,0 +1,216 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
+using StartupConnect.Data;
+using StartupConnect.Models;
+using StartupConnect.Services;
+using StartupConnect.ViewModels;
+using System.Security.Claims;
+using Microsoft.EntityFrameworkCore;
+
+namespace StartupConnect.Controllers;
+
+[Authorize]
+public class SettingsController : Controller
+{
+    private readonly IProfileService _profileService;
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly SignInManager<ApplicationUser> _signInManager;
+    private readonly ApplicationDbContext _context;
+
+    public SettingsController(IProfileService profileService, UserManager<ApplicationUser> userManager, SignInManager<ApplicationUser> signInManager, ApplicationDbContext context)
+    {
+        _profileService = profileService;
+        _userManager = userManager;
+        _signInManager = signInManager;
+        _context = context;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Index(string tab = "profile")
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var vm = await _profileService.GetSettingsAsync(userId);
+        vm.ActiveTab = tab;
+        
+        // Populate viewbag for profile dropdowns
+        ViewBag.Categories = await _context.Categories.Where(c => c.IsActive).ToListAsync();
+        ViewBag.Skills = ProfileViewModel.AvailableSkills;
+        
+        return View(vm);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateProfile(SettingsIndexViewModel model)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        
+        // We only validate the Profile part
+        ModelState.Clear();
+        if (TryValidateModel(model.Profile))
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user != null)
+            {
+                user.FullName = model.Profile.FullName;
+                await _userManager.UpdateAsync(user);
+
+                // Map ProfileSettingsViewModel to ProfileViewModel to use existing method
+                var pvm = new ProfileViewModel
+                {
+                    City = model.Profile.City,
+                    State = model.Profile.State,
+                    Age = model.Profile.Age,
+                    Bio = model.Profile.Bio,
+                    TimeAvailability = model.Profile.TimeAvailability,
+                    HoursPerWeek = model.Profile.HoursPerWeek,
+                    InvestmentCapacity = model.Profile.InvestmentCapacity,
+                    LinkedInUrl = model.Profile.LinkedInUrl,
+                    PortfolioUrl = model.Profile.PortfolioUrl,
+                    IsInvestor = model.Profile.IsInvestor,
+                    SelectedCategoryIds = Request.Form["Profile.SelectedCategoryIds"].Select(s => int.TryParse(s, out var i) ? i : 0).Where(i => i > 0).ToList(),
+                    SelectedSkills = Request.Form["Profile.SelectedSkills"].Where(s => !string.IsNullOrEmpty(s)).Select(s => s!).ToList()
+                };
+
+                await _profileService.UpdateProfileAsync(userId, pvm);
+                TempData["Success"] = "Profile information updated successfully.";
+                return RedirectToAction(nameof(Index), new { tab = "profile" });
+            }
+        }
+        
+        var fullModel = await _profileService.GetSettingsAsync(userId);
+        fullModel.ActiveTab = "profile";
+        fullModel.Profile = model.Profile; // Keep the submitted invalid data
+        
+        ViewBag.Categories = await _context.Categories.Where(c => c.IsActive).ToListAsync();
+        ViewBag.Skills = ProfileViewModel.AvailableSkills;
+        TempData["Error"] = "Failed to update profile. Please check the form for errors.";
+        return View("Index", fullModel);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateSecurity(SettingsIndexViewModel model)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        
+        ModelState.Clear();
+        if (TryValidateModel(model.Security))
+        {
+            var user = await _userManager.FindByIdAsync(userId);
+            if (user != null)
+            {
+                var result = await _userManager.ChangePasswordAsync(user, model.Security.CurrentPassword, model.Security.NewPassword);
+                if (result.Succeeded)
+                {
+                    await _signInManager.RefreshSignInAsync(user);
+                    TempData["Success"] = "Password changed successfully.";
+                    return RedirectToAction(nameof(Index), new { tab = "security" });
+                }
+                foreach (var error in result.Errors)
+                {
+                    ModelState.AddModelError("Security.CurrentPassword", error.Description);
+                }
+            }
+        }
+
+        var fullModel = await _profileService.GetSettingsAsync(userId);
+        fullModel.ActiveTab = "security";
+        fullModel.Security = model.Security; // Keep the submitted invalid data
+        
+        ViewBag.Categories = await _context.Categories.Where(c => c.IsActive).ToListAsync();
+        ViewBag.Skills = ProfileViewModel.AvailableSkills;
+        TempData["Error"] = "Failed to change password. Please check the form for errors.";
+        return View("Index", fullModel);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateNotifications(SettingsIndexViewModel model)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        
+        ModelState.Clear();
+        if (TryValidateModel(model.Notifications))
+        {
+            await _profileService.UpdateNotificationSettingsAsync(userId, model.Notifications);
+            TempData["Success"] = "Notification preferences updated successfully.";
+            return RedirectToAction(nameof(Index), new { tab = "notifications" });
+        }
+
+        var fullModel = await _profileService.GetSettingsAsync(userId);
+        fullModel.ActiveTab = "notifications";
+        fullModel.Notifications = model.Notifications; // Keep the submitted invalid data
+        
+        ViewBag.Categories = await _context.Categories.Where(c => c.IsActive).ToListAsync();
+        ViewBag.Skills = ProfileViewModel.AvailableSkills;
+        TempData["Error"] = "Failed to update notifications.";
+        return View("Index", fullModel);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdatePrivacy(SettingsIndexViewModel model)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        
+        ModelState.Clear();
+        if (TryValidateModel(model.Privacy))
+        {
+            await _profileService.UpdatePrivacySettingsAsync(userId, model.Privacy);
+            TempData["Success"] = "Privacy settings updated successfully.";
+            return RedirectToAction(nameof(Index), new { tab = "privacy" });
+        }
+
+        var fullModel = await _profileService.GetSettingsAsync(userId);
+        fullModel.ActiveTab = "privacy";
+        fullModel.Privacy = model.Privacy; // Keep the submitted invalid data
+        
+        ViewBag.Categories = await _context.Categories.Where(c => c.IsActive).ToListAsync();
+        ViewBag.Skills = ProfileViewModel.AvailableSkills;
+        TempData["Error"] = "Failed to update privacy settings.";
+        return View("Index", fullModel);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> UpdateAccount(SettingsIndexViewModel model)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        
+        ModelState.Clear();
+        if (TryValidateModel(model.Account))
+        {
+            await _profileService.UpdateAccountSettingsAsync(userId, model.Account);
+            TempData["Success"] = "Account preferences updated successfully.";
+            return RedirectToAction(nameof(Index), new { tab = "account" });
+        }
+
+        var fullModel = await _profileService.GetSettingsAsync(userId);
+        fullModel.ActiveTab = "account";
+        fullModel.Account = model.Account; // Keep the submitted invalid data
+        
+        ViewBag.Categories = await _context.Categories.Where(c => c.IsActive).ToListAsync();
+        ViewBag.Skills = ProfileViewModel.AvailableSkills;
+        TempData["Error"] = "Failed to update account preferences.";
+        return View("Index", fullModel);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteAccount()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var user = await _userManager.FindByIdAsync(userId);
+        
+        if (user != null)
+        {
+            await _signInManager.SignOutAsync();
+            await _userManager.DeleteAsync(user);
+            return RedirectToAction("Index", "Home");
+        }
+        
+        return RedirectToAction(nameof(Index));
+    }
+}

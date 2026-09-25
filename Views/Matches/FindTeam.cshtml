@@ -1,0 +1,183 @@
+@model StartupConnect.ViewModels.FindTeamViewModel
+@using StartupConnect.Models
+
+@{
+    ViewData["Title"] = "Find Co-founder & Team";
+    var categories = ViewBag.Categories as List<Category> ?? new List<Category>();
+}
+
+<div class="container py-5 mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold"><i class="bi bi-search text-primary me-2"></i>Find Co-founder & Team</h2>
+    </div>
+
+    <div class="row">
+        <!-- Sidebar Filters -->
+        <div class="col-lg-3 mb-4">
+            <div class="card border-0 shadow-sm rounded-4 position-sticky" style="top: 100px;">
+                <div class="card-body p-4">
+                    <h5 class="fw-bold mb-4"><i class="bi bi-funnel me-2"></i>Filters</h5>
+                    
+                    <form method="get" asp-controller="Matches" asp-action="FindTeam">
+                        <!-- Role Filter -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-muted small">Role</label>
+                            <select asp-for="Role" class="form-select rounded-pill">
+                                <option value="">Any Role</option>
+                                <option value="Founder">Founder</option>
+                                <option value="Investor">Investor</option>
+                            </select>
+                        </div>
+
+                        <!-- Industry Filter -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-muted small">Industry / Interest</label>
+                            <select asp-for="IndustryId" class="form-select rounded-pill">
+                                <option value="">Any Industry</option>
+                                @foreach(var cat in categories)
+                                {
+                                    <option value="@cat.Id">@cat.Name</option>
+                                }
+                            </select>
+                        </div>
+
+                        <!-- Availability Filter -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-muted small">Availability</label>
+                            <select asp-for="Availability" class="form-select rounded-pill" asp-items="Html.GetEnumSelectList<TimeAvailability>()">
+                                <option value="">Any Availability</option>
+                            </select>
+                        </div>
+
+                        <!-- Skill Search -->
+                        <div class="mb-4">
+                            <label class="form-label fw-bold text-muted small">Skill Search</label>
+                            <div class="input-group">
+                                <span class="input-group-text bg-white border-end-0 rounded-start-pill"><i class="bi bi-search"></i></span>
+                                <input asp-for="Skill" class="form-control border-start-0 rounded-end-pill" placeholder="e.g. Marketing, React..." />
+                            </div>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary rounded-pill">Apply Filters</button>
+                            <a asp-action="FindTeam" class="btn btn-dark rounded-pill">Clear</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content (Results) -->
+        <div class="col-lg-9">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <span class="text-muted">Showing @Model.Matches.Count matching profile(s)</span>
+            </div>
+
+            @if (Model.Matches.Any())
+            {
+                <div class="row g-4">
+                    @foreach (var match in Model.Matches)
+                    {
+                        <div class="col-md-6 col-xl-4">
+                            <div class="card h-100 shadow-sm border-0 sc-hover-card text-center p-4">
+                                <div class="sc-avatar bg-accent text-black rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3 fs-3 shadow-sm" style="width:80px;height:80px">
+                                    @(match.Profile.User.FullName.FirstOrDefault().ToString().ToUpper())
+                                </div>
+                                <h5 class="fw-bold mb-1">@match.Profile.User.FullName</h5>
+                                <div class="text-muted small mb-2 fw-semibold">
+                                    @(match.Profile.IsInvestor ? "Investor" : "Founder")
+                                </div>
+                                <p class="text-muted small mb-2"><i class="bi bi-geo-alt"></i> @(string.IsNullOrEmpty(match.Profile.User.City) ? "Unknown Location" : $"{match.Profile.User.City}, {match.Profile.User.State}")</p>
+                                
+                                <div class="badge bg-success-subtle text-success mb-3 fs-6 px-3 py-2 border border-success border-opacity-25 rounded-pill shadow-sm">
+                                    🔥 @match.MatchScore% Match
+                                </div>
+                                
+                                <div class="mb-3 text-start flex-grow-1">
+                                    <small class="text-muted d-block mb-1 fw-bold">Top Skills</small>
+                                    <div class="d-flex flex-wrap gap-1">
+                                        @if(match.Profile.Skills.Any())
+                                        {
+                                            @foreach (var skill in match.Profile.Skills.Take(3))
+                                            {
+                                                <span class="sc-role-tag">@skill.SkillName</span>
+                                            }
+                                            @if(match.Profile.Skills.Count > 3)
+                                            {
+                                                <span class="sc-role-tag bg-white text-muted">+@(match.Profile.Skills.Count - 3)</span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">No skills listed</span>
+                                        }
+                                    </div>
+                                </div>
+
+                                <div class="d-flex gap-2 mt-auto pt-3">
+                                    <a asp-controller="Profile" asp-action="Detail" asp-route-id="@match.Profile.UserId" class="btn btn-outline-primary rounded-pill flex-grow-1">View</a>
+                                    <button onclick="connectUser('@match.Profile.UserId', this)" class="btn btn-primary-sc rounded-pill flex-grow-1">
+                                        <i class="bi bi-person-plus-fill me-1"></i> Connect
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-light border text-center p-5 rounded-4 shadow-sm">
+                    <i class="bi bi-search fs-1 text-muted mb-3 d-block"></i>
+                    <h5 class="fw-bold">No profiles found</h5>
+                    <p class="text-muted mb-0">Try adjusting your filters to see more results.</p>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@Html.AntiForgeryToken()
+
+@section Scripts {
+    <script>
+        function connectUser(userId, button) {
+            button.disabled = true;
+            const originalContent = button.innerHTML;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>...';
+
+            const tokenElement = document.querySelector('input[name="__RequestVerificationToken"]');
+            const token = tokenElement ? tokenElement.value : '';
+
+            fetch('/Matches/Connect', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': token
+                },
+                body: new URLSearchParams({
+                    'targetUserId': userId
+                })
+            })
+            .then(response => {
+                if(response.ok) {
+                    button.classList.remove('btn-primary-sc');
+                    button.classList.add('btn-success');
+                    button.innerHTML = '<i class="bi bi-check-lg"></i> Sent';
+                } else {
+                    response.text().then(text => {
+                        alert('Failed: ' + text);
+                        button.disabled = false;
+                        button.innerHTML = originalContent;
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error occurred.');
+                button.disabled = false;
+                button.innerHTML = originalContent;
+            });
+        }
+    </script>
+}

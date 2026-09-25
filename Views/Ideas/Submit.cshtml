@@ -1,0 +1,136 @@
+@model IdeaSubmitViewModel
+@{
+    ViewData["Title"] = "Submit Idea";
+    var categories = ViewBag.Categories as List<StartupConnect.Models.Category>;
+}
+
+<section class="sc-page-header">
+    <div class="container">
+        <h1>@(Model.Id.HasValue ? "Edit Your Startup Idea" : "Submit Your Startup Idea")</h1>
+        <p class="opacity-75 mb-0">Our expert panel will review and publish verified ideas</p>
+    </div>
+</section>
+
+<div class="container pb-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-9">
+            <div class="sc-form-card">
+                <form asp-action="Submit" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" asp-for="Id" />
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label asp-for="Title" class="form-label fw-semibold"></label>
+                            <input asp-for="Title" class="form-control" placeholder="Give your startup a catchy name" />
+                            <span asp-validation-for="Title" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Tagline" class="form-label fw-semibold"></label>
+                            <input asp-for="Tagline" class="form-control" placeholder="One-line description of your idea" />
+                            <span asp-validation-for="Tagline" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="CategoryId" class="form-label fw-semibold"></label>
+                            <select asp-for="CategoryId" class="form-select" id="CategoryId" onchange="toggleCustomCategory()">
+                                <option value="">Select Category</option>
+                                @if (categories != null)
+                                {
+                                    foreach (var c in categories)
+                                    {
+                                        <option value="@c.Id">@c.Name</option>
+                                    }
+                                }
+                                <option value="0">Other</option>
+                            </select>
+                            <span asp-validation-for="CategoryId" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6" id="customCategoryContainer" style="display: @(Model.CategoryId == 0 ? "block" : "none");">
+                            <label asp-for="CustomCategory" class="form-label fw-semibold"></label>
+                            <input asp-for="CustomCategory" class="form-control" placeholder="Enter custom category" id="CustomCategory" />
+                            <span asp-validation-for="CustomCategory" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-3">
+                            <label asp-for="MinimumFundRequired" class="form-label fw-semibold"></label>
+                            <input asp-for="MinimumFundRequired" class="form-control" type="number" min="1000" step="1000" />
+                            <span asp-validation-for="MinimumFundRequired" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-3">
+                            <label asp-for="ExpectedTeamSize" class="form-label fw-semibold"></label>
+                            <input asp-for="ExpectedTeamSize" class="form-control" type="number" min="2" max="6000" />
+                            <span asp-validation-for="ExpectedTeamSize" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <label asp-for="Description" class="form-label fw-semibold"></label>
+                            <textarea asp-for="Description" class="form-control" rows="4" placeholder="Detailed description of your startup idea"></textarea>
+                            <span asp-validation-for="Description" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="ProblemStatement" class="form-label fw-semibold"></label>
+                            <textarea asp-for="ProblemStatement" class="form-control" rows="3"></textarea>
+                            <span asp-validation-for="ProblemStatement" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="Solution" class="form-label fw-semibold"></label>
+                            <textarea asp-for="Solution" class="form-control" rows="3"></textarea>
+                            <span asp-validation-for="Solution" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="TargetMarket" class="form-label fw-semibold"></label>
+                            <input asp-for="TargetMarket" class="form-control" />
+                            <span asp-validation-for="TargetMarket" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="BusinessModel" class="form-label fw-semibold"></label>
+                            <input asp-for="BusinessModel" class="form-control" />
+                            <span asp-validation-for="BusinessModel" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-semibold">Roles Needed</label>
+                            <div class="d-flex flex-wrap gap-2">
+                                @foreach (var role in ProfileViewModel.AvailableSkills)
+                                {
+                                    <label class="sc-checkbox-card border rounded px-3 py-2" style="cursor:pointer">
+                                        <input type="checkbox" name="RolesNeeded" value="@role"
+                                               @(Model.RolesNeeded.Contains(role) ? "checked" : "") class="form-check-input me-1" />
+                                        @role
+                                    </label>
+                                }
+                            </div>
+                            <span asp-validation-for="RolesNeeded" class="text-danger small"></span>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-check">
+                                <input asp-for="AcceptTerms" class="form-check-input" />
+                                <label asp-for="AcceptTerms" class="form-check-label">I agree that my idea will be reviewed by the expert panel before publishing</label>
+                                <span asp-validation-for="AcceptTerms" class="text-danger small d-block"></span>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-accent btn-lg">
+                                <i class="bi bi-send me-2"></i>@(Model.Id.HasValue ? "Save Changes" : "Submit for Review")
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        function toggleCustomCategory() {
+            var catId = document.getElementById('CategoryId').value;
+            var customCatContainer = document.getElementById('customCategoryContainer');
+            if (catId === "0") {
+                customCatContainer.style.display = 'block';
+            } else {
+                customCatContainer.style.display = 'none';
+                document.getElementById('CustomCategory').value = '';
+            }
+        }
+    </script>
+}

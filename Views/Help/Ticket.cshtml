@@ -1,0 +1,120 @@
+@model StartupConnect.ViewModels.TicketDetailViewModel
+@using StartupConnect.Models
+
+@{
+    ViewData["Title"] = "Ticket #" + Model.Ticket.Id;
+}
+
+<div class="container py-5 mt-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="d-flex align-items-center mb-4">
+                <a asp-action="Index" class="btn btn-dark rounded-circle me-3" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;"><i class="bi bi-arrow-left"></i></a>
+                <div>
+                    <h4 class="fw-bold mb-1">@Model.Ticket.Subject</h4>
+                    <div class="text-muted small">
+                        Ticket #@Model.Ticket.Id • Submitted on @Model.Ticket.CreatedAt.ToString("MMM dd, yyyy HH:mm")
+                    </div>
+                </div>
+                <div class="ms-auto">
+                    @if (Model.Ticket.Status == TicketStatus.Open)
+                    {
+                        <span class="badge bg-warning text-dark px-3 py-2 rounded-pill"><i class="bi bi-envelope me-1"></i> Open</span>
+                    }
+                    else if (Model.Ticket.Status == TicketStatus.InProgress)
+                    {
+                        <span class="badge bg-info text-dark px-3 py-2 rounded-pill"><i class="bi bi-arrow-repeat me-1"></i> In Progress</span>
+                    }
+                    else if (Model.Ticket.Status == TicketStatus.Resolved)
+                    {
+                        <span class="badge bg-success px-3 py-2 rounded-pill"><i class="bi bi-check-circle me-1"></i> Resolved</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary px-3 py-2 rounded-pill"><i class="bi bi-x-circle me-1"></i> Closed</span>
+                    }
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm rounded-4 mb-4">
+                <div class="card-body p-4 p-lg-5">
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="rounded-circle bg-primary text-black d-flex align-items-center justify-content-center fw-bold me-3" style="width: 45px; height: 45px; font-size: 18px;">
+                            You
+                        </div>
+                        <div>
+                            <div class="fw-bold">@User.Identity?.Name</div>
+                            <div class="text-muted small">@Model.Ticket.CreatedAt.ToString("MMM dd, yyyy HH:mm")</div>
+                        </div>
+                        <div class="ms-auto">
+                            <span class="badge bg-white text-secondary border px-2 py-1">Original Message</span>
+                        </div>
+                    </div>
+                    <div class="bg-white p-4 rounded-4 text-dark" style="white-space: pre-wrap;">@Model.Ticket.Description</div>
+                </div>
+            </div>
+
+            @foreach (var message in Model.Messages)
+            {
+                bool isMe = message.UserId == Model.Ticket.UserId;
+                <div class="card border-0 shadow-sm rounded-4 mb-4 @(isMe ? "" : "border-start border-primary border-4")">
+                    <div class="card-body p-4 p-lg-5">
+                        <div class="d-flex align-items-center mb-3">
+                            @if (isMe)
+                            {
+                                <div class="rounded-circle bg-primary text-black d-flex align-items-center justify-content-center fw-bold me-3" style="width: 45px; height: 45px; font-size: 18px;">
+                                    You
+                                </div>
+                                <div>
+                                    <div class="fw-bold">@User.Identity?.Name</div>
+                                    <div class="text-muted small">@message.CreatedAt.ToString("MMM dd, yyyy HH:mm")</div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="rounded-circle bg-accent text-black d-flex align-items-center justify-content-center fw-bold me-3" style="width: 45px; height: 45px; font-size: 18px;">
+                                    <i class="bi bi-headset"></i>
+                                </div>
+                                <div>
+                                    <div class="fw-bold text-accent">Support Team</div>
+                                    <div class="text-muted small">@message.CreatedAt.ToString("MMM dd, yyyy HH:mm")</div>
+                                </div>
+                            }
+                        </div>
+                        <div class="@(isMe ? "bg-white text-dark" : "bg-primary bg-opacity-10 text-dark") p-4 rounded-4" style="white-space: pre-wrap;">@message.Message</div>
+                    </div>
+                </div>
+            }
+
+            @if (Model.Ticket.Status != TicketStatus.Closed)
+            {
+                <div class="card border-0 shadow-sm rounded-4 mt-5">
+                    <div class="card-body p-4 p-lg-5">
+                        <h5 class="fw-bold mb-3">Add a Reply</h5>
+                        <form asp-action="Reply" method="post">
+                            <input type="hidden" name="ticketId" value="@Model.Ticket.Id" />
+                            <div class="mb-3">
+                                <textarea asp-for="NewMessage" class="form-control" rows="4" placeholder="Type your message here..."></textarea>
+                                <span asp-validation-for="NewMessage" class="text-danger small"></span>
+                            </div>
+                            <div class="text-end">
+                                <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold"><i class="bi bi-send me-1"></i> Send Reply</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-secondary text-center rounded-4 py-4 mt-4 border-0">
+                    <i class="bi bi-lock fs-3 d-block mb-2 text-muted"></i>
+                    This ticket is closed and can no longer receive replies. If you need further assistance, please <a asp-action="CreateTicket" class="fw-bold text-secondary">open a new ticket</a>.
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

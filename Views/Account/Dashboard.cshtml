@@ -1,0 +1,120 @@
+@model DashboardViewModel
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<section class="sc-page-header">
+    <div class="container">
+        <h1>Welcome, @Model.UserName! 👋</h1>
+        <p class="opacity-75 mb-0">Your startup journey starts here</p>
+    </div>
+</section>
+
+<div class="container pb-5">
+    <div class="row g-4 mb-4">
+        <div class="col-6 col-md-3">
+            <a asp-controller="Account" asp-action="Profile" class="sc-dash-link">
+                <div class="sc-dash-stat stat-profile">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="stat-icon-wrapper bg-primary-subtle text-primary">
+                            <i class="bi bi-person-check fs-4"></i>
+                        </div>
+                    </div>
+                    <div class="stat-value">@Model.ProfileCompletion%</div>
+                    <div class="text-muted small fw-bold text-uppercase mt-1">Profile Complete</div>
+                </div>
+            </a>
+        </div>
+        <div class="col-6 col-md-3">
+            <a asp-controller="Ideas" asp-action="MyIdeas" class="sc-dash-link">
+                <div class="sc-dash-stat stat-ideas">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="stat-icon-wrapper bg-success-subtle text-success">
+                            <i class="bi bi-lightbulb fs-4"></i>
+                        </div>
+                    </div>
+                    <div class="stat-value">@Model.MyIdeasCount</div>
+                    <div class="text-muted small fw-bold text-uppercase mt-1">My Ideas</div>
+                </div>
+            </a>
+        </div>
+        <div class="col-6 col-md-3">
+            <a asp-controller="Interests" asp-action="Manage" class="sc-dash-link" title="Interests Shown">
+                <div class="sc-dash-stat stat-interests">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="stat-icon-wrapper bg-warning-subtle text-warning">
+                            <i class="bi bi-heart fs-4"></i>
+                        </div>
+                    </div>
+                    <div class="stat-value">@Model.MyInterestsCount</div>
+                    <div class="text-muted small fw-bold text-uppercase mt-1">Interests Shown</div>
+                </div>
+            </a>
+        </div>
+        <div class="col-6 col-md-3">
+            <a asp-controller="Notifications" asp-action="Index" class="sc-dash-link" title="Notifications">
+                <div class="sc-dash-stat stat-notifs">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="stat-icon-wrapper bg-danger-subtle text-danger">
+                            <i class="bi bi-bell fs-4"></i>
+                        </div>
+                    </div>
+                    <div class="stat-value">@Model.UnreadNotifications</div>
+                    <div class="text-muted small fw-bold text-uppercase mt-1">Notifications</div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="d-flex flex-wrap gap-2">
+                <a asp-controller="Ideas" asp-action="Submit" class="btn btn-accent"><i class="bi bi-lightbulb me-2"></i>Submit Idea</a>
+                <a asp-controller="Ideas" asp-action="Browse" class="btn btn-primary-sc"><i class="bi bi-search me-2"></i>Explore Ideas</a>
+                <a asp-controller="Videos" asp-action="Index" class="btn btn-outline-primary"><i class="bi bi-play-circle-fill me-2 text-warning"></i>Watch Masterclasses</a>
+                <a asp-controller="Account" asp-action="Profile" class="btn btn-outline-secondary"><i class="bi bi-person me-2"></i>Edit Profile</a>
+                <a asp-controller="Ideas" asp-action="MyIdeas" class="btn btn-outline-secondary"><i class="bi bi-folder me-2"></i>My Ideas</a>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.ProfileCompletion < 60)
+    {
+        <div class="alert alert-warning d-flex align-items-center gap-3 mb-4">
+            <i class="bi bi-exclamation-triangle fs-4"></i>
+            <div>
+                <strong>Complete your profile</strong> — You need at least 60% completion to submit ideas or show interest.
+                <a asp-controller="Account" asp-action="Profile" class="alert-link">Complete now →</a>
+            </div>
+        </div>
+    }
+
+    @if (Model.MyIdeas.Any())
+    {
+        <h4 class="sc-heading mb-3">My Submitted Ideas</h4>
+        <div class="row g-4 mb-5">
+            @foreach (var idea in Model.MyIdeas.Take(3))
+            {
+                <div class="col-md-4">@await Html.PartialAsync("_IdeaCard", idea)</div>
+            }
+        </div>
+    }
+
+    <h4 class="sc-heading mb-3">Featured Ideas</h4>
+    <div class="row g-4">
+        @if (Model.FeaturedIdeas.Any())
+        {
+            @foreach (var idea in Model.FeaturedIdeas)
+            {
+                <div class="col-md-4">@await Html.PartialAsync("_IdeaCard", idea)</div>
+            }
+        }
+        else
+        {
+            <div class="col-12 text-center text-muted py-5">
+                <i class="bi bi-inbox fs-1 d-block mb-2"></i>
+                No ideas yet. Be the first to submit!
+            </div>
+        }
+    </div>
+</div>

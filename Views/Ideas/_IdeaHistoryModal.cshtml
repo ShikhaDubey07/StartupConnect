@@ -1,0 +1,85 @@
+@model List<StartupConnect.ViewModels.IdeaHistoryViewModel>
+
+@if (Model == null || !Model.Any())
+{
+    <div class="p-5 text-center text-muted">
+        <i class="bi bi-clock fs-1 d-block mb-3"></i>
+        <p class="mb-0">No version history available for this idea.</p>
+    </div>
+}
+else
+{
+    var ideaId = ViewBag.IdeaId;
+    var isOwner = (bool)(ViewBag.IsOwner ?? false);
+
+    <div class="p-4">
+        <p class="text-muted small mb-4">
+            <i class="bi bi-info-circle me-1"></i>
+            Showing <strong>@Model.Count</strong> previous version@(Model.Count > 1 ? "s" : ""). Newest first.
+        </p>
+
+        <!-- Timeline -->
+        <div class="position-relative" style="padding-left: 40px;">
+            <!-- Vertical line -->
+            <div class="position-absolute" style="left: 18px; top: 0; bottom: 0; width: 3px; background: linear-gradient(180deg, #4f46e5, #7c3aed, #a78bfa); border-radius: 3px;"></div>
+
+            @foreach (var version in Model)
+            {
+                <div class="position-relative mb-4">
+                    <!-- Timeline dot -->
+                    <div class="position-absolute d-flex align-items-center justify-content-center"
+                         style="left: -33px; top: 12px; width: 32px; height: 32px; background: linear-gradient(135deg, #4f46e5, #7c3aed); border-radius: 50%; border: 3px solid #000; box-shadow: 0 2px 8px rgba(79,70,229,0.3); z-index: 2;">
+                        <span class="text-black fw-bold" style="font-size: 0.7rem;">V@(version.VersionNumber)</span>
+                    </div>
+
+                    <!-- Version Card -->
+                    <div class="card border-0 shadow-sm" style="border-radius: 12px;">
+                        <div class="card-body p-3">
+                            <!-- Header row -->
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <h6 class="fw-bold mb-1 text-dark">
+                                        <span class="badge bg-primary bg-opacity-10 text-primary me-2" style="font-size: 0.7rem;">Version @version.VersionNumber</span>
+                                        @version.Title
+                                    </h6>
+                                    <div class="d-flex flex-wrap gap-2 small">
+                                        <span class="text-muted"><i class="bi bi-calendar3 me-1"></i>@version.EditedAt.ToString("MMM dd, yyyy HH:mm")</span>
+                                        <span class="text-muted"><i class="bi bi-person me-1"></i>@version.EditorName</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Meta badges -->
+                            <div class="d-flex flex-wrap gap-2 mb-3 mt-2">
+                                <span class="badge bg-white text-dark border"><i class="bi bi-tag me-1"></i>@version.CategoryName</span>
+                                <span class="badge bg-white text-dark border"><i class="bi bi-cash me-1"></i>₹@version.MinimumFundRequired.ToString("N0")</span>
+                                <span class="badge bg-white text-dark border"><i class="bi bi-people me-1"></i>Team: @version.ExpectedTeamSize</span>
+                            </div>
+
+                            <!-- Change Summary -->
+                            <div class="mb-3 p-2 rounded" style="background: #f8f9ff; border: 1px solid #e8e8ff;">
+                                <span class="small fw-semibold text-primary"><i class="bi bi-pencil-square me-1"></i>Changed:</span>
+                                <span class="small text-muted ms-1">@version.ChangeSummary</span>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary"
+                                        onclick="compareVersion(@ideaId, @version.Id)">
+                                    <i class="bi bi-layout-split me-1"></i>Compare with Current
+                                </button>
+                                @if (isOwner)
+                                {
+                                    <button type="button" class="btn btn-sm btn-outline-warning"
+                                            onclick="confirmRestore(@ideaId, @version.Id, @version.VersionNumber)">
+                                        <i class="bi bi-arrow-counterclockwise me-1"></i>Restore
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}

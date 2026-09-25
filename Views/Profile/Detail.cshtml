@@ -1,0 +1,197 @@
+@model StartupConnect.ViewModels.ProfileViewModel
+@using System.Security.Claims
+@{
+    ViewData["Title"] = Model.FullName + " - Profile";
+    var profileUserId = ViewBag.ProfileUserId as string ?? "";
+    var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+    var isOwnProfile = !string.IsNullOrEmpty(currentUserId) && currentUserId == profileUserId;
+    var categoryNames = ViewBag.CategoryNames as List<string> ?? new List<string>();
+    var userIdeas = ViewBag.UserIdeas as List<StartupConnect.Models.Idea> ?? new List<StartupConnect.Models.Idea>();
+}
+
+<section class="sc-page-header">
+    <div class="container">
+        <h1>@Model.FullName's Profile</h1>
+        <p class="opacity-75 mb-0">Learn more about this user's skills and interests</p>
+    </div>
+</section>
+
+<div class="container pb-5 mt-4">
+    <div class="row g-4">
+        <div class="col-lg-4">
+            <div class="sc-form-card text-center">
+                <div class="rounded-circle bg-primary d-inline-flex align-items-center justify-content-center mb-3 shadow" style="width:100px;height:100px;font-size:2.5rem;color:#000">
+                    @(Model.FullName?.FirstOrDefault())
+                </div>
+                <h4 class="fw-bold mb-1">@Model.FullName</h4>
+                @if (!string.IsNullOrEmpty(Model.City) || !string.IsNullOrEmpty(Model.State))
+                {
+                    <p class="text-muted mb-2"><i class="bi bi-geo-alt me-1"></i> @Model.City, @Model.State</p>
+                }
+                
+                @if (Model.IsInvestor)
+                {
+                    <span class="badge bg-success-subtle text-success fs-6 mb-3">Investor</span>
+                }
+                else
+                {
+                    <span class="badge bg-primary-subtle text-primary fs-6 mb-3">Founder / Contributor</span>
+                }
+                
+                <div class="d-flex justify-content-center gap-3 mt-3">
+                    @if (!string.IsNullOrEmpty(Model.LinkedInUrl))
+                    {
+                        <a href="@Model.LinkedInUrl" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm rounded-circle" style="width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center" title="LinkedIn"><i class="bi bi-linkedin"></i></a>
+                    }
+                    @if (!string.IsNullOrEmpty(Model.PortfolioUrl))
+                    {
+                        <a href="@Model.PortfolioUrl" target="_blank" rel="noopener noreferrer" class="btn btn-outline-secondary btn-sm rounded-circle" style="width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center" title="Portfolio"><i class="bi bi-link-45deg"></i></a>
+                    }
+                </div>
+
+                @if (!isOwnProfile && User.Identity?.IsAuthenticated == true)
+                {
+                    <div class="mt-4 pt-3 border-top">
+                        <button type="button" onclick="connectUser('@profileUserId', this)" class="btn btn-primary-sc rounded-pill w-100 py-2">
+                            <i class="bi bi-person-plus-fill me-1"></i> Send Connection Request
+                        </button>
+                    </div>
+                }
+                else if (isOwnProfile)
+                {
+                    <div class="mt-4 pt-3 border-top">
+                        <a asp-controller="Account" asp-action="Profile" class="btn btn-outline-primary rounded-pill w-100 py-2">
+                            <i class="bi bi-pencil me-1"></i> Edit My Profile
+                        </a>
+                    </div>
+                }
+            </div>
+        </div>
+        
+        <div class="col-lg-8">
+            <div class="sc-form-card mb-4">
+                <h5 class="fw-bold mb-3 border-bottom pb-2">About</h5>
+                <p class="text-muted">
+                    @(string.IsNullOrWhiteSpace(Model.Bio) ? "This user hasn't added a bio yet." : Model.Bio)
+                </p>
+
+                <div class="row g-4 mt-2">
+                    <div class="col-md-6">
+                        <h6 class="fw-bold text-dark"><i class="bi bi-clock me-2"></i>Availability</h6>
+                        <p class="text-muted mb-0">@Model.TimeAvailability (@Model.HoursPerWeek hrs/week)</p>
+                    </div>
+                    @if (Model.IsInvestor)
+                    {
+                        <div class="col-md-6">
+                            <h6 class="fw-bold text-dark"><i class="bi bi-cash me-2"></i>Investment Capacity</h6>
+                            <p class="text-muted mb-0">@Model.InvestmentCapacity</p>
+                        </div>
+                    }
+                </div>
+                
+                <h5 class="fw-bold mb-3 mt-4 border-bottom pb-2">Skills</h5>
+                @if (Model.SelectedSkills != null && Model.SelectedSkills.Any())
+                {
+                    <div class="d-flex flex-wrap gap-2">
+                        @foreach (var skill in Model.SelectedSkills)
+                        {
+                            <span class="badge bg-white text-dark border p-2"><i class="bi bi-check2 me-1 text-primary"></i>@skill</span>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted small">No skills listed.</p>
+                }
+
+                <h5 class="fw-bold mb-3 mt-4 border-bottom pb-2">Areas of Interest</h5>
+                @if (categoryNames.Any())
+                {
+                    <div class="d-flex flex-wrap gap-2">
+                        @foreach (var cat in categoryNames)
+                        {
+                            <span class="badge bg-primary bg-opacity-10 text-primary border p-2"><i class="bi bi-tag me-1"></i>@cat</span>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted small">No interest categories selected.</p>
+                }
+            </div>
+
+            @if (userIdeas.Any())
+            {
+                <div class="sc-form-card">
+                    <h5 class="fw-bold mb-3 border-bottom pb-2">Startup Ideas by @Model.FullName</h5>
+                    <div class="row g-3">
+                        @foreach (var idea in userIdeas)
+                        {
+                            <div class="col-md-6">
+                                <div class="card h-100 border shadow-sm rounded-3 sc-hover-card">
+                                    <div class="card-body p-3 d-flex flex-column">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <span class="badge bg-white text-dark border">@idea.Category.Name</span>
+                                            <span class="text-muted small"><i class="bi bi-heart-fill text-danger me-1"></i>@(idea.Likes?.Count ?? 0)</span>
+                                        </div>
+                                        <h6 class="fw-bold mb-1 text-dark">@idea.Title</h6>
+                                        <p class="text-muted small mb-3 text-truncate">@idea.Tagline</p>
+                                        <div class="mt-auto pt-2 d-flex justify-content-between align-items-center">
+                                            <span class="text-success small fw-bold">₹@idea.MinimumFundRequired.ToString("N0")</span>
+                                            <a asp-controller="Ideas" asp-action="Detail" asp-route-id="@idea.Id" class="btn btn-sm btn-outline-primary rounded-pill px-3">View Idea</a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@Html.AntiForgeryToken()
+
+@section Scripts {
+    <script>
+        function connectUser(userId, button) {
+            button.disabled = true;
+            const originalContent = button.innerHTML;
+            button.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Sending...';
+
+            const tokenElement = document.querySelector('input[name="__RequestVerificationToken"]');
+            const token = tokenElement ? tokenElement.value : '';
+
+            fetch('/Matches/Connect', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'RequestVerificationToken': token
+                },
+                body: new URLSearchParams({
+                    'targetUserId': userId
+                })
+            })
+            .then(response => {
+                if(response.ok) {
+                    button.classList.remove('btn-primary-sc');
+                    button.classList.add('btn-success');
+                    button.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Request Sent';
+                } else {
+                    response.text().then(text => {
+                        alert('Failed to send request: ' + text);
+                        button.disabled = false;
+                        button.innerHTML = originalContent;
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred. Please try again.');
+                button.disabled = false;
+                button.innerHTML = originalContent;
+            });
+        }
+    </script>
+}

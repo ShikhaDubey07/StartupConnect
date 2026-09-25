@@ -1,0 +1,90 @@
+@model List<StartupConnect.Models.Notification>
+@{
+    ViewData["Title"] = "Notifications";
+}
+
+<div class="container py-5 mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold"><i class="bi bi-app-indicator text-primary me-2"></i>Notifications</h2>
+        @if (Model.Any(n => !n.IsRead))
+        {
+            <form asp-controller="Notifications" asp-action="MarkAllAsRead" method="post">
+                <button type="submit" class="btn btn-outline-primary rounded-pill btn-sm px-3">Mark All as Read</button>
+            </form>
+        }
+    </div>
+
+    @if (Model.Any())
+    {
+        <div class="list-group shadow-sm border-0 rounded-4">
+            @foreach (var n in Model)
+            {
+                var bgClass = n.IsRead ? "bg-white" : "bg-white border-start border-4 border-primary";
+                var icon = n.Title.Contains("Like") ? "bi-heart-fill text-danger" :
+                           n.Title.Contains("Comment") ? "bi-chat-dots-fill text-info" :
+                           n.Title.Contains("Match") ? "bi-lightning-charge-fill text-warning" :
+                           n.Title.Contains("Approved") ? "bi-check-circle-fill text-success" :
+                           n.Title.Contains("Interest") || n.Title.Contains("Request") ? "bi-briefcase-fill text-primary" : "bi-bell-fill text-secondary";
+                
+                <div class="list-group-item @bgClass p-4 d-flex align-items-start gap-3 border-0 border-bottom">
+                    <div class="fs-4 mt-1">
+                        <i class="bi @icon"></i>
+                    </div>
+                    <div class="flex-grow-1">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <h5 class="mb-0 fw-bold @(!n.IsRead ? "text-dark" : "text-secondary")">@n.Title</h5>
+                            <small class="text-muted">@n.CreatedAt.ToString("MMM dd, yyyy h:mm tt")</small>
+                        </div>
+                        <p class="mb-2 text-muted">@n.Message</p>
+                        
+                        <div class="d-flex gap-2">
+                            @if (!string.IsNullOrEmpty(n.LinkUrl))
+                            {
+                                <a href="@n.LinkUrl" class="btn btn-sm btn-outline-primary rounded-pill mark-read-link" data-id="@n.Id">View Details</a>
+                            }
+                            @if (!n.IsRead)
+                            {
+                                <button class="btn btn-sm btn-dark rounded-pill mark-read-btn" data-id="@n.Id">Mark as Read</button>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-light border text-center p-5 rounded-4">
+            <i class="bi bi-bell-slash fs-1 text-muted mb-3 d-block"></i>
+            <h5>No Notifications Yet</h5>
+            <p class="text-muted mb-0">When you receive likes, comments, or collaboration requests, they will appear here.</p>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            $('.mark-read-btn, .mark-read-link').on('click', function(e) {
+                var btn = $(this);
+                var id = btn.data('id');
+                
+                // If it's a link, we still want to navigate, but let's fire the ajax request first
+                $.ajax({
+                    url: '/Notifications/MarkRead',
+                    type: 'POST',
+                    data: { id: id },
+                    success: function() {
+                        if (btn.hasClass('mark-read-btn')) {
+                            // Visually update to read state
+                            var item = btn.closest('.list-group-item');
+                            item.removeClass('bg-white border-start border-4 border-primary').addClass('bg-white');
+                            item.find('h5').removeClass('text-dark').addClass('text-secondary');
+                            btn.remove();
+                        }
+                    }
+                });
+            });
+        });
+    </script>
+}
