@@ -240,19 +240,34 @@ public class MatchingService : IMatchingService
     }
 
     public async Task<List<Idea>> GetRecommendedIdeasForInvestmentAsync(string userId, int count = 10)
+{
+    var profile = await _context.UserProfiles
+        .FirstOrDefaultAsync(p => p.UserId == userId);
+
+    if (profile == null ||
+        !profile.IsInvestor ||
+        profile.InvestmentCapacity == InvestmentCapacity.None)
     {
-        var profile = await _context.UserProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
-        if (profile == null || !profile.IsInvestor || profile.InvestmentCapacity == InvestmentCapacity.None)
-            return new List<Idea>();
-
-        var maxAmount = GetMaxAmountForCapacity(profile.InvestmentCapacity);
-
-        return await _context.Ideas
-            .Include(i => i.Submitter)
-            .Where(i => i.Status == IdeaStatus.Approved && i.MinimumFundRequired <= maxAmount && i.MinimumFundRequired > 0)
-            .Take(count)
-            .ToListAsync();
+        return new List<Idea>();
     }
+
+    var query = _context.Ideas
+        .Include(i => i.Submitter)
+        .Where(i =>
+            i.Status == IdeaStatus.Approved &&
+            i.MinimumFundRequired > 0);
+
+    // For capacities up to 1 Lakh, apply maximum limit
+    if (profile.InvestmentCapacity != InvestmentCapacity.Above1L)
+    {
+        var maxAmount = GetMaxAmountForCapacity(profile.InvestmentCapacity);
+        query = query.Where(i => i.MinimumFundRequired <= maxAmount);
+    }
+
+    return await query
+        .Take(count)
+        .ToListAsync();
+}
 
     private HashSet<string> GetTokens(params string[] texts)
     {
