@@ -25,6 +25,20 @@ public class AIAnalysisService : IAIAnalysisService
         _configuration = configuration;
     }
 
+    public const string DefaultModel = "gemini-3.6-flash";
+
+    public bool IsConfigured => !string.IsNullOrWhiteSpace(_configuration["GoogleGemini:ApiKey"]);
+
+    private string ModelName =>
+        string.IsNullOrWhiteSpace(_configuration["GoogleGemini:Model"]) ? DefaultModel : _configuration["GoogleGemini:Model"]!;
+
+    private string GetApiKeyOrThrow()
+    {
+        var apiKey = _configuration["GoogleGemini:ApiKey"];
+        if (string.IsNullOrWhiteSpace(apiKey)) throw new AiNotConfiguredException();
+        return apiKey;
+    }
+
     public async Task<IdeaAnalysis> AnalyzeIdeaAsync(int ideaId)
     {
         using var scope = _serviceProvider.CreateScope();
@@ -37,18 +51,12 @@ public class AIAnalysisService : IAIAnalysisService
             .FirstOrDefaultAsync(i => i.Id == ideaId);
 
         if (idea == null)
-            throw new Exception("Idea not found.");
+            throw new AiServiceException("This idea no longer exists.", $"Idea {ideaId} not found.");
+
+        var apiKey = GetApiKeyOrThrow();
 
         _logger.LogInformation(
             "Starting AI analysis for Idea {IdeaId}", ideaId);
-
-        var apiKey = _configuration["GoogleGemini:ApiKey"];
-
-        if (string.IsNullOrWhiteSpace(apiKey))
-        {
-            throw new InvalidOperationException(
-                "Gemini API key is missing. Add GoogleGemini:ApiKey to appsettings.json.");
-        }
 
         var analysis = await GenerateRealAnalysisAsync(idea, apiKey);
 
@@ -85,7 +93,7 @@ public class AIAnalysisService : IAIAnalysisService
         Idea idea,
         string apiKey)
     {
-        const string model = "gemini-3.6-flash";
+        var model = ModelName;
 
         var url =
             $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent";
@@ -202,9 +210,9 @@ public class AIAnalysisService : IAIAnalysisService
                 response.StatusCode,
                 responseString);
 
-            throw new Exception(
-                $"Gemini API error: {response.StatusCode}. " +
-                "Check API key, model availability and API configuration.");
+            throw new AiServiceException(
+                AiMessages.GenericFailure,
+                $"Gemini API error: {response.StatusCode}. Check API key, model availability and API configuration.");
         }
 
         using var jsonDocument =
@@ -215,8 +223,7 @@ public class AIAnalysisService : IAIAnalysisService
 
         if (candidates.GetArrayLength() == 0)
         {
-            throw new Exception(
-                "Gemini returned no candidates.");
+            throw new AiServiceException(AiMessages.GenericFailure, "Gemini returned no candidates.");
         }
 
         var textResult =
@@ -228,8 +235,7 @@ public class AIAnalysisService : IAIAnalysisService
 
         if (string.IsNullOrWhiteSpace(textResult))
         {
-            throw new Exception(
-                "Gemini returned an empty response.");
+            throw new AiServiceException(AiMessages.GenericFailure, "Gemini returned an empty response.");
         }
 
         // Remove accidental markdown if model returns it
@@ -397,14 +403,13 @@ public class AIAnalysisService : IAIAnalysisService
     }
 
     /// <summary>
-    /// Shared helper that calls gemini-2.0-flash-lite with plain-text output.
+    /// Shared helper that calls the configured Gemini model (GoogleGemini:Model) with plain-text output.
     /// Enforces maxOutputTokens and temperature=0.3 for efficiency and consistency.
     /// </summary>
     private async Task<string> CallGeminiLiteAsync(string prompt, int maxOutputTokens)
     {
-        const string model = "gemini-3.6-flash";
-        var apiKey = _configuration["GoogleGemini:ApiKey"]
-            ?? throw new InvalidOperationException("Gemini API key missing.");
+        var model = ModelName;
+        var apiKey = GetApiKeyOrThrow();
 
         var url = $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent";
 
@@ -435,7 +440,7 @@ public class AIAnalysisService : IAIAnalysisService
         {
             _logger.LogError("Gemini Lite API error. Status: {Status}, Body: {Body}",
                 response.StatusCode, responseString);
-            throw new Exception($"Gemini Lite API error: {response.StatusCode}");
+            throw new AiServiceException(AiMessages.GenericFailure, $"Gemini Lite API error: {response.StatusCode}");
         }
 
         using var doc = JsonDocument.Parse(responseString);

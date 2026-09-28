@@ -64,6 +64,9 @@
         .terms-text a:hover {
             color: #000;
         }
+        .validation-summary-valid {
+            display: none;
+        }
         .back-link {
             transition: opacity 0.2s;
             opacity: 0.6;
@@ -175,17 +178,21 @@
                     </div>
                     <div class="col-md-6">
                         <label asp-for="Password" class="form-label text-muted fw-semibold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">Password</label>
-                        <input asp-for="Password" class="form-control border-bottom-only" type="password" />
+                        <input asp-for="Password" class="form-control border-bottom-only" type="password" autocomplete="new-password" aria-describedby="passwordHelp" />
+                        <div id="passwordHelp" class="form-text small">At least 8 characters, with an uppercase letter, a lowercase letter, a number and a symbol (e.g. <code>Startup#2026</code>).</div>
                         <span asp-validation-for="Password" class="text-danger small"></span>
                     </div>
                     <div class="col-md-6">
                         <label asp-for="ConfirmPassword" class="form-label text-muted fw-semibold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">Confirm Password</label>
-                        <input asp-for="ConfirmPassword" class="form-control border-bottom-only" type="password" />
+                        <input asp-for="ConfirmPassword" class="form-control border-bottom-only" type="password" autocomplete="new-password" />
                         <span asp-validation-for="ConfirmPassword" class="text-danger small"></span>
                     </div>
                     
 
                     
+                    <div class="col-12">
+                        <p class="small text-muted mb-0"><i class="bi bi-envelope-check me-1"></i>We'll email you a link to confirm your address. You can explore right away, and submitting ideas unlocks once your email is confirmed.</p>
+                    </div>
                     <div class="col-12 mt-4">
                         <button type="submit" class="btn login-btn w-100 active" id="registerBtn">
                             CREATE ACCOUNT

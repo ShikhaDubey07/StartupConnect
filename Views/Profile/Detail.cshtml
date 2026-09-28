@@ -39,11 +39,11 @@
                 }
                 
                 <div class="d-flex justify-content-center gap-3 mt-3">
-                    @if (!string.IsNullOrEmpty(Model.LinkedInUrl))
+                    @if (StartupConnect.Infrastructure.UrlSafety.IsSafeHttpUrl(Model.LinkedInUrl))
                     {
                         <a href="@Model.LinkedInUrl" target="_blank" rel="noopener noreferrer" class="btn btn-outline-primary btn-sm rounded-circle" style="width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center" title="LinkedIn"><i class="bi bi-linkedin"></i></a>
                     }
-                    @if (!string.IsNullOrEmpty(Model.PortfolioUrl))
+                    @if (StartupConnect.Infrastructure.UrlSafety.IsSafeHttpUrl(Model.PortfolioUrl))
                     {
                         <a href="@Model.PortfolioUrl" target="_blank" rel="noopener noreferrer" class="btn btn-outline-secondary btn-sm rounded-circle" style="width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center" title="Portfolio"><i class="bi bi-link-45deg"></i></a>
                     }

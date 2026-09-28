@@ -1,0 +1,81 @@
+@using StartupConnect.Services.Email
+@model IReadOnlyList<OutboxEmail>
+@{
+    ViewData["Title"] = "Dev outbox";
+    var selected = ViewBag.Selected as OutboxEmail;
+}
+
+<section class="sc-page-header">
+    <div class="container d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+            <h1><i class="bi bi-inbox me-2"></i>Dev outbox</h1>
+            <p class="opacity-75 mb-0">Emails "sent" while running in Development (or without SMTP). Only visible in Development.</p>
+        </div>
+        @if (Model.Any())
+        {
+            <form asp-action="ClearOutbox" method="post">
+                <button type="submit" class="btn btn-outline-dark rounded-pill"><i class="bi bi-trash me-1"></i>Clear outbox</button>
+            </form>
+        }
+    </div>
+</section>
+
+<div class="container pb-5">
+    @if (!Model.Any())
+    {
+        <div class="alert alert-light border text-center p-5 rounded-4">
+            <i class="bi bi-envelope-open fs-1 text-muted mb-3 d-block"></i>
+            <h5>No emails yet</h5>
+            <p class="text-muted mb-3">Register a new account or resend a confirmation email and it will show up here.</p>
+            <a asp-controller="Account" asp-action="Register" class="btn btn-primary rounded-pill px-4">Register a test account</a>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            <div class="col-lg-4">
+                <div class="list-group shadow-sm rounded-4" id="outboxList">
+                    @foreach (var email in Model)
+                    {
+                        var active = selected?.Id == email.Id;
+                        <a asp-action="Outbox" asp-route-id="@email.Id" class="list-group-item list-group-item-action py-3 @(active ? "active" : "")">
+                            <div class="fw-semibold text-truncate">@email.Subject</div>
+                            <div class="small @(active ? "" : "text-muted") text-truncate">To: @email.To</div>
+                            <div class="small @(active ? "" : "text-muted")">@email.SentAtUtc.ToLocalTime().ToString("MMM dd, HH:mm:ss")</div>
+                        </a>
+                    }
+                </div>
+            </div>
+            <div class="col-lg-8">
+                @if (selected == null)
+                {
+                    <div class="alert alert-light border rounded-4">That email no longer exists. Pick another one from the list.</div>
+                }
+                else
+                {
+                    <div class="card border-0 shadow-sm rounded-4">
+                        <div class="card-body p-4">
+                            <h5 class="fw-bold mb-1" id="outboxSubject">@selected.Subject</h5>
+                            <p class="text-muted small mb-3">To <strong>@selected.To</strong> · @selected.SentAtUtc.ToLocalTime().ToString("MMM dd, yyyy HH:mm:ss")</p>
+                            @if (selected.Links.Any())
+                            {
+                                <div class="mb-3">
+                                    <div class="small fw-semibold text-muted mb-1">Links in this email</div>
+                                    @foreach (var link in selected.Links)
+                                    {
+                                        <a href="@link" class="d-block small text-break outbox-link">@link</a>
+                                    }
+                                </div>
+                            }
+                            <iframe title="Email preview" sandbox="" srcdoc="@selected.HtmlBody" class="w-100 border rounded-3 bg-white" style="height:520px"></iframe>
+                            <details class="mt-3">
+                                <summary class="small text-muted">Plain-text version</summary>
+                                <pre class="small bg-light p-3 rounded-3 mt-2" style="white-space:pre-wrap">@selected.TextBody</pre>
+                            </details>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>

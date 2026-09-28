@@ -6,6 +6,10 @@ namespace StartupConnect.Data;
 
 public static class DbInitializer
 {
+    // Development-only fallbacks so local dev keeps working without configuration.
+    private const string DevAdminPassword = "Admin@123";
+    private const string DevDemoPassword = "Demo@123";
+
     public static async Task InitializeAsync(IServiceProvider services)
     {
         var context = services.GetRequiredService<ApplicationDbContext>();
@@ -34,33 +38,70 @@ public static class DbInitializer
             await context.SaveChangesAsync();
         }
 
-        if (!await userManager.Users.AnyAsync())
-        {
-            var admin = new ApplicationUser
-            {
-                UserName = "admin@startupconnect.in",
-                Email = "admin@startupconnect.in",
-                FullName = "Platform Admin",
-                City = "Mumbai",
-                State = "Maharashtra",
-                Age = 30,
-                EmailConfirmed = true
-            };
-            await userManager.CreateAsync(admin, "Admin@123");
-            await userManager.AddToRoleAsync(admin, "Admin");
-            await userManager.AddToRoleAsync(admin, "Panel");
+        var env = services.GetRequiredService<IHostEnvironment>();
+        var config = services.GetRequiredService<IConfiguration>();
+        var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("StartupConnect.Seed");
+        var isDev = env.IsDevelopment();
 
+        // ---- Admin account: password must come from configuration outside Development ----
+        var adminEmail = config["Seed:AdminEmail"] ?? "admin@startupconnect.in";
+        var adminPassword = config["Seed:AdminPassword"] ?? (isDev ? DevAdminPassword : null);
+        if (await userManager.FindByEmailAsync(adminEmail) == null)
+        {
+            if (string.IsNullOrWhiteSpace(adminPassword))
+            {
+                logger.LogWarning("No admin account exists and Seed:AdminPassword is not configured — skipping admin seeding. " +
+                                  "Set Seed:AdminPassword (and optionally Seed:AdminEmail) to create one.");
+            }
+            else
+            {
+                var admin = new ApplicationUser
+                {
+                    UserName = adminEmail,
+                    Email = adminEmail,
+                    FullName = "Platform Admin",
+                    City = "Mumbai",
+                    State = "Maharashtra",
+                    Age = 30,
+                    EmailConfirmed = true
+                };
+                var created = await userManager.CreateAsync(admin, adminPassword);
+                if (created.Succeeded)
+                {
+                    await userManager.AddToRoleAsync(admin, "Admin");
+                    await userManager.AddToRoleAsync(admin, "Panel");
+                    logger.LogInformation("Seeded admin account {Email}", adminEmail);
+                }
+                else
+                {
+                    logger.LogWarning("Could not seed admin account {Email}: {Errors}", adminEmail,
+                        string.Join(" ", created.Errors.Select(e => e.Description)));
+                }
+            }
+        }
+
+        // ---- Demo data: Development only (or when Seed:DemoData=true) ----
+        var seedDemo = config.GetValue<bool?>("Seed:DemoData") ?? isDev;
+        var demoPassword = config["Seed:DemoPassword"] ?? (isDev ? DevDemoPassword : null);
+        const string demoEmail = "rahul@demo.in";
+        if (seedDemo && !string.IsNullOrWhiteSpace(demoPassword) && await userManager.FindByEmailAsync(demoEmail) == null)
+        {
             var member = new ApplicationUser
             {
-                UserName = "rahul@demo.in",
-                Email = "rahul@demo.in",
+                UserName = demoEmail,
+                Email = demoEmail,
                 FullName = "Rahul Sharma",
                 City = "Bangalore",
                 State = "Karnataka",
                 Age = 24,
                 EmailConfirmed = true
             };
-            await userManager.CreateAsync(member, "Demo@123");
+            var memberResult = await userManager.CreateAsync(member, demoPassword);
+            if (!memberResult.Succeeded)
+            {
+                logger.LogWarning("Could not seed demo account: {Errors}", string.Join(" ", memberResult.Errors.Select(e => e.Description)));
+                return;
+            }
             await userManager.AddToRoleAsync(member, "Member");
 
             var profile = new UserProfile

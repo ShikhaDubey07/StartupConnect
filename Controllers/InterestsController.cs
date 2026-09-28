@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using StartupConnect.Infrastructure;
 using StartupConnect.Services;
 using StartupConnect.ViewModels;
 using System.Security.Claims;
@@ -14,6 +15,7 @@ public class InterestsController : Controller
     public InterestsController(IInterestService interestService) => _interestService = interestService;
 
     [HttpPost, ValidateAntiForgeryToken]
+    [RequireConfirmedEmail]
     public async Task<IActionResult> Submit(ShowInterestViewModel model)
     {
         if (!ModelState.IsValid)

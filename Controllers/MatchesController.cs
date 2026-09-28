@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using StartupConnect.Infrastructure;
 using StartupConnect.Services;
 using System.Security.Claims;
 
@@ -32,7 +33,8 @@ public class MatchesController : Controller
 
         // --- AI: co-founder match rationales (top 5, cached per pair) ---
         var rationaleDict = new Dictionary<string, string>();
-        var rationaleTop5 = coFounders.Take(5).ToList();
+        // Skip Gemini entirely when no API key is configured (no pointless exceptions per request).
+        var rationaleTop5 = _aiService.IsConfigured ? coFounders.Take(5).ToList() : new();
         if (rationaleTop5.Any())
         {
             var rationaleTasks = rationaleTop5.Select(async m =>
@@ -59,7 +61,7 @@ public class MatchesController : Controller
 
         // --- AI: investor pitch summaries (top 5 investment ideas, cached per idea) ---
         var pitchDict = new Dictionary<int, string>();
-        var pitchTop5 = ideas.Take(5).ToList();
+        var pitchTop5 = _aiService.IsConfigured ? ideas.Take(5).ToList() : new();
         if (pitchTop5.Any())
         {
             var pitchTasks = pitchTop5.Select(async idea =>
@@ -109,6 +111,7 @@ public class MatchesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [RequireConfirmedEmail]
     public async Task<IActionResult> Connect(string targetUserId)
     {
         var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;

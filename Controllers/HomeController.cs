@@ -55,6 +55,15 @@ public class HomeController : Controller
 
     public IActionResult Privacy() => View();
 
+    /// <summary>Friendly page for empty-bodied error status codes (404, 403, 429, ...).</summary>
+    [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
+    public IActionResult Status(int code)
+    {
+        Response.StatusCode = code is >= 400 and < 600 ? code : 404;
+        ViewBag.Code = Response.StatusCode;
+        return View("Status");
+    }
+
     [ResponseCache(Duration = 0, Location = ResponseCacheLocation.None, NoStore = true)]
     public IActionResult Error() => View(new ErrorViewModel { RequestId = System.Diagnostics.Activity.Current?.Id ?? HttpContext.TraceIdentifier });
 }

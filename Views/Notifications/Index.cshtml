@@ -38,7 +38,7 @@
                         <p class="mb-2 text-muted">@n.Message</p>
                         
                         <div class="d-flex gap-2">
-                            @if (!string.IsNullOrEmpty(n.LinkUrl))
+                            @if (StartupConnect.Infrastructure.UrlSafety.IsLocalPath(n.LinkUrl))
                             {
                                 <a href="@n.LinkUrl" class="btn btn-sm btn-outline-primary rounded-pill mark-read-link" data-id="@n.Id">View Details</a>
                             }

@@ -31,7 +31,7 @@ public class NotificationsController : Controller
         return Json(items.Select(n => new { n.Id, n.Title, n.Message, n.LinkUrl, n.CreatedAt }));
     }
 
-    [HttpPost]
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> MarkRead(int id)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
@@ -39,15 +39,11 @@ public class NotificationsController : Controller
         return Ok();
     }
 
-    [HttpPost]
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> MarkAllAsRead()
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var unread = await _notificationService.GetUnreadAsync(userId);
-        foreach (var n in unread)
-        {
-            await _notificationService.MarkAsReadAsync(n.Id, userId);
-        }
+        await _notificationService.MarkAllAsReadAsync(userId);
         return RedirectToAction("Index");
     }
 }

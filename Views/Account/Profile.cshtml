@@ -41,7 +41,7 @@
             <div class="sc-form-card">
                 <form asp-action="Profile" method="post">
                     @Html.AntiForgeryToken()
-                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+                    <div asp-validation-summary="All" class="alert alert-danger"></div>
 
                     <div class="row g-3">
                         <div class="col-12">
@@ -75,6 +75,12 @@
                         <div class="col-md-6">
                             <label asp-for="LinkedInUrl" class="form-label fw-semibold">LinkedIn URL</label>
                             <input asp-for="LinkedInUrl" class="form-control" placeholder="https://linkedin.com/in/..." />
+                            <span asp-validation-for="LinkedInUrl" class="text-danger small"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="PortfolioUrl" class="form-label fw-semibold">Portfolio / Website</label>
+                            <input asp-for="PortfolioUrl" class="form-control" placeholder="https://..." />
+                            <span asp-validation-for="PortfolioUrl" class="text-danger small"></span>
                         </div>
                         <div class="col-12">
                             <label class="form-label fw-semibold">Areas of Interest</label>

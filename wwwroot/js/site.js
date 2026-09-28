@@ -1,3 +1,57 @@
+// ---------- Security helpers ----------
+// Antiforgery: every same-origin unsafe request (jQuery AJAX or fetch) automatically carries the
+// token from <meta name="csrf-token">, matching the server's AutoValidateAntiforgeryToken filter.
+function scCsrfToken() {
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    if (meta && meta.content) return meta.content;
+    var input = document.querySelector('input[name="__RequestVerificationToken"]');
+    return input ? input.value : '';
+}
+
+function scIsSameOrigin(url) {
+    try { return new URL(url, window.location.href).origin === window.location.origin; }
+    catch (e) { return false; }
+}
+
+// Escape text before inserting it into HTML strings.
+function scEscapeHtml(value) {
+    return String(value === null || value === undefined ? '' : value)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Only allow app-relative links (e.g. "/Ideas/Detail/5") from server data in hrefs.
+function scSafeLocalUrl(url) {
+    return (typeof url === 'string' && /^\/(?![\/\\])/.test(url)) ? url : null;
+}
+
+(function () {
+    if (window.fetch && !window.fetch.__scCsrf) {
+        var originalFetch = window.fetch;
+        var wrapped = function (input, init) {
+            init = init || {};
+            var method = (init.method || (input && input.method) || 'GET').toUpperCase();
+            var url = typeof input === 'string' ? input : (input && input.url) || '';
+            if (!/^(GET|HEAD|OPTIONS|TRACE)$/.test(method) && scIsSameOrigin(url)) {
+                var headers = new Headers(init.headers || (typeof input !== 'string' && input.headers) || {});
+                if (!headers.has('RequestVerificationToken')) headers.set('RequestVerificationToken', scCsrfToken());
+                init.headers = headers;
+            }
+            return originalFetch.call(this, input, init);
+        };
+        wrapped.__scCsrf = true;
+        window.fetch = wrapped;
+    }
+    if (window.jQuery) {
+        jQuery.ajaxPrefilter(function (options, originalOptions, jqXHR) {
+            var method = (options.type || options.method || 'GET').toUpperCase();
+            if (!/^(GET|HEAD|OPTIONS|TRACE)$/.test(method) && scIsSameOrigin(options.url)) {
+                jqXHR.setRequestHeader('RequestVerificationToken', scCsrfToken());
+            }
+        });
+    }
+})();
+
 $(function () {
     // Auto-hide toasts
     setTimeout(function () {
@@ -27,10 +81,7 @@ $(function () {
         var btn = $(this);
         var id = btn.data('id');
         
-        $.post('/Ideas/ToggleLike', {
-            id: id,
-            __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
-        }, function (res) {
+        $.post('/Ideas/ToggleLike', { id: id }, function (res) {
             btn.find('.likes-count').text(res.count);
             var icon = btn.find('i.bi');
             var text = btn.find('.like-text');
@@ -55,10 +106,7 @@ $(function () {
         var btn = $(this);
         var id = btn.data('id');
         
-        $.post('/Ideas/ToggleSave', {
-            id: id,
-            __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
-        }, function (res) {
+        $.post('/Ideas/ToggleSave', { id: id }, function (res) {
             var icon = btn.find('.save-icon');
             var text = btn.find('.save-text');
             
@@ -166,11 +214,7 @@ $(function () {
                 // Remove 'No new notifications' if present
                 $list.find('li:contains("No new notifications")').remove();
                 
-                var link = n.linkUrl ? ' href="' + n.linkUrl + '"' : '';
-                var html = '<li><a class="dropdown-item py-2 notif-item" data-id="' + n.id + '"' + link + '><strong class="d-block small">' +
-                    n.title + '</strong><span class="text-muted small">' + n.message + '</span></a></li>';
-                    
-                $list.prepend(html);
+                $list.prepend(renderNotificationItem(n));
                 
                 var currentCount = parseInt($badge.text()) || 0;
                 $badge.text(currentCount + 1).removeClass('d-none');
@@ -217,6 +261,9 @@ $(function () {
                 if (link) {
                     window.location.href = link;
                 }
+            },
+            error: function () {
+                if (link) window.location.href = link;
             }
         });
     });
@@ -257,13 +304,20 @@ $(function () {
     }
 });
 
+function renderNotificationItem(n) {
+    var safeLink = scSafeLocalUrl(n.linkUrl);
+    var link = safeLink ? ' href="' + scEscapeHtml(safeLink) + '"' : '';
+    return '<li><a class="dropdown-item py-2 notif-item" data-id="' + scEscapeHtml(n.id) + '"' + link + '><strong class="d-block small">' +
+        scEscapeHtml(n.title) + '</strong><span class="text-muted small">' + scEscapeHtml(n.message) + '</span></a></li>';
+}
+
 function showToast(message, type) {
     var bg = type === 'success' ? 'sc-toast-success' : 'sc-toast-error';
     var icon = type === 'success' ? 'check-circle-fill' : 'exclamation-circle-fill';
     var iconColor = type === 'success' ? 'color:#10b981' : 'color:#ef4444';
     var html = '<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index:9999">' +
         '<div class="toast show ' + bg + '" style="min-width:280px"><div class="toast-body d-flex align-items-center gap-2 py-3 px-3">' +
-        '<i class="bi bi-' + icon + ' fs-5" style="' + iconColor + '"></i><span class="fw-medium">' + message + '</span>' +
+        '<i class="bi bi-' + icon + ' fs-5" style="' + iconColor + '"></i><span class="fw-medium">' + scEscapeHtml(message) + '</span>' +
         '<button type="button" class="btn-close ms-auto" style="font-size:0.65rem" onclick="$(this).closest(\'.toast-container\').remove()"></button>' +
         '</div></div></div>';
     $('body').append(html);
@@ -281,9 +335,7 @@ function loadNotifications() {
         } else {
             $badge.text(data.length).removeClass('d-none');
             data.forEach(function (n) {
-                var link = n.linkUrl ? ' href="' + n.linkUrl + '"' : '';
-                $list.append('<li><a class="dropdown-item py-2 notif-item" data-id="' + n.id + '"' + link + '><strong class="d-block small">' +
-                    n.title + '</strong><span class="text-muted small">' + n.message + '</span></a></li>');
+                $list.append(renderNotificationItem(n));
             });
         }
     });

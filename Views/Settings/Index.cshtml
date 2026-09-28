@@ -155,7 +155,8 @@
                                     </div>
                                     <div class="col-12">
                                         <label asp-for="Security.NewPassword" class="form-label fw-medium"></label>
-                                        <input asp-for="Security.NewPassword" class="form-control" />
+                                        <input asp-for="Security.NewPassword" class="form-control" autocomplete="new-password" />
+                                        <div class="form-text">At least 8 characters, with uppercase, lowercase, a number and a symbol.</div>
                                         <span asp-validation-for="Security.NewPassword" class="text-danger small"></span>
                                     </div>
                                     <div class="col-12">
@@ -299,22 +300,30 @@
 </div>
 
 <!-- Delete Account Modal -->
-<div class="modal fade" id="deleteAccountModal" tabindex="-1">
+<div class="modal fade" id="deleteAccountModal" tabindex="-1" aria-labelledby="deleteAccountLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow rounded-4">
-            <div class="modal-header border-bottom-0 pb-0">
-                <h5 class="modal-title fw-bold text-danger">Confirm Deletion</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <p>Are you absolutely sure you want to delete your account? This action cannot be undone.</p>
-            </div>
-            <div class="modal-footer border-top-0 pt-0">
-                <button type="button" class="btn btn-dark rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
-                <form asp-action="DeleteAccount" method="post">
-                    <button type="submit" class="btn btn-danger rounded-pill px-4">Yes, Delete My Account</button>
-                </form>
-            </div>
+            <form asp-action="DeleteAccount" method="post" id="deleteAccountForm" autocomplete="off">
+                <div class="modal-header border-bottom-0 pb-0">
+                    <h5 class="modal-title fw-bold text-danger" id="deleteAccountLabel"><i class="bi bi-exclamation-octagon me-2"></i>Delete your account?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-3">This permanently deletes your profile, your ideas (with their comments, likes and collaboration requests), your team memberships and messages. <strong>This cannot be undone.</strong></p>
+                    <div class="mb-3">
+                        <label for="deletePassword" class="form-label fw-medium">Your password</label>
+                        <input type="password" class="form-control" id="deletePassword" name="Password" required autocomplete="current-password" />
+                    </div>
+                    <div class="mb-1">
+                        <label for="deleteConfirmation" class="form-label fw-medium">Type <code>DELETE</code> to confirm</label>
+                        <input type="text" class="form-control" id="deleteConfirmation" name="Confirmation" required pattern="DELETE" autocomplete="off" placeholder="DELETE" />
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-danger rounded-pill px-4" id="confirmDeleteBtn" disabled>Delete my account</button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -323,6 +332,17 @@
     <partial name="_ValidationScriptsPartial" />
     <script>
         $(document).ready(function () {
+            // Delete account: enable the button only once a password is entered and DELETE is typed.
+            function updateDeleteBtn() {
+                var ok = $('#deletePassword').val().length > 0 && $('#deleteConfirmation').val() === 'DELETE';
+                $('#confirmDeleteBtn').prop('disabled', !ok);
+            }
+            $('#deletePassword, #deleteConfirmation').on('input', updateDeleteBtn);
+            $('#deleteAccountModal').on('hidden.bs.modal', function () {
+                $('#deletePassword, #deleteConfirmation').val('');
+                updateDeleteBtn();
+            });
+
             $('#investorSwitch').on('change', function () {
                 if ($(this).is(':checked')) {
                     $('#investmentCapacityDiv').slideDown(200);

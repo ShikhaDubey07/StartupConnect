@@ -1,6 +1,10 @@
 @model IdeaDetailViewModel
+@using StartupConnect.Services
 @{
     ViewData["Title"] = "AI Analysis - " + Model.Title;
+    var job = ViewBag.Job as AnalysisJobStatus;
+    var aiConfigured = ViewBag.AiConfigured as bool? ?? false;
+    var generating = job != null && (job.State == AnalysisJobState.Queued || job.State == AnalysisJobState.Running);
 }
 
 <section class="sc-page-header">
@@ -16,6 +20,20 @@
 </section>
 
 <div class="container pb-5">
+    @if (Model.Status != StartupConnect.Models.IdeaStatus.Approved)
+    {
+        <div class="alert alert-info rounded-4 d-flex align-items-center gap-2">
+            <i class="bi bi-hourglass-split"></i>
+            <span>This idea is <strong>@Model.Status</strong> — only you and our reviewers can see it until it's approved.</span>
+        </div>
+    }
+    @if (Model.Analysis != null && generating)
+    {
+        <div class="alert alert-warning rounded-4 d-flex align-items-center gap-2" id="aiGenerating" data-idea-id="@Model.Id">
+            <span class="spinner-border spinner-border-sm"></span>
+            <span id="aiStatusText">A fresh analysis is being generated. This page will refresh automatically when it's ready.</span>
+        </div>
+    }
     @if (Model.Analysis != null)
     {
         <div class="sc-detail-section mb-4 shadow-sm bg-white" style="border-radius: 12px; position: relative;">
@@ -92,7 +110,7 @@
             
             <div class="text-end mt-5 pt-3 border-top">
                 <small class="text-muted me-3">Analysis generated on @Model.Analysis.GeneratedAt.ToString("MMM dd, yyyy HH:mm")</small>
-                @if (Model.IsOwner || User.IsInRole("Admin"))
+                @if ((Model.IsOwner || User.IsInRole("Admin")) && aiConfigured && !generating)
                 {
                     <form asp-action="RegenerateAnalysis" method="post" class="d-inline">
                         <input type="hidden" name="id" value="@Model.Id" />
@@ -106,24 +124,66 @@
             </div>
         </div>
     }
-    else if (ViewBag.AiError != null)
+    else if (generating)
     {
-        <div class="sc-detail-section mb-4 text-center p-5 bg-white rounded shadow-sm border border-danger">
-            <i class="bi bi-exclamation-triangle text-danger" style="font-size: 3rem;"></i>
-            <h4 class="fw-bold text-danger mt-3">Configuration Error</h4>
-            <p class="text-muted fs-5 mb-4">@ViewBag.AiError</p>
-            <a asp-action="MyIdeas" class="btn btn-outline-danger"><i class="bi bi-arrow-left me-2"></i>Return to My Ideas</a>
+        <div class="sc-detail-section mb-4 text-center p-5 bg-white rounded shadow-sm" id="aiGenerating" data-idea-id="@Model.Id">
+            <div class="spinner-border text-accent mb-3" style="width: 3rem; height: 3rem;" role="status">
+                <span class="visually-hidden">Generating…</span>
+            </div>
+            <h4 class="fw-bold text-accent">Generating your AI analysis…</h4>
+            <p class="text-muted fs-5 mb-2" id="aiStatusText">@(job!.State == AnalysisJobState.Queued ? "Your idea is in the queue." : "Our AI is reading your idea now.")</p>
+            <p class="text-muted small mb-0">This usually takes less than a minute. This page updates automatically — feel free to keep it open.</p>
         </div>
     }
     else
     {
         <div class="sc-detail-section mb-4 text-center p-5 bg-white rounded shadow-sm">
-            <div class="spinner-border text-accent mb-3" style="width: 3rem; height: 3rem;" role="status">
-                <span class="visually-hidden">Loading...</span>
+            <i class="bi bi-robot text-muted" style="font-size: 3rem;"></i>
+            <h4 class="fw-bold mt-3">@(aiConfigured ? "We couldn't finish the AI analysis" : "No AI analysis yet")</h4>
+            <p class="text-muted fs-5 mb-4">@(job?.Message ?? (aiConfigured ? AiMessages.GenericFailure : AiMessages.NotConfigured))</p>
+            <div class="d-flex flex-wrap justify-content-center gap-2">
+                @if (aiConfigured)
+                {
+                    <form asp-action="RegenerateAnalysis" method="post" class="d-inline">
+                        <input type="hidden" name="id" value="@Model.Id" />
+                        <input type="hidden" name="returnUrl" value="AiAnalysis" />
+                        <button type="submit" class="btn btn-accent"><i class="bi bi-arrow-clockwise me-1"></i>Try again</button>
+                    </form>
+                }
+                <a asp-action="MyIdeas" class="btn btn-outline-dark"><i class="bi bi-arrow-left me-2"></i>Back to My Ideas</a>
             </div>
-            <h4 class="fw-bold text-accent">AI is currently analyzing this idea...</h4>
-            <p class="text-muted fs-5 mb-4">The insights will appear here shortly. Please refresh the page in a few moments.</p>
-            <a href="javascript:location.reload();" class="btn btn-outline-accent"><i class="bi bi-arrow-clockwise me-2"></i>Refresh Page</a>
         </div>
     }
 </div>
+
+@section Scripts {
+        <script>
+            (function () {
+                var el = document.getElementById('aiGenerating');
+                if (!el) return;
+                var id = el.getAttribute('data-idea-id');
+                var text = document.getElementById('aiStatusText');
+                var attempts = 0;
+                function poll() {
+                    attempts++;
+                    fetch('/Ideas/AnalysisStatus/' + encodeURIComponent(id), { headers: { 'Accept': 'application/json' } })
+                        .then(function (r) { return r.ok ? r.json() : null; })
+                        .then(function (data) {
+                            if (!data) return schedule();
+                            if (data.state === 'ready' || data.state === 'failed' || data.state === 'none') {
+                                window.location.reload();
+                                return;
+                            }
+                            text.textContent = data.state === 'queued' ? 'Your idea is in the queue.' : 'Our AI is reading your idea now.';
+                            schedule();
+                        })
+                        .catch(schedule);
+                }
+                function schedule() {
+                    // Poll every 3s, slowing to 10s after a minute.
+                    setTimeout(poll, attempts < 20 ? 3000 : 10000);
+                }
+                schedule();
+            })();
+        </script>
+    }

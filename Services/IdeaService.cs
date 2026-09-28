@@ -9,7 +9,11 @@ public interface IIdeaService
 {
     Task<List<IdeaCardViewModel>> GetApprovedIdeasAsync(IdeaBrowseViewModel filter);
     Task<int> GetApprovedIdeasCountAsync(IdeaBrowseViewModel filter);
-    Task<IdeaDetailViewModel?> GetIdeaDetailAsync(int id, string? currentUserId);
+    /// <summary>
+    /// Returns an approved idea's details. Pass includeUnapproved only after checking the caller is
+    /// the owner or an admin.
+    /// </summary>
+    Task<IdeaDetailViewModel?> GetIdeaDetailAsync(int id, string? currentUserId, bool includeUnapproved = false);
     Task<int> SubmitIdeaAsync(IdeaSubmitViewModel model, string userId);
     Task<List<IdeaCardViewModel>> GetUserIdeasAsync(string userId);
     Task<IdeaSubmitViewModel?> GetIdeaForEditAsync(int id, string userId);
@@ -56,7 +60,7 @@ public class IdeaService : IIdeaService
         return await BuildApprovedQuery(filter).CountAsync();
     }
 
-    public async Task<IdeaDetailViewModel?> GetIdeaDetailAsync(int id, string? currentUserId)
+    public async Task<IdeaDetailViewModel?> GetIdeaDetailAsync(int id, string? currentUserId, bool includeUnapproved = false)
     {
         var idea = await _context.Ideas
             .Include(i => i.Category)
@@ -70,13 +74,14 @@ public class IdeaService : IIdeaService
             .Include(i => i.History)
                 .ThenInclude(h => h.Category)
             .Include(i => i.Analysis)
-            .FirstOrDefaultAsync(i => i.Id == id && i.Status == IdeaStatus.Approved);
+            .FirstOrDefaultAsync(i => i.Id == id && (includeUnapproved || i.Status == IdeaStatus.Approved));
 
         if (idea == null) return null;
 
         return new IdeaDetailViewModel
         {
             Id = idea.Id,
+            Status = idea.Status,
             Title = idea.Title,
             Tagline = idea.Tagline,
             Description = idea.Description,
@@ -105,7 +110,7 @@ public class IdeaService : IIdeaService
             SubmitterCity = idea.Submitter.City,
             InterestCount = idea.Interests.Count,
             TotalPledged = idea.Interests.Where(x => x.ProposedInvestmentAmount.HasValue).Sum(x => x.ProposedInvestmentAmount ?? 0),
-            CanShowInterest = currentUserId != null && idea.SubmitterUserId != currentUserId,
+            CanShowInterest = currentUserId != null && idea.SubmitterUserId != currentUserId && idea.Status == IdeaStatus.Approved,
             IsOwner = currentUserId == idea.SubmitterUserId,
             IsLikedByCurrentUser = currentUserId != null && idea.Likes.Any(l => l.UserId == currentUserId),
             IsSavedByCurrentUser = currentUserId != null && idea.SavedByUsers.Any(s => s.UserId == currentUserId),

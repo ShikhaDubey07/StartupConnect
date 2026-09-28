@@ -16,11 +16,12 @@ public class RegisterViewModel
     [Display(Name = "Phone Number")]
     public string PhoneNumber { get; set; } = string.Empty;
 
-    [Required, StringLength(100, MinimumLength = 6)]
+    [Required, StringLength(100, MinimumLength = 8, ErrorMessage = "Password must be at least 8 characters.")]
+    [RegularExpression(PasswordRules.Pattern, ErrorMessage = PasswordRules.Message)]
     [DataType(DataType.Password)]
     public string Password { get; set; } = string.Empty;
 
-    [Required, Compare("Password")]
+    [Required, Compare("Password", ErrorMessage = "Passwords do not match.")]
     [DataType(DataType.Password)]
     [Display(Name = "Confirm Password")]
     public string ConfirmPassword { get; set; } = string.Empty;
@@ -44,6 +45,38 @@ public class RegisterViewModel
     public List<string> SelectedSkills { get; set; } = new();
 }
 
+/// <summary>Client + server hints matching the Identity password policy configured in Program.cs.</summary>
+public static class PasswordRules
+{
+    public const string Pattern = @"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^a-zA-Z\d]).{8,}$";
+    public const string Message = "Use at least 8 characters with an uppercase letter, a lowercase letter, a number and a symbol.";
+}
+
+public class ConfirmEmailResultViewModel
+{
+    public bool Succeeded { get; set; }
+    public bool AlreadyConfirmed { get; set; }
+    public string? Email { get; set; }
+}
+
+public class ResendConfirmationViewModel
+{
+    [Required, EmailAddress, StringLength(256)]
+    public string Email { get; set; } = string.Empty;
+
+    public bool Sent { get; set; }
+}
+
+public class DeleteAccountViewModel
+{
+    [Required(ErrorMessage = "Please enter your password to confirm.")]
+    [DataType(DataType.Password)]
+    public string Password { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Type DELETE to confirm.")]
+    public string Confirmation { get; set; } = string.Empty;
+}
+
 public class ForgotPasswordViewModel
 {
     [Required, EmailAddress]
@@ -64,10 +97,14 @@ public class LoginViewModel
 
 public class ProfileViewModel
 {
+    [StringLength(100)]
     public string FullName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
+    [StringLength(100)]
     public string? City { get; set; }
+    [StringLength(100)]
     public string? State { get; set; }
+    [Range(13, 120)]
     public int? Age { get; set; }
 
     [StringLength(500)]
@@ -83,12 +120,17 @@ public class ProfileViewModel
     [Display(Name = "Investment Capacity")]
     public InvestmentCapacity InvestmentCapacity { get; set; }
 
+    [Url, StringLength(300), Display(Name = "LinkedIn URL")]
     public string? LinkedInUrl { get; set; }
+    [Url, StringLength(300), Display(Name = "Portfolio URL")]
     public string? PortfolioUrl { get; set; }
     public bool IsInvestor { get; set; }
 
     public List<int> SelectedCategoryIds { get; set; } = new();
     public List<string> SelectedSkills { get; set; } = new();
+
+    /// <summary>Display-only; never bound from requests.</summary>
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
     public int ProfileCompletionPercent { get; set; }
 
     public static readonly string[] AvailableSkills =
@@ -181,6 +223,7 @@ public class IdeaCardViewModel
 public class IdeaDetailViewModel
 {
     public int Id { get; set; }
+    public IdeaStatus Status { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Tagline { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
@@ -237,7 +280,7 @@ public class ShowInterestViewModel
 {
     public int IdeaId { get; set; }
 
-    [Required]
+    [Required, EnumDataType(typeof(InterestType))]
     public InterestType InterestType { get; set; }
 
     [Range(0, 100000000)]
@@ -333,7 +376,7 @@ public class HelpIndexViewModel
 
 public class CreateTicketViewModel
 {
-    [Required]
+    [Required, StringLength(50)]
     [Display(Name = "Issue Category")]
     public string IssueCategory { get; set; } = string.Empty;
 
@@ -351,7 +394,7 @@ public class TicketDetailViewModel
     public SupportTicket Ticket { get; set; } = null!;
     public List<SupportTicketMessage> Messages { get; set; } = new();
     
-    [Required]
+    [Required, StringLength(2000)]
     public string NewMessage { get; set; } = string.Empty;
 }
 

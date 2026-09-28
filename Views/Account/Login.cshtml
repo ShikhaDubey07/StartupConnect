@@ -109,6 +109,9 @@
                 transform: translate(-50%, -50%);
             }
         }
+        .validation-summary-valid {
+            display: none;
+        }
         .back-link {
             transition: opacity 0.2s;
             opacity: 0.6;
@@ -141,7 +144,7 @@
                     @Html.AntiForgeryToken()
                     <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
                     
-                    <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger small py-2 mb-3" role="alert"></div>
 
                     <div class="mb-4">
                         <label asp-for="Email" class="form-label text-muted fw-semibold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">Email Address</label>
@@ -169,6 +172,7 @@
         
         <div class="mt-4 pt-4 text-center d-flex flex-column gap-3">
             <a asp-action="ForgotPassword" class="text-dark text-decoration-none fw-bold" style="font-size: 0.8rem;">CAN'T LOG IN?</a>
+            <a asp-action="ResendConfirmation" class="text-dark text-decoration-none fw-bold" style="font-size: 0.8rem;">RESEND CONFIRMATION EMAIL</a>
             <a asp-action="Register" class="text-dark text-decoration-none fw-bold" style="font-size: 0.8rem;">NEW USER? REGISTER HERE</a>
         </div>
         

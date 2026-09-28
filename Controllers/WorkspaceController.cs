@@ -53,7 +53,9 @@ public class WorkspaceController : Controller
         return View();
     }
     
-    [HttpPost]
+    public const int MaxMessageLength = 2000;
+
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> SendMessage(int teamId, string content)
     {
         var user = await _userManager.GetUserAsync(User);
@@ -63,7 +65,12 @@ public class WorkspaceController : Controller
         
         if (teamMember == null) return Forbid();
         
-        if (!string.IsNullOrWhiteSpace(content))
+        content = content?.Trim() ?? string.Empty;
+        if (content.Length > MaxMessageLength)
+        {
+            TempData["Error"] = $"Messages can be at most {MaxMessageLength} characters.";
+        }
+        else if (content.Length > 0)
         {
             _context.TeamMessages.Add(new TeamMessage
             {

@@ -227,7 +227,7 @@
                                 @(User.Identity.Name?.FirstOrDefault().ToString().ToUpper())
                             </div>
                             <div class="flex-grow-1">
-                                <textarea name="content" class="form-control rounded-3" rows="3" placeholder="Add a comment..."></textarea>
+                                <textarea name="content" class="form-control rounded-3" rows="3" placeholder="Add a comment..." required maxlength="1000"></textarea>
                                 <div class="text-end mt-2">
                                     <button type="submit" class="btn btn-primary-sc px-4 rounded-pill">Post Comment</button>
                                 </div>
@@ -501,48 +501,6 @@
         </div>
     </div>
 
-    <!-- AJAX Scripts for Like and Share -->
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const likeBtn = document.querySelector('.toggle-like-btn');
-            if (likeBtn) {
-                likeBtn.addEventListener('click', async (e) => {
-                    const btn = e.currentTarget;
-                    const ideaId = btn.getAttribute('data-id');
-                    
-                    try {
-                        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-                        const formData = new FormData();
-                        formData.append('id', ideaId);
-                        
-                        const response = await fetch('@Url.Action("ToggleLike", "Ideas")', {
-                            method: 'POST',
-                            headers: {
-                                'RequestVerificationToken': token
-                            },
-                            body: formData
-                        });
-                        
-                        if (response.ok) {
-                            const data = await response.json();
-                            btn.classList.toggle('btn-danger', data.liked);
-                            btn.classList.toggle('btn-outline-danger', !data.liked);
-                            
-                            const icon = btn.querySelector('.bi');
-                            icon.classList.toggle('bi-heart-fill', data.liked);
-                            icon.classList.toggle('bi-heart', !data.liked);
-                            
-                            btn.querySelector('.like-text').textContent = data.liked ? 'Liked' : 'Like';
-                            btn.querySelector('.likes-count').textContent = data.count;
-                            document.getElementById('likesCountHero').textContent = data.count;
-                        }
-                    } catch (err) {
-                        console.error('Error toggling like:', err);
-                    }
-                });
-            }
-        });
-    </script>
 }
 
 <script>
@@ -551,7 +509,7 @@
         shareBtns.forEach(btn => {
             btn.addEventListener('click', async () => {
                 const url = window.location.href;
-                const title = '@Model.Title.Replace("'", "\\'")';
+                const title = @Json.Serialize(Model.Title);
                 
                 if (navigator.share) {
                     try {
@@ -663,7 +621,7 @@
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Restoring...';
 
-        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+        const token = scCsrfToken();
         const formData = new FormData();
         formData.append('ideaId', pendingRestoreIdeaId);
         formData.append('historyId', pendingRestoreHistoryId);

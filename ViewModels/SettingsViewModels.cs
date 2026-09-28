@@ -21,7 +21,9 @@ public class ProfileSettingsViewModel
     [StringLength(100)]
     public string FullName { get; set; } = string.Empty;
 
+    [StringLength(100)]
     public string? City { get; set; }
+    [StringLength(100)]
     public string? State { get; set; }
     
     [Range(13, 120)]
@@ -40,10 +42,10 @@ public class ProfileSettingsViewModel
     [Display(Name = "Investment Capacity")]
     public InvestmentCapacity InvestmentCapacity { get; set; }
 
-    [Url, Display(Name = "LinkedIn URL")]
+    [Url, StringLength(300), Display(Name = "LinkedIn URL")]
     public string? LinkedInUrl { get; set; }
     
-    [Url, Display(Name = "Portfolio/Website URL")]
+    [Url, StringLength(300), Display(Name = "Portfolio/Website URL")]
     public string? PortfolioUrl { get; set; }
 
     [Display(Name = "I am looking to invest")]
@@ -61,7 +63,8 @@ public class SecuritySettingsViewModel
     public string CurrentPassword { get; set; } = string.Empty;
 
     [Required]
-    [StringLength(100, MinimumLength = 6)]
+    [StringLength(100, MinimumLength = 8, ErrorMessage = "Password must be at least 8 characters.")]
+    [RegularExpression(PasswordRules.Pattern, ErrorMessage = PasswordRules.Message)]
     [DataType(DataType.Password)]
     [Display(Name = "New Password")]
     public string NewPassword { get; set; } = string.Empty;
@@ -92,6 +95,7 @@ public class PrivacySettingsViewModel
 {
     [Required]
     [Display(Name = "Profile Visibility")]
+    [RegularExpression("^(Public|RegisteredUsers|Private)$", ErrorMessage = "Choose a valid visibility option.")]
     public string ProfileVisibility { get; set; } = "Public";
 
     [Display(Name = "Show my email on my profile")]
@@ -108,5 +112,6 @@ public class AccountSettingsViewModel
 {
     [Required]
     [Display(Name = "Theme Preference")]
+    [RegularExpression("^(Light|Dark|System)$", ErrorMessage = "Choose a valid theme.")]
     public string ThemePreference { get; set; } = "Light";
 }

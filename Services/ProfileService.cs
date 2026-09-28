@@ -86,11 +86,21 @@ public class ProfileService : IProfileService
         profile.PortfolioUrl = model.PortfolioUrl;
         profile.IsInvestor = model.IsInvestor;
 
+        // Only accept known categories/skills (the ids/names come straight from the request).
+        var requestedCategoryIds = model.SelectedCategoryIds.Distinct().ToList();
+        var validCategoryIds = await _context.Categories
+            .Where(c => requestedCategoryIds.Contains(c.Id))
+            .Select(c => c.Id)
+            .ToListAsync();
         _context.UserInterestTags.RemoveRange(profile.InterestTags);
-        profile.InterestTags = model.SelectedCategoryIds.Select(c => new UserInterestTag { CategoryId = c }).ToList();
+        profile.InterestTags = validCategoryIds.Select(c => new UserInterestTag { CategoryId = c }).ToList();
 
         _context.UserSkills.RemoveRange(profile.Skills);
-        profile.Skills = model.SelectedSkills.Select(s => new UserSkill { SkillName = s }).ToList();
+        profile.Skills = model.SelectedSkills
+            .Where(s => ProfileViewModel.AvailableSkills.Contains(s))
+            .Distinct()
+            .Select(s => new UserSkill { SkillName = s })
+            .ToList();
 
         profile.ProfileCompletionPercent = CalculateCompletion(user, profile);
         await _context.SaveChangesAsync();
@@ -340,13 +350,16 @@ public class InterestService : IInterestService
                 await _context.SaveChangesAsync();
             }
 
-            var member = new TeamMember
+            var alreadyMember = await _context.TeamMembers.AnyAsync(m => m.TeamId == team.Id && m.UserId == interest.UserId);
+            if (!alreadyMember)
             {
-                TeamId = team.Id,
-                UserId = interest.UserId,
-                Role = interest.SelectedRoles ?? "Member"
-            };
-            _context.TeamMembers.Add(member);
+                _context.TeamMembers.Add(new TeamMember
+                {
+                    TeamId = team.Id,
+                    UserId = interest.UserId,
+                    Role = interest.SelectedRoles ?? "Member"
+                });
+            }
         }
 
         await _context.SaveChangesAsync();
@@ -389,6 +402,7 @@ public interface INotificationService
     Task<List<Notification>> GetUnreadAsync(string userId);
     Task<List<Notification>> GetAllAsync(string userId);
     Task MarkAsReadAsync(int id, string userId);
+    Task MarkAllAsReadAsync(string userId);
     Task<int> GetUnreadCountAsync(string userId);
 }
 
@@ -447,6 +461,13 @@ public class NotificationService : INotificationService
     {
         var n = await _context.Notifications.FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
         if (n != null) { n.IsRead = true; await _context.SaveChangesAsync(); }
+    }
+
+    public async Task MarkAllAsReadAsync(string userId)
+    {
+        await _context.Notifications
+            .Where(n => n.UserId == userId && !n.IsRead)
+            .ExecuteUpdateAsync(s => s.SetProperty(n => n.IsRead, true));
     }
 
     public async Task<int> GetUnreadCountAsync(string userId)

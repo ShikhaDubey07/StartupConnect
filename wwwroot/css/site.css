@@ -2610,3 +2610,21 @@ a {
     background: var(--sc-accent);
     color: #071426;
 }
+/* ===== Validation summary: hide the empty (valid) state ===== */
+.validation-summary-valid {
+    display: none !important;
+}
+
+/* ===== Email confirmation banner ===== */
+.sc-confirm-banner {
+    background: #fff7ed;
+    border-bottom: 1px solid #fed7aa;
+    color: #7c2d12;
+    font-size: 0.9rem;
+}
+.sc-confirm-banner .btn-link {
+    color: #9a3412;
+    font-weight: 600;
+    padding: 0;
+    vertical-align: baseline;
+}

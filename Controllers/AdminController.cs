@@ -42,6 +42,7 @@ public class AdminController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Approve(int id)
     {
+        if (!await _context.Ideas.AnyAsync(i => i.Id == id)) return NotFound();
         var adminId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         await _ideaService.ApproveIdeaAsync(id, adminId);
         TempData["Success"] = "Idea approved and published!";
@@ -56,6 +57,12 @@ public class AdminController : Controller
             TempData["Error"] = "Rejection reason is required.";
             return RedirectToAction("Dashboard");
         }
+        if (reason.Length > 1000)
+        {
+            TempData["Error"] = "Rejection reason can be at most 1000 characters.";
+            return RedirectToAction("Dashboard");
+        }
+        if (!await _context.Ideas.AnyAsync(i => i.Id == id)) return NotFound();
         var adminId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         await _ideaService.RejectIdeaAsync(id, reason, adminId);
         TempData["Success"] = "Idea rejected with feedback.";
@@ -106,6 +113,8 @@ public class AdminController : Controller
 
         user.IsActive = !user.IsActive;
         await _userManager.UpdateAsync(user);
+        // Invalidate existing sessions so a suspension takes effect on the next request validation.
+        if (!user.IsActive) await _userManager.UpdateSecurityStampAsync(user);
 
         TempData["Success"] = $"User {(user.IsActive ? "activated" : "suspended")} successfully.";
         return RedirectToAction("Users");
@@ -152,7 +161,7 @@ public class AdminController : Controller
         return View(users);
     }
 
-    [HttpPost]
+    [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> ApproveVerification(string id)
     {
         var user = await _userManager.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == id);

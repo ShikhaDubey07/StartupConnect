@@ -4,6 +4,10 @@ namespace StartupConnect.Services;
 
 public interface IAIAnalysisService
 {
+    /// <summary>True when GoogleGemini:ApiKey is set. Callers should skip AI features gracefully otherwise.</summary>
+    bool IsConfigured { get; }
+
+    /// <summary>Calls Gemini and upserts the IdeaAnalysis row. Throws <see cref="AiServiceException"/> on failure.</summary>
     Task<IdeaAnalysis> AnalyzeIdeaAsync(int ideaId);
     Task<IdeaAnalysis> GenerateMockAnalysisAsync(Idea idea);
 

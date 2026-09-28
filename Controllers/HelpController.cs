@@ -110,9 +110,9 @@ public class HelpController : Controller
             return NotFound();
         }
 
-        if (string.IsNullOrWhiteSpace(model.NewMessage))
+        if (string.IsNullOrWhiteSpace(model.NewMessage) || model.NewMessage.Length > 2000)
         {
-            TempData["Error"] = "Message cannot be empty.";
+            TempData["Error"] = string.IsNullOrWhiteSpace(model.NewMessage) ? "Message cannot be empty." : "Messages can be at most 2000 characters.";
             return RedirectToAction(nameof(Ticket), new { id = ticketId });
         }
 
@@ -120,7 +120,7 @@ public class HelpController : Controller
         {
             SupportTicketId = ticketId,
             UserId = userId,
-            Message = model.NewMessage,
+            Message = model.NewMessage.Trim(),
             CreatedAt = DateTime.UtcNow
         };
 

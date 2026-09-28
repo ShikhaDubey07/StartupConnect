@@ -1,0 +1,35 @@
+@{
+    ViewData["HideConfirmBanner"] = true;
+    ViewData["Title"] = "Confirm your email";
+}
+
+<div class="container py-5 mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card border-0 shadow-sm rounded-4">
+                <div class="card-body p-4 p-lg-5 text-center">
+                    <i class="bi bi-envelope-paper-heart display-4 text-primary d-block mb-3"></i>
+                    <h3 class="fw-bold">Check your inbox</h3>
+                    <p class="text-muted mb-4">
+                        Welcome aboard! We've sent a confirmation link to <strong class="text-dark">@ViewBag.Email</strong>.
+                        Click it to unlock submitting ideas and connecting with teams.
+                    </p>
+                    <div class="bg-light rounded-3 p-3 text-start small text-muted mb-4">
+                        <div class="mb-1"><i class="bi bi-check2 text-success me-1"></i>The link is valid for 24 hours.</div>
+                        <div class="mb-1"><i class="bi bi-check2 text-success me-1"></i>Can't find it? Check your spam or promotions folder.</div>
+                        <div><i class="bi bi-check2 text-success me-1"></i>Meanwhile you can explore ideas and finish your profile.</div>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <a asp-action="Dashboard" class="btn btn-primary rounded-pill py-2 fw-semibold">Continue to my dashboard</a>
+                        <form asp-action="ResendConfirmation" method="post">
+                            <input type="hidden" name="Email" value="@ViewBag.Email" />
+                            <button type="submit" class="btn btn-outline-secondary rounded-pill py-2 fw-semibold w-100">
+                                <i class="bi bi-arrow-repeat me-1"></i>Resend the email
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

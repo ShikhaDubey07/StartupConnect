@@ -199,18 +199,38 @@ public class SettingsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteAccount()
+    public async Task<IActionResult> DeleteAccount(DeleteAccountViewModel model, [FromServices] IAccountDeletionService deletionService)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var user = await _userManager.FindByIdAsync(userId);
-        
-        if (user != null)
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null)
         {
             await _signInManager.SignOutAsync();
-            await _userManager.DeleteAsync(user);
             return RedirectToAction("Index", "Home");
         }
-        
-        return RedirectToAction(nameof(Index));
+
+        if (!string.Equals(model.Confirmation?.Trim(), "DELETE", StringComparison.Ordinal))
+        {
+            TempData["Error"] = "Please type DELETE (in capitals) to confirm account deletion.";
+            return RedirectToAction(nameof(Index), new { tab = "account" });
+        }
+
+        if (!await _userManager.HasPasswordAsync(user) || string.IsNullOrEmpty(model.Password)
+            || !await _userManager.CheckPasswordAsync(user, model.Password))
+        {
+            TempData["Error"] = "That password is incorrect. Your account was not deleted.";
+            return RedirectToAction(nameof(Index), new { tab = "account" });
+        }
+
+        var result = await deletionService.DeleteAccountAsync(user);
+        if (!result.Succeeded)
+        {
+            TempData["Error"] = result.Error;
+            return RedirectToAction(nameof(Index), new { tab = "account" });
+        }
+
+        // Only sign out once the account is really gone.
+        await _signInManager.SignOutAsync();
+        TempData["Success"] = "Your account and all associated data have been deleted. We're sorry to see you go.";
+        return RedirectToAction("Index", "Home");
     }
 }

@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using StartupConnect.Data;
+using StartupConnect.Infrastructure;
 using StartupConnect.Models;
 using StartupConnect.Services;
 using StartupConnect.ViewModels;
@@ -15,14 +17,51 @@ public class IdeasController : Controller
     private readonly ApplicationDbContext _context;
     private readonly IMatchingService _matchingService;
     private readonly INotificationService _notifications;
+    private readonly IIdeaAnalysisScheduler _analysisScheduler;
+    private readonly IAnalysisJobTracker _analysisTracker;
+    private readonly IAIAnalysisService _aiService;
+    private readonly IConfiguration _configuration;
 
-    public IdeasController(IIdeaService ideaService, ApplicationDbContext context, IMatchingService matchingService, INotificationService notifications)
+    public const int MaxCommentLength = 1000;
+    public const int MaxReportReasonLength = 500;
+
+    public IdeasController(
+        IIdeaService ideaService,
+        ApplicationDbContext context,
+        IMatchingService matchingService,
+        INotificationService notifications,
+        IIdeaAnalysisScheduler analysisScheduler,
+        IAnalysisJobTracker analysisTracker,
+        IAIAnalysisService aiService,
+        IConfiguration configuration)
     {
         _ideaService = ideaService;
         _context = context;
         _matchingService = matchingService;
         _notifications = notifications;
+        _analysisScheduler = analysisScheduler;
+        _analysisTracker = analysisTracker;
+        _aiService = aiService;
+        _configuration = configuration;
     }
+
+    private string? CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+    private Task<bool> IsApprovedIdeaAsync(int id) =>
+        _context.Ideas.AnyAsync(i => i.Id == id && i.Status == IdeaStatus.Approved);
+
+    /// <summary>Approved ideas are visible to everyone; others only to their owner and admins.</summary>
+    private async Task<bool> CanViewIdeaAsync(int id)
+    {
+        var idea = await _context.Ideas.Where(i => i.Id == id)
+            .Select(i => new { i.SubmitterUserId, i.Status })
+            .FirstOrDefaultAsync();
+        if (idea == null) return false;
+        return idea.Status == IdeaStatus.Approved || idea.SubmitterUserId == CurrentUserId || User.IsInRole("Admin");
+    }
+
+    private TimeSpan RegenerateCooldown =>
+        TimeSpan.FromMinutes(Math.Max(0, _configuration.GetValue<int?>("GoogleGemini:RegenerateCooldownMinutes") ?? 10));
 
     public async Task<IActionResult> Browse(IdeaBrowseViewModel filter)
     {
@@ -57,6 +96,7 @@ public class IdeasController : Controller
     }
 
     [Authorize]
+    [RequireConfirmedEmail]
     [HttpGet]
     public async Task<IActionResult> Submit(int? id)
     {
@@ -72,9 +112,17 @@ public class IdeasController : Controller
     }
 
     [Authorize]
+    [RequireConfirmedEmail]
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Submit(IdeaSubmitViewModel model)
     {
+        if (model.Id.HasValue)
+        {
+            var ownerId = CurrentUserId;
+            if (!await _context.Ideas.AnyAsync(i => i.Id == model.Id.Value && i.SubmitterUserId == ownerId))
+                return NotFound();
+        }
+
         if (!model.AcceptTerms)
             ModelState.AddModelError("AcceptTerms", "You must accept the terms.");
 
@@ -94,22 +142,12 @@ public class IdeasController : Controller
 
         var ideaId = await _ideaService.SubmitIdeaAsync(model, userId);
 
-        // Fire and forget AI analysis
-        _ = Task.Run(async () =>
-        {
-            try
-            {
-                var serviceProvider = HttpContext.RequestServices;
-                using var scope = serviceProvider.CreateScope();
-                var aiService = scope.ServiceProvider.GetRequiredService<IAIAnalysisService>();
-                await aiService.AnalyzeIdeaAsync(ideaId);
-            }
-            catch (Exception ex)
-            {
-                // In production, log the exception properly
-                Console.WriteLine($"Error running AI analysis: {ex.Message}");
-            }
-        });
+        // AI analysis runs on the background queue (its own DI scope), never on the request.
+        // Rapid re-edits don't trigger a new Gemini call while the last analysis is still fresh.
+        var lastAnalysis = await _context.IdeaAnalyses.Where(a => a.IdeaId == ideaId)
+            .Select(a => (DateTime?)a.GeneratedAt).FirstOrDefaultAsync();
+        if (lastAnalysis == null || lastAnalysis.Value + RegenerateCooldown <= DateTime.UtcNow)
+            await _analysisScheduler.EnqueueAsync(ideaId);
 
         TempData["Success"] = "Your idea has been submitted for review!";
         return RedirectToAction("MyIdeas");
@@ -128,27 +166,48 @@ public class IdeasController : Controller
 
     [Authorize]
     [HttpPost, ValidateAntiForgeryToken]
+    [EnableRateLimiting(RateLimitPolicies.AiGenerate)]
     public async Task<IActionResult> RegenerateAnalysis(int id, string? returnUrl = null)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var idea = await _context.Ideas.FirstOrDefaultAsync(i => i.Id == id);
-        
+        var userId = CurrentUserId;
+        var idea = await _context.Ideas
+            .Where(i => i.Id == id)
+            .Select(i => new { i.Id, i.SubmitterUserId, AnalysisGeneratedAt = (DateTime?)i.Analysis!.GeneratedAt })
+            .FirstOrDefaultAsync();
+
         if (idea == null) return NotFound();
-        
+
         // Ensure user is owner or an admin
         if (idea.SubmitterUserId != userId && !User.IsInRole("Admin"))
             return Forbid();
 
-        var aiService = HttpContext.RequestServices.GetRequiredService<IAIAnalysisService>();
-        await aiService.AnalyzeIdeaAsync(id);
+        IActionResult Back() => returnUrl == "AiAnalysis"
+            ? RedirectToAction(nameof(AiAnalysis), new { id })
+            : RedirectToAction(nameof(Detail), new { id });
 
-        TempData["Success"] = "AI Analysis regenerated successfully.";
-        
-        if (returnUrl == "AiAnalysis")
+        if (!_aiService.IsConfigured)
         {
-            return RedirectToAction("AiAnalysis", new { id });
+            TempData["Error"] = AiMessages.NotConfigured;
+            return Back();
         }
-        return RedirectToAction("Detail", new { id });
+
+        if (idea.AnalysisGeneratedAt.HasValue)
+        {
+            var wait = idea.AnalysisGeneratedAt.Value + RegenerateCooldown - DateTime.UtcNow;
+            if (wait > TimeSpan.Zero)
+            {
+                var minutes = Math.Max(1, (int)Math.Ceiling(wait.TotalMinutes));
+                TempData["Error"] = $"This analysis was generated recently. You can regenerate it again in {minutes} minute{(minutes == 1 ? "" : "s")}.";
+                return Back();
+            }
+        }
+
+        var result = await _analysisScheduler.EnqueueAsync(id);
+        TempData["Success"] = result == AnalysisEnqueueResult.Queued
+            ? "Regenerating the AI analysis — this usually takes under a minute."
+            : "An AI analysis for this idea is already being generated.";
+
+        return RedirectToAction(nameof(AiAnalysis), new { id });
     }
 
     [Authorize]
@@ -156,7 +215,7 @@ public class IdeasController : Controller
     public async Task<IActionResult> GetHistory(int id)
     {
         var idea = await _context.Ideas.Include(i => i.Category).FirstOrDefaultAsync(i => i.Id == id);
-        if (idea == null) return NotFound();
+        if (idea == null || !await CanViewIdeaAsync(id)) return NotFound();
 
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var isOwner = idea.SubmitterUserId == userId || User.IsInRole("Admin");
@@ -234,7 +293,7 @@ public class IdeasController : Controller
     public async Task<IActionResult> CompareVersion(int ideaId, int historyId)
     {
         var idea = await _context.Ideas.Include(i => i.Category).FirstOrDefaultAsync(i => i.Id == ideaId);
-        if (idea == null) return NotFound();
+        if (idea == null || !await CanViewIdeaAsync(ideaId)) return NotFound();
 
         var history = await _context.IdeaHistories
             .Include(h => h.Category)
@@ -339,34 +398,53 @@ public class IdeasController : Controller
     [HttpGet]
     public async Task<IActionResult> AiAnalysis(int id)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var model = await _ideaService.GetIdeaDetailAsync(id, userId);
-        
+        var userId = CurrentUserId!;
+        var owner = await _context.Ideas.Where(i => i.Id == id).Select(i => i.SubmitterUserId).FirstOrDefaultAsync();
+        if (owner == null) return NotFound();
+
+        // Only the idea's owner or an admin may view (and thereby trigger) the AI analysis.
+        var isAdmin = User.IsInRole("Admin");
+        if (owner != userId && !isAdmin) return Forbid();
+
+        var model = await _ideaService.GetIdeaDetailAsync(id, userId, includeUnapproved: true);
         if (model == null) return NotFound();
-        
-        // Ensure user is owner or an admin
-        if (model.SubmitterName != User.Identity?.Name && !User.IsInRole("Admin")) 
+
+        var job = _analysisTracker.Get(id);
+        if (model.Analysis == null && job == null && _aiService.IsConfigured)
         {
-            if (!model.IsOwner && !User.IsInRole("Admin"))
-                return Forbid();
+            // First visit without an analysis: queue one instead of blocking the request on Gemini.
+            await _analysisScheduler.EnqueueAsync(id);
+            job = _analysisTracker.Get(id);
         }
 
-        if (model.Analysis == null)
-        {
-            try
-            {
-                var aiService = HttpContext.RequestServices.GetRequiredService<IAIAnalysisService>();
-                await aiService.AnalyzeIdeaAsync(id);
-                // Reload model with new analysis
-                model = await _ideaService.GetIdeaDetailAsync(id, userId);
-            }
-            catch (Exception ex)
-            {
-                ViewBag.AiError = ex.Message;
-            }
-        }
-
+        ViewBag.AiConfigured = _aiService.IsConfigured;
+        ViewBag.Job = job;
+        ViewBag.CanManage = true;
         return View(model);
+    }
+
+    /// <summary>Polled by the AI Analysis page while a job is queued/running.</summary>
+    [Authorize]
+    [HttpGet]
+    public async Task<IActionResult> AnalysisStatus(int id)
+    {
+        var userId = CurrentUserId;
+        var idea = await _context.Ideas
+            .Where(i => i.Id == id)
+            .Select(i => new { i.SubmitterUserId, HasAnalysis = i.Analysis != null })
+            .FirstOrDefaultAsync();
+        if (idea == null) return NotFound();
+        if (idea.SubmitterUserId != userId && !User.IsInRole("Admin")) return Forbid();
+
+        var job = _analysisTracker.Get(id);
+        var state = job?.State switch
+        {
+            AnalysisJobState.Queued => "queued",
+            AnalysisJobState.Running => "running",
+            AnalysisJobState.Failed => "failed",
+            _ => idea.HasAnalysis ? "ready" : "none"
+        };
+        return Json(new { state, message = job?.Message });
     }
 
     [Authorize]
@@ -376,6 +454,7 @@ public class IdeasController : Controller
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
         var idea = await _context.Ideas.FirstOrDefaultAsync(i => i.Id == id && i.SubmitterUserId == userId);
         if (idea == null) return NotFound();
+        if (!Enum.IsDefined(stage)) return BadRequest();
 
         idea.ProgressStage = stage;
         await _context.SaveChangesAsync();
@@ -388,6 +467,7 @@ public class IdeasController : Controller
     public async Task<IActionResult> ToggleLike(int id)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        if (!await IsApprovedIdeaAsync(id)) return NotFound();
         var existingLike = await _context.IdeaLikes.FirstOrDefaultAsync(l => l.IdeaId == id && l.UserId == userId);
         
         bool liked = false;
@@ -422,6 +502,7 @@ public class IdeasController : Controller
     public async Task<IActionResult> ToggleSave(int id)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        if (!await IsApprovedIdeaAsync(id)) return NotFound();
         var saved = await _ideaService.ToggleSaveIdeaAsync(id, userId);
         return Json(new { saved = saved });
     }
@@ -439,14 +520,26 @@ public class IdeasController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> AddComment(int id, string content)
     {
-        if (string.IsNullOrWhiteSpace(content)) return BadRequest();
-        
+        if (!await IsApprovedIdeaAsync(id)) return NotFound();
+
+        content = content?.Trim() ?? string.Empty;
+        if (content.Length == 0)
+        {
+            TempData["Error"] = "Your comment is empty.";
+            return RedirectToAction("Detail", new { id });
+        }
+        if (content.Length > MaxCommentLength)
+        {
+            TempData["Error"] = $"Comments can be at most {MaxCommentLength} characters.";
+            return RedirectToAction("Detail", new { id });
+        }
+
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         var comment = new IdeaComment
         {
             IdeaId = id,
             UserId = userId,
-            Content = content.Trim()
+            Content = content
         };
         
         _context.IdeaComments.Add(comment);
@@ -466,9 +559,22 @@ public class IdeasController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> ReportSpam(int id, string reason)
     {
-        if (string.IsNullOrWhiteSpace(reason)) return BadRequest();
-        
+        var idea = await _context.Ideas.Where(i => i.Id == id && i.Status == IdeaStatus.Approved)
+            .Select(i => new { i.SubmitterUserId }).FirstOrDefaultAsync();
+        if (idea == null) return NotFound();
+
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        reason = reason?.Trim() ?? string.Empty;
+        if (reason.Length == 0 || reason.Length > MaxReportReasonLength)
+        {
+            TempData["Error"] = "Please choose a reason for your report.";
+            return RedirectToAction("Detail", new { id });
+        }
+        if (idea.SubmitterUserId == userId)
+        {
+            TempData["Error"] = "You can't report your own idea.";
+            return RedirectToAction("Detail", new { id });
+        }
         
         var existingReport = await _context.IdeaReports.FirstOrDefaultAsync(r => r.IdeaId == id && r.UserId == userId);
         if (existingReport == null)
@@ -477,7 +583,7 @@ public class IdeasController : Controller
             {
                 IdeaId = id,
                 UserId = userId,
-                Reason = reason.Trim()
+                Reason = reason
             };
             
             _context.IdeaReports.Add(report);
@@ -554,6 +660,7 @@ public class IdeasController : Controller
     }
 
     [Authorize]
+    [RequireConfirmedEmail]
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> Collaborate(int ideaId, int myIdeaId, string message)
     {
@@ -564,7 +671,7 @@ public class IdeasController : Controller
         {
             IdeaId = ideaId,
             InterestType = InterestType.Work,
-            Message = message
+            Message = message?.Length > 500 ? message[..500] : message
         };
         
         var (success, resultMessage) = await interestService.SubmitInterestAsync(model, userId);
@@ -627,7 +734,7 @@ public class IdeasController : Controller
 
         var details = new List<AnalyticsDetailItemViewModel>();
 
-        switch (type.ToLower())
+        switch ((type ?? string.Empty).ToLowerInvariant())
         {
             case "views":
                 var views = await _context.IdeaViews
@@ -731,6 +838,7 @@ public class IdeasController : Controller
     public async Task<IActionResult> ToggleSaveIdea(int id)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        if (!await IsApprovedIdeaAsync(id)) return NotFound();
         var savedIdea = await _context.SavedIdeas.FirstOrDefaultAsync(s => s.IdeaId == id && s.UserId == userId);
         
         if (savedIdea != null)

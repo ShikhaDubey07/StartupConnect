@@ -291,21 +291,21 @@
 
                     data.forEach(item => {
                         const date = new Date(item.activityDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                        const photoUrl = item.userProfilePhoto ? item.userProfilePhoto : '/images/default-avatar.png';
+                        const photoUrl = (item.userProfilePhoto && /^(https?:\/\/|\/(?![\/\\]))/i.test(item.userProfilePhoto)) ? item.userProfilePhoto : '/images/default-avatar.png';
                         
                         let extraDetailsHtml = '';
                         if (item.extraDetails) {
-                            extraDetailsHtml = `<div class="mt-2 text-muted small p-2 bg-white rounded">${item.extraDetails}</div>`;
+                            extraDetailsHtml = `<div class="mt-2 text-muted small p-2 bg-white rounded">${scEscapeHtml(item.extraDetails)}</div>`;
                         }
 
                         const itemHtml = `
                             <div class="list-group-item list-group-item-action p-4 border-0 border-bottom">
                                 <div class="d-flex w-100 justify-content-between align-items-center mb-2">
                                     <div class="d-flex align-items-center">
-                                        <img src="${photoUrl}" class="rounded-circle me-3 border" style="width: 40px; height: 40px; object-fit: cover;" alt="User">
+                                        <img src="${scEscapeHtml(photoUrl)}" class="rounded-circle me-3 border" style="width: 40px; height: 40px; object-fit: cover;" alt="User">
                                         <div>
-                                            <h6 class="mb-0 fw-bold">${item.userName}</h6>
-                                            <span class="badge bg-secondary opacity-75 fw-normal mt-1">${item.activityType}</span>
+                                            <h6 class="mb-0 fw-bold">${scEscapeHtml(item.userName)}</h6>
+                                            <span class="badge bg-secondary opacity-75 fw-normal mt-1">${scEscapeHtml(item.activityType)}</span>
                                         </div>
                                     </div>
                                     <small class="text-muted text-end ms-3" style="min-width: 80px;">${date}</small>
