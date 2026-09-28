@@ -1,39 +1,133 @@
-@model IEnumerable<StartupConnect.Models.StartupChallenge>
+@model ChallengeIndexViewModel
+@using StartupConnect.Infrastructure
 @{
     ViewData["Title"] = "Startup Challenges";
+    var list = Model.Tab == "past" ? Model.Past : Model.Active;
+    var now = DateTime.UtcNow;
 }
 
-<div class="container py-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold">Active Startup Challenges</h2>
-        <span class="badge bg-success">@Model.Count() Active</span>
-    </div>
-    
-    <div class="row g-4">
-        @foreach(var challenge in Model)
+<section class="sc-page-header">
+    <div class="container d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <h1><i class="bi bi-trophy me-2"></i>Startup Challenges</h1>
+            <p class="opacity-75 mb-0">Pitch your approved ideas to themed challenges, win prizes and get noticed by mentors and investors.</p>
+        </div>
+        @if (User.IsInRole("Admin") || User.IsInRole("Panel"))
         {
-            <div class="col-md-6 col-lg-4">
-                <div class="card h-100 sc-idea-card">
-                    <div class="card-body">
-                        <h4 class="card-title text-primary fw-bold">@challenge.Title</h4>
-                        <p class="card-text text-muted">@challenge.Description</p>
-                        
-                        <div class="d-flex justify-content-between mt-4">
-                            <div>
-                                <small class="d-block text-muted">Prize Pool</small>
-                                <strong class="text-success">@challenge.Prize</strong>
-                            </div>
-                            <div>
-                                <small class="d-block text-muted">Deadline</small>
-                                <strong>@challenge.Deadline.ToString("MMM dd, yyyy")</strong>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-footer bg-transparent border-top-0 pt-0">
-                        <a asp-action="Details" asp-route-id="@challenge.Id" class="btn btn-primary w-100">View Challenge</a>
-                    </div>
-                </div>
-            </div>
+            <a asp-controller="Admin" asp-action="Challenges" class="btn btn-accent"><i class="bi bi-gear me-1"></i>Manage challenges</a>
         }
     </div>
+</section>
+
+<div class="container pb-5">
+    <ul class="nav nav-pills sc-tabs mb-4" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link @(Model.Tab == "active" ? "active" : "")" asp-action="Index" asp-route-tab="active">
+                <i class="bi bi-lightning-charge me-1"></i>Active <span class="badge rounded-pill ms-1 sc-tab-count">@Model.Active.Count</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link @(Model.Tab == "past" ? "active" : "")" asp-action="Index" asp-route-tab="past">
+                <i class="bi bi-archive me-1"></i>Past <span class="badge rounded-pill ms-1 sc-tab-count">@Model.Past.Count</span>
+            </a>
+        </li>
+    </ul>
+
+    @if (!list.Any())
+    {
+        <div class="sc-empty-state">
+            <div class="sc-empty-icon"><i class="bi @(Model.Tab == "past" ? "bi-archive" : "bi-trophy")"></i></div>
+            @if (Model.Tab == "past")
+            {
+                <h5>No past challenges yet</h5>
+                <p class="text-muted mb-3">Closed challenges and their winners will show up here.</p>
+                <a asp-action="Index" asp-route-tab="active" class="btn btn-primary-sc">See active challenges</a>
+            }
+            else
+            {
+                <h5>No challenges are open right now</h5>
+                <p class="text-muted mb-3">New challenges are announced regularly. Meanwhile, polish your idea so it's ready to enter.</p>
+                <div class="d-flex flex-wrap justify-content-center gap-2">
+                    <a asp-controller="Ideas" asp-action="Submit" class="btn btn-accent"><i class="bi bi-lightbulb me-1"></i>Submit an idea</a>
+                    @if (Model.Past.Any())
+                    {
+                        <a asp-action="Index" asp-route-tab="past" class="btn btn-outline-secondary">Browse past winners</a>
+                    }
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            @foreach (var c in list)
+            {
+                <div class="col-md-6 col-lg-4">
+                    <article class="sc-challenge-card h-100">
+                        <div class="sc-challenge-cover @(c.CoverImageUrl != null ? "has-image" : "")">
+                            @if (c.CoverImageUrl != null)
+                            {
+                                <img src="@c.CoverImageUrl" alt="" class="sc-challenge-cover-img" loading="lazy" referrerpolicy="no-referrer" onerror="this.remove()" />
+                            }
+                            <div class="d-flex justify-content-between align-items-start gap-2">
+                                @if (c.CategoryName != null)
+                                {
+                                    <span class="sc-challenge-chip"><i class="bi @(c.CategoryIcon ?? "bi-tag")"></i> @c.CategoryName</span>
+                                }
+                                else
+                                {
+                                    <span class="sc-challenge-chip"><i class="bi bi-globe2"></i> Open theme</span>
+                                }
+                                @if (c.IsOpen)
+                                {
+                                    <span class="sc-challenge-chip sc-chip-live" data-countdown="@AppTime.ToIsoUtc(c.DeadlineUtc)"><i class="bi bi-hourglass-split"></i> <span class="sc-countdown-text">@AppTime.TimeLeft(c.DeadlineUtc, now)</span></span>
+                                }
+                                else if (c.ResultsAnnounced)
+                                {
+                                    <span class="sc-challenge-chip sc-chip-winner"><i class="bi bi-award"></i> Results out</span>
+                                }
+                                else
+                                {
+                                    <span class="sc-challenge-chip"><i class="bi bi-lock"></i> Judging</span>
+                                }
+                            </div>
+                            <i class="bi bi-trophy-fill sc-challenge-cover-icon" aria-hidden="true"></i>
+                        </div>
+                        <div class="p-4 d-flex flex-column flex-grow-1">
+                            <h5 class="fw-bold mb-2">
+                                <a asp-action="Details" asp-route-id="@c.Id" class="stretched-link text-decoration-none text-dark">@c.Title</a>
+                            </h5>
+                            <p class="text-muted small sc-clamp-3 mb-3">@c.Description</p>
+
+                            @if (c.ResultsAnnounced && c.WinnerIdeaTitles.Any())
+                            {
+                                <div class="sc-winner-strip mb-3">
+                                    <i class="bi bi-trophy-fill me-1"></i><strong>Winner@(c.WinnerIdeaTitles.Count > 1 ? "s" : ""):</strong>
+                                    @string.Join(", ", c.WinnerIdeaTitles)
+                                </div>
+                            }
+
+                            <div class="d-flex justify-content-between align-items-end mt-auto pt-2 border-top">
+                                <div>
+                                    <small class="d-block text-muted">Prize</small>
+                                    <strong class="text-success">@c.Prize</strong>
+                                </div>
+                                <div class="text-end">
+                                    <small class="d-block text-muted">@(c.IsOpen ? "Deadline" : "Closed")</small>
+                                    <strong class="small">@AppTime.ToIst(c.DeadlineUtc).ToString("MMM dd, yyyy")</strong>
+                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mt-3 small text-muted">
+                                <span><i class="bi bi-people me-1"></i>@c.SubmissionCount submission@(c.SubmissionCount == 1 ? "" : "s")</span>
+                                @if (c.HasMySubmission)
+                                {
+                                    <span class="badge bg-success-subtle text-success"><i class="bi bi-check2-circle me-1"></i>You're in</span>
+                                }
+                            </div>
+                        </div>
+                    </article>
+                </div>
+            }
+        </div>
+    }
 </div>

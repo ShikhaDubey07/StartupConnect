@@ -193,5 +193,11 @@ public static class DbInitializer
             );
             await context.SaveChangesAsync();
         }
+
+        // Challenges, demo team workspace, milestones, verification & report samples (idempotent).
+        if (seedDemo && !string.IsNullOrWhiteSpace(demoPassword))
+        {
+            await CollaborationSeed.SeedAsync(context, userManager, demoPassword, logger);
+        }
     }
 }

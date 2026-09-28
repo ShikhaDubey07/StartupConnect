@@ -1,0 +1,133 @@
+@model AdminReportsViewModel
+@using StartupConnect.Infrastructure
+@using StartupConnect.Models
+@{
+    ViewData["Title"] = "Idea Reports";
+    var now = DateTime.UtcNow;
+}
+
+<div class="sc-admin-dashboard pt-4 pb-5">
+    <div class="container">
+        @await Component.InvokeAsync("AdminNav", new { active = "Reports" })
+
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+            <div>
+                <h1 class="h3 fw-bold text-dark mb-1"><i class="bi bi-flag-fill text-danger me-2"></i>Idea reports</h1>
+                <p class="text-muted mb-0">Community reports grouped by idea. Dismiss false alarms, resolve issues, or unpublish ideas that break the rules.</p>
+            </div>
+            <div class="btn-group shadow-sm">
+                <a asp-action="Reports" class="btn btn-outline-primary @(!Model.ShowHistory ? "active" : "")">Open</a>
+                <a asp-action="Reports" asp-route-view="history" class="btn btn-outline-primary @(Model.ShowHistory ? "active" : "")">Handled</a>
+            </div>
+        </div>
+
+        @if (!Model.Groups.Any())
+        {
+            <div class="sc-empty-state bg-white rounded-4 border shadow-sm">
+                <div class="sc-empty-icon text-success"><i class="bi bi-shield-check"></i></div>
+                <h5>@(Model.ShowHistory ? "No handled reports yet" : "No open reports")</h5>
+                <p class="text-muted mb-0">@(Model.ShowHistory ? "Dismissed and resolved reports will be kept here for reference." : "The community hasn't flagged anything. Nice!")</p>
+            </div>
+        }
+        else
+        {
+            <div class="d-flex flex-column gap-4">
+                @foreach (var g in Model.Groups)
+                {
+                    var isLive = g.IdeaStatus == IdeaStatus.Approved;
+                    <div class="sc-form-card sc-report-group">
+                        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+                            <div class="min-w-0">
+                                <h5 class="fw-bold mb-1">
+                                    @if (isLive)
+                                    {
+                                        <a asp-controller="Ideas" asp-action="Detail" asp-route-id="@g.IdeaId" target="_blank" class="text-dark">@g.IdeaTitle <i class="bi bi-box-arrow-up-right small"></i></a>
+                                    }
+                                    else
+                                    {
+                                        @g.IdeaTitle
+                                    }
+                                </h5>
+                                <div class="small text-muted">
+                                    by <a asp-controller="Profile" asp-action="Detail" asp-route-id="@g.OwnerId" class="text-muted">@g.OwnerName</a>
+                                    · <span class="badge badge-@g.IdeaStatus.ToString().ToLowerInvariant()">@g.IdeaStatus</span>
+                                    · last report @AppTime.Ago(g.LatestReportAt, now)
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                @if (g.OpenCount > 0)
+                                {
+                                    <span class="badge bg-danger rounded-pill px-3 py-2">@g.OpenCount open</span>
+                                }
+                                <span class="badge bg-light text-dark border rounded-pill px-3 py-2">@g.TotalCount total</span>
+                            </div>
+                        </div>
+
+                        <ul class="list-unstyled mb-3 sc-report-list">
+                            @foreach (var r in g.Reports)
+                            {
+                                <li class="d-flex flex-wrap justify-content-between gap-2 py-2 border-top">
+                                    <div class="min-w-0">
+                                        <div class="small"><i class="bi bi-flag me-1 @(r.Status == ReportStatus.Open ? "text-danger" : "text-muted")"></i><strong>@r.Reason</strong></div>
+                                        <div class="small text-muted">
+                                            @r.User.FullName · @AppTime.Ago(r.CreatedAt, now)
+                                            @if (r.Status != ReportStatus.Open)
+                                            {
+                                                <span> · <span class="badge @(r.Status == ReportStatus.Resolved ? "bg-success-subtle text-success" : "bg-secondary-subtle text-secondary")">@r.Status</span>
+                                                @(r.ResolvedBy != null ? $" by {r.ResolvedBy.FullName}" : "")@(r.ResolvedAt.HasValue ? $" {AppTime.Ago(r.ResolvedAt.Value, now)}" : "")@(string.IsNullOrEmpty(r.ResolutionNote) ? "" : $" — {r.ResolutionNote}")</span>
+                                            }
+                                        </div>
+                                    </div>
+                                    @if (r.Status == ReportStatus.Open && g.OpenCount > 1)
+                                    {
+                                        <form asp-action="DismissReports" method="post" class="flex-shrink-0">
+                                            <input type="hidden" name="ideaId" value="@g.IdeaId" />
+                                            <input type="hidden" name="reportId" value="@r.Id" />
+                                            <button type="submit" class="btn btn-sm btn-link text-muted p-0">Dismiss this one</button>
+                                        </form>
+                                    }
+                                </li>
+                            }
+                        </ul>
+
+                        @if (g.OpenCount > 0)
+                        {
+                            <div class="row g-2 align-items-start">
+                                <div class="col-md-6 col-xl-4">
+                                    <form asp-action="DismissReports" method="post">
+                                        <input type="hidden" name="ideaId" value="@g.IdeaId" />
+                                        <div class="input-group input-group-sm">
+                                            <input type="text" name="note" class="form-control" maxlength="500" placeholder="Note (optional)" aria-label="Dismiss note" />
+                                            <button type="submit" class="btn btn-outline-secondary"><i class="bi bi-x-lg me-1"></i>Dismiss all</button>
+                                        </div>
+                                    </form>
+                                </div>
+                                <div class="col-md-6 col-xl-4">
+                                    <form asp-action="ResolveReports" method="post">
+                                        <input type="hidden" name="ideaId" value="@g.IdeaId" />
+                                        <div class="input-group input-group-sm">
+                                            <input type="text" name="note" class="form-control" maxlength="500" placeholder="What was done? (optional)" aria-label="Resolution note" />
+                                            <button type="submit" class="btn btn-outline-success"><i class="bi bi-check2 me-1"></i>Mark resolved</button>
+                                        </div>
+                                    </form>
+                                </div>
+                                @if (isLive)
+                                {
+                                    <div class="col-xl-4">
+                                        <form asp-action="UnpublishIdea" method="post" onsubmit="return confirm('Unpublish this idea? It will be hidden from everyone and the owner will be asked to revise it.');">
+                                            <input type="hidden" name="ideaId" value="@g.IdeaId" />
+                                            <div class="input-group input-group-sm">
+                                                <input type="text" name="reason" class="form-control" maxlength="500" required placeholder="Reason shown to the owner" aria-label="Unpublish reason" />
+                                                <button type="submit" class="btn btn-danger"><i class="bi bi-eye-slash me-1"></i>Unpublish</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>

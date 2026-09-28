@@ -245,11 +245,15 @@ public class InterestService : IInterestService
 {
     private readonly ApplicationDbContext _context;
     private readonly INotificationService _notifications;
+    private readonly ITeamService _teams;
+    private readonly IActivityService _activity;
 
-    public InterestService(ApplicationDbContext context, INotificationService notifications)
+    public InterestService(ApplicationDbContext context, INotificationService notifications, ITeamService teams, IActivityService activity)
     {
         _context = context;
         _notifications = notifications;
+        _teams = teams;
+        _activity = activity;
     }
 
     public async Task<(bool Success, string Message)> SubmitInterestAsync(ShowInterestViewModel model, string userId)
@@ -297,6 +301,8 @@ public class InterestService : IInterestService
             });
         }
 
+        await _activity.RecordAsync(idea.SubmitterUserId, ActivityTypes.InterestReceived,
+            $"Someone showed interest in your idea \"{idea.Title}\".", "/Interests/Manage", save: false);
         await _context.SaveChangesAsync();
         await _notifications.CreateAsync(idea.SubmitterUserId, "New Interest!",
             $"Someone showed interest in your idea '{idea.Title}'.", $"/Ideas/Detail/{idea.Id}");
@@ -340,30 +346,22 @@ public class InterestService : IInterestService
 
         interest.Status = InterestStatus.Accepted;
 
+        await _context.SaveChangesAsync();
+
+        string? workspaceLink = null;
         if (interest.InterestType == InterestType.Work || interest.InterestType == InterestType.Both)
         {
-            var team = interest.Idea.Team;
-            if (team == null)
-            {
-                team = new Team { IdeaId = interest.IdeaId, Name = $"{interest.Idea.Title} Team" };
-                _context.Teams.Add(team);
-                await _context.SaveChangesAsync();
-            }
-
-            var alreadyMember = await _context.TeamMembers.AnyAsync(m => m.TeamId == team.Id && m.UserId == interest.UserId);
-            if (!alreadyMember)
-            {
-                _context.TeamMembers.Add(new TeamMember
-                {
-                    TeamId = team.Id,
-                    UserId = interest.UserId,
-                    Role = interest.SelectedRoles ?? "Member"
-                });
-            }
+            // Creates the team on first acceptance, always with the founder as a "Founder" member.
+            var team = await _teams.EnsureTeamForIdeaAsync(interest.Idea);
+            await _teams.AddMemberAsync(team, interest.UserId, interest.SelectedRoles ?? "Member");
+            workspaceLink = $"/Workspace/Team/{team.Id}";
         }
 
-        await _context.SaveChangesAsync();
-        await _notifications.CreateAsync(interest.UserId, "Request Accepted!", $"Your collaboration request for '{interest.Idea.Title}' was accepted.", $"/Ideas/Detail/{interest.IdeaId}");
+        await _notifications.CreateAsync(interest.UserId, "Request Accepted!",
+            workspaceLink != null
+                ? $"Your collaboration request for '{interest.Idea.Title}' was accepted — welcome to the team workspace!"
+                : $"Your collaboration request for '{interest.Idea.Title}' was accepted.",
+            workspaceLink ?? $"/Ideas/Detail/{interest.IdeaId}");
         return true;
     }
 

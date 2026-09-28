@@ -18,6 +18,10 @@
         }
         <span class="sc-idea-category"><i class="bi @Model.CategoryIcon"></i> @Model.CategoryName</span>
         <h5 class="mt-2 mb-0 text-black pe-4">@Model.Title</h5>
+        @if (Model.SubmitterVerified)
+        {
+            <div class="small mt-1 sc-card-verified"><i class="bi bi-patch-check-fill"></i> Verified founder</div>
+        }
     </div>
     <div class="sc-idea-card-body">
         <p class="text-muted small flex-grow-1">@Model.Tagline</p>

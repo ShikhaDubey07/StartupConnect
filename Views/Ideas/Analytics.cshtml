@@ -291,7 +291,12 @@
 
                     data.forEach(item => {
                         const date = new Date(item.activityDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-                        const photoUrl = (item.userProfilePhoto && /^(https?:\/\/|\/(?![\/\\]))/i.test(item.userProfilePhoto)) ? item.userProfilePhoto : '/images/default-avatar.png';
+                        const photoUrl = (item.userProfilePhoto && /^(https?:\/\/|\/(?![\/\\]))/i.test(item.userProfilePhoto)) ? item.userProfilePhoto : null;
+                        const nameParts = String(item.userName || '').trim().split(/\s+/).filter(Boolean);
+                        const initials = nameParts.length ? (nameParts[0][0] + (nameParts.length > 1 ? nameParts[nameParts.length - 1][0] : '')).toUpperCase() : '?';
+                        const avatarHtml = photoUrl
+                            ? `<img src="${scEscapeHtml(photoUrl)}" class="rounded-circle me-3 border" style="width: 40px; height: 40px; object-fit: cover;" alt="" onerror="this.src='/images/default-avatar.svg'">`
+                            : `<span class="sc-initials-avatar sc-avatar-c0 me-3" style="width:40px;height:40px;font-size:15px" aria-hidden="true">${scEscapeHtml(initials)}</span>`;
                         
                         let extraDetailsHtml = '';
                         if (item.extraDetails) {
@@ -302,7 +307,7 @@
                             <div class="list-group-item list-group-item-action p-4 border-0 border-bottom">
                                 <div class="d-flex w-100 justify-content-between align-items-center mb-2">
                                     <div class="d-flex align-items-center">
-                                        <img src="${scEscapeHtml(photoUrl)}" class="rounded-circle me-3 border" style="width: 40px; height: 40px; object-fit: cover;" alt="User">
+                                        ${avatarHtml}
                                         <div>
                                             <h6 class="mb-0 fw-bold">${scEscapeHtml(item.userName)}</h6>
                                             <span class="badge bg-secondary opacity-75 fw-normal mt-1">${scEscapeHtml(item.activityType)}</span>

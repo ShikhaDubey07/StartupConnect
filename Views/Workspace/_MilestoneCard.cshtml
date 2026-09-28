@@ -1,0 +1,70 @@
+@model MilestoneViewModel
+@using StartupConnect.Infrastructure
+@{
+    var teamId = (int)ViewData["TeamId"]!;
+    var isFounder = ViewData["IsFounder"] as bool? == true;
+    var isClosed = ViewData["IsClosed"] as bool? == true;
+}
+<div class="sc-milestone @(Model.IsCompleted ? "is-done" : "") @(Model.IsOverdue ? "is-overdue" : "")">
+    <div class="d-flex gap-2 align-items-start">
+        <form asp-controller="Workspace" asp-action="ToggleMilestone" method="post" class="flex-shrink-0">
+            <input type="hidden" name="teamId" value="@teamId" />
+            <input type="hidden" name="milestoneId" value="@Model.Id" />
+            <input type="hidden" name="completed" value="@(Model.IsCompleted ? "false" : "true")" />
+            <button type="submit" class="sc-milestone-check" disabled="@isClosed"
+                    title="@(Model.IsCompleted ? "Mark as not done" : "Mark as complete")" aria-label="@(Model.IsCompleted ? "Mark as not done" : "Mark as complete")">
+                <i class="bi @(Model.IsCompleted ? "bi-check-circle-fill" : "bi-circle")"></i>
+            </button>
+        </form>
+        <div class="flex-grow-1 min-w-0">
+            <div class="fw-semibold sc-milestone-title">@Model.Title</div>
+            @if (!string.IsNullOrWhiteSpace(Model.Description))
+            {
+                <div class="small text-muted mt-1" style="white-space: pre-line">@Model.Description</div>
+            }
+            <div class="d-flex flex-wrap gap-2 mt-2 small">
+                @if (Model.IsCompleted && Model.CompletedAt.HasValue)
+                {
+                    <span class="text-success"><i class="bi bi-check2 me-1"></i>Done @AppTime.ToIst(Model.CompletedAt.Value).ToString("MMM dd")</span>
+                }
+                else if (Model.DueDate.HasValue)
+                {
+                    <span class="@(Model.IsOverdue ? "text-danger fw-semibold" : "text-muted")"><i class="bi bi-calendar-event me-1"></i>@(Model.IsOverdue ? "Overdue · " : "Due ")@Model.DueDate.Value.ToString("MMM dd")</span>
+                }
+                @if (Model.AssigneeName != null)
+                {
+                    <span class="text-muted"><i class="bi bi-person me-1"></i>@Model.AssigneeName</span>
+                }
+                else
+                {
+                    <span class="text-muted fst-italic">Unassigned</span>
+                }
+            </div>
+        </div>
+        @if (!isClosed)
+        {
+            <div class="dropdown flex-shrink-0">
+                <button class="btn btn-sm btn-link text-muted p-0" type="button" data-bs-toggle="dropdown" aria-label="Milestone actions"><i class="bi bi-three-dots-vertical"></i></button>
+                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                    <li>
+                        <button type="button" class="dropdown-item" data-bs-toggle="modal" data-bs-target="#milestoneModal" data-mode="edit"
+                                data-id="@Model.Id" data-title="@Model.Title" data-description="@Model.Description"
+                                data-due="@(Model.DueDate?.ToString("yyyy-MM-dd"))" data-assignee="@Model.AssigneeUserId">
+                            <i class="bi bi-pencil me-2"></i>Edit
+                        </button>
+                    </li>
+                    @if (isFounder)
+                    {
+                        <li>
+                            <form asp-controller="Workspace" asp-action="DeleteMilestone" method="post" onsubmit="return confirm('Delete this milestone?');">
+                                <input type="hidden" name="teamId" value="@teamId" />
+                                <input type="hidden" name="milestoneId" value="@Model.Id" />
+                                <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash me-2"></i>Delete</button>
+                            </form>
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+    </div>
+</div>

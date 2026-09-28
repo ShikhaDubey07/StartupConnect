@@ -1,0 +1,96 @@
+@model ChallengeFormViewModel
+@{
+    var isEdit = Model.Id.HasValue;
+    ViewData["Title"] = isEdit ? "Edit Challenge" : "New Challenge";
+    var categories = ViewBag.Categories as List<StartupConnect.Models.Category> ?? new();
+}
+
+<div class="sc-admin-dashboard pt-4 pb-5">
+    <div class="container">
+        @await Component.InvokeAsync("AdminNav", new { active = "Challenges" })
+
+        <div class="mb-4">
+            <a asp-action="Challenges" class="small text-decoration-none"><i class="bi bi-arrow-left me-1"></i>All challenges</a>
+            <h1 class="h3 fw-bold text-dark mt-2 mb-1">
+                <i class="bi @(isEdit ? "bi-pencil-square" : "bi-plus-circle") text-primary me-2"></i>@(isEdit ? "Edit challenge" : "Create a challenge")
+            </h1>
+            @if (isEdit && Model.SubmissionCount > 0)
+            {
+                <p class="text-muted mb-0"><i class="bi bi-info-circle me-1"></i>@Model.SubmissionCount founder(s) already entered — let them know about major changes.</p>
+            }
+        </div>
+
+        <form asp-action="SaveChallenge" method="post" class="row g-4">
+            <input type="hidden" asp-for="Id" />
+            <div class="col-lg-8">
+                <div class="sc-form-card">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+                    <div class="mb-3">
+                        <label asp-for="Title" class="form-label fw-semibold"></label>
+                        <input asp-for="Title" class="form-control" placeholder="e.g. AgriTech Innovation Challenge 2026" />
+                        <span asp-validation-for="Title" class="text-danger small"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Description" class="form-label fw-semibold"></label>
+                        <textarea asp-for="Description" class="form-control" rows="6" placeholder="What problem should founders tackle? What are you looking for?"></textarea>
+                        <span asp-validation-for="Description" class="text-danger small"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="Eligibility" class="form-label fw-semibold"></label> <span class="text-muted small">(optional)</span>
+                        <textarea asp-for="Eligibility" class="form-control" rows="3" placeholder="e.g. Founders aged 18–30, idea must be approved on StartupConnect"></textarea>
+                        <span asp-validation-for="Eligibility" class="text-danger small"></span>
+                    </div>
+                    <div>
+                        <label asp-for="Rules" class="form-label fw-semibold"></label> <span class="text-muted small">(optional)</span>
+                        <textarea asp-for="Rules" class="form-control" rows="4" placeholder="How entries are judged, number of winners, disqualification rules…"></textarea>
+                        <span asp-validation-for="Rules" class="text-danger small"></span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="sc-form-card">
+                    <div class="mb-3">
+                        <label asp-for="Prize" class="form-label fw-semibold"></label>
+                        <input asp-for="Prize" class="form-control" placeholder="e.g. ₹1,00,000 + mentorship" />
+                        <span asp-validation-for="Prize" class="text-danger small"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="DeadlineIst" class="form-label fw-semibold"></label>
+                        <input asp-for="DeadlineIst" type="datetime-local" class="form-control" asp-format="{0:yyyy-MM-ddTHH:mm}" />
+                        <div class="form-text">Indian Standard Time. Submissions close at this moment.</div>
+                        <span asp-validation-for="DeadlineIst" class="text-danger small"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="CategoryId" class="form-label fw-semibold"></label> <span class="text-muted small">(optional)</span>
+                        <select asp-for="CategoryId" class="form-select">
+                            <option value="">Any sector</option>
+                            @foreach (var cat in categories)
+                            {
+                                <option value="@cat.Id" selected="@(Model.CategoryId == cat.Id)">@cat.Name</option>
+                            }
+                        </select>
+                        <span asp-validation-for="CategoryId" class="text-danger small"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label asp-for="CoverImageUrl" class="form-label fw-semibold"></label> <span class="text-muted small">(optional)</span>
+                        <input asp-for="CoverImageUrl" class="form-control" placeholder="https://…" />
+                        <div class="form-text">Leave empty for the default gradient cover.</div>
+                        <span asp-validation-for="CoverImageUrl" class="text-danger small"></span>
+                    </div>
+                    <div class="form-check form-switch mb-4">
+                        <input asp-for="IsActive" class="form-check-input" role="switch" />
+                        <label asp-for="IsActive" class="form-check-label"></label>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary-sc"><i class="bi bi-check2 me-1"></i>@(isEdit ? "Save changes" : "Create challenge")</button>
+                        <a asp-action="Challenges" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

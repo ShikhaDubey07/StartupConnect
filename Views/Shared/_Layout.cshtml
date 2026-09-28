@@ -43,6 +43,7 @@
                 <ul class="navbar-nav mx-auto mb-2 mb-lg-0">
                     <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Index">Home</a></li>
                     <li class="nav-item"><a class="nav-link" asp-controller="Ideas" asp-action="Browse">Explore Ideas</a></li>
+                    <li class="nav-item"><a class="nav-link" asp-controller="Challenges" asp-action="Index"><i class="bi bi-trophy me-1 text-cashmere"></i>Challenges</a></li>
                     <li class="nav-item"><a class="nav-link" asp-controller="Videos" asp-action="Index"><i class="bi bi-play-circle me-1 text-cashmere"></i>Videos</a></li>
                     <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="HowItWorks">How It Works</a></li>
                     <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Contact">Contact</a></li>
@@ -123,6 +124,8 @@
                                 <li><a class="dropdown-item py-2 d-flex align-items-center gap-2" asp-controller="Account" asp-action="Dashboard"><i class="bi bi-speedometer2 text-muted"></i> Dashboard</a></li>
                                 <li><a class="dropdown-item py-2 d-flex align-items-center gap-2" asp-controller="Account" asp-action="Profile"><i class="bi bi-person text-muted"></i> Profile</a></li>
                                 <li><a class="dropdown-item py-2 d-flex align-items-center gap-2" asp-controller="Ideas" asp-action="MyIdeas"><i class="bi bi-lightbulb text-muted"></i> My Ideas</a></li>
+                                <li><a class="dropdown-item py-2 d-flex align-items-center gap-2" asp-controller="Workspace" asp-action="Index"><i class="bi bi-kanban text-muted"></i> My Teams</a></li>
+                                <li><a class="dropdown-item py-2 d-flex align-items-center gap-2" asp-controller="Profile" asp-action="Analytics"><i class="bi bi-graph-up text-muted"></i> Founder Analytics</a></li>
                                 <li><a class="dropdown-item py-2 d-flex align-items-center gap-2" asp-controller="Matches" asp-action="Index"><i class="bi bi-people text-muted"></i> Smart Matches</a></li>
                                 <li><a class="dropdown-item py-2 d-flex align-items-center gap-2" asp-controller="Matches" asp-action="FindTeam"><i class="bi bi-search text-muted"></i> Find Co-founder & Team</a></li>
                                 <li><a class="dropdown-item py-2 d-flex align-items-center gap-2" asp-controller="Interests" asp-action="Manage"><i class="bi bi-briefcase text-muted"></i> Collaboration Requests</a></li>
@@ -212,6 +215,7 @@
                     <h6 class="text-white mb-3 fw-bold" style="font-size:0.85rem;text-transform:uppercase;letter-spacing:0.08em;">Platform</h6>
                     <ul class="list-unstyled sc-footer-links">
                         <li><a asp-controller="Ideas" asp-action="Browse" class="text-white">Explore Ideas</a></li>
+                        <li><a asp-controller="Challenges" asp-action="Index" class="text-white">Startup Challenges</a></li>
                         <li><a asp-controller="Videos" asp-action="Index" class="text-white">Startup Videos</a></li>
                         <li><a asp-controller="Account" asp-action="Register" class="text-white">Join Now</a></li>
                         <li><a asp-controller="Home" asp-action="HowItWorks" class="text-white">How It Works</a></li>
@@ -243,7 +247,7 @@
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+    <script src="~/lib/microsoft-signalr/signalr.min.js" asp-append-version="true"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
     <!-- AOS Animation JS -->
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>

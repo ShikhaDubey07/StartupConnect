@@ -24,6 +24,10 @@
                     @(Model.FullName?.FirstOrDefault())
                 </div>
                 <h4 class="fw-bold mb-1">@Model.FullName</h4>
+                @if (ViewBag.IsVerifiedFounder == true)
+                {
+                    <div class="mb-2"><partial name="_VerifiedBadge" model="@("lg")" /></div>
+                }
                 @if (!string.IsNullOrEmpty(Model.City) || !string.IsNullOrEmpty(Model.State))
                 {
                     <p class="text-muted mb-2"><i class="bi bi-geo-alt me-1"></i> @Model.City, @Model.State</p>

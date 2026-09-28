@@ -217,6 +217,7 @@ public class IdeaCardViewModel
     public DateTime? PublishedAt { get; set; }
     /// <summary>AI OverallScore (0–100) from IdeaAnalysis. Null if not yet analyzed.</summary>
     public int? AiScore { get; set; }
+    public bool SubmitterVerified { get; set; }
 }
 
 
@@ -237,6 +238,8 @@ public class IdeaDetailViewModel
     public int ExpectedTeamSize { get; set; }
     public List<string> RolesNeeded { get; set; } = new();
     public string SubmitterName { get; set; } = string.Empty;
+    public string SubmitterId { get; set; } = string.Empty;
+    public bool SubmitterVerified { get; set; }
     public string? SubmitterCity { get; set; }
     public int InterestCount { get; set; }
     public decimal TotalPledged { get; set; }
@@ -312,6 +315,11 @@ public class AdminDashboardViewModel
     public int ApprovedIdeas { get; set; }
     public int TotalInterests { get; set; }
     public List<Idea> PendingIdeasList { get; set; } = new();
+    public int PendingVerifications { get; set; }
+    public int OpenReports { get; set; }
+    public int ReportedIdeas { get; set; }
+    public int ActiveChallenges { get; set; }
+    public int ChallengesAwaitingResults { get; set; }
 }
 
 public class ContactViewModel

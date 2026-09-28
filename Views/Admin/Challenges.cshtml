@@ -1,0 +1,121 @@
+@model List<AdminChallengeRowViewModel>
+@using StartupConnect.Infrastructure
+@{
+    ViewData["Title"] = "Manage Challenges";
+    var now = DateTime.UtcNow;
+}
+
+<div class="sc-admin-dashboard pt-4 pb-5">
+    <div class="container">
+        @await Component.InvokeAsync("AdminNav", new { active = "Challenges" })
+
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+            <div>
+                <h1 class="h3 fw-bold text-dark mb-1"><i class="bi bi-trophy-fill text-primary me-2"></i>Startup Challenges</h1>
+                <p class="text-muted mb-0">Create themed challenges, judge entries and announce winners.</p>
+            </div>
+            <div class="d-flex gap-2">
+                <a asp-controller="Challenges" asp-action="Index" class="btn btn-outline-secondary"><i class="bi bi-eye me-1"></i>Public page</a>
+                <a asp-action="CreateChallenge" class="btn btn-primary-sc"><i class="bi bi-plus-lg me-1"></i>New challenge</a>
+            </div>
+        </div>
+
+        @if (!Model.Any())
+        {
+            <div class="sc-empty-state bg-white rounded-4 border shadow-sm">
+                <div class="sc-empty-icon"><i class="bi bi-trophy"></i></div>
+                <h5>No challenges yet</h5>
+                <p class="text-muted mb-3">Challenges give founders a reason to polish and pitch their ideas. Create the first one.</p>
+                <a asp-action="CreateChallenge" class="btn btn-primary-sc"><i class="bi bi-plus-lg me-1"></i>Create a challenge</a>
+            </div>
+        }
+        else
+        {
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th class="px-4 py-3">Challenge</th>
+                                    <th class="px-3 py-3">Status</th>
+                                    <th class="px-3 py-3">Deadline (IST)</th>
+                                    <th class="px-3 py-3 text-center">Entries</th>
+                                    <th class="px-4 py-3 text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var c in Model)
+                                {
+                                    <tr>
+                                        <td class="px-4 py-3">
+                                            <a asp-controller="Challenges" asp-action="Details" asp-route-id="@c.Id" class="fw-semibold text-dark">@c.Title</a>
+                                            <div class="small text-muted">
+                                                <i class="bi bi-gift me-1"></i>@c.Prize
+                                                @if (c.CategoryName != null) { <span class="ms-2"><i class="bi bi-tag me-1"></i>@c.CategoryName</span> }
+                                            </div>
+                                        </td>
+                                        <td class="px-3 py-3">
+                                            @if (c.ResultsAnnounced)
+                                            {
+                                                <span class="badge bg-warning text-dark"><i class="bi bi-award me-1"></i>Results out</span>
+                                            }
+                                            else if (c.IsOpen)
+                                            {
+                                                <span class="badge bg-success">Open</span>
+                                            }
+                                            else if (c.SubmissionCount > 0)
+                                            {
+                                                <span class="badge bg-info text-dark">Awaiting results</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary">Closed</span>
+                                            }
+                                        </td>
+                                        <td class="px-3 py-3 small">
+                                            @AppTime.FormatIst(c.DeadlineUtc, "MMM dd, yyyy h:mm tt")
+                                            @if (c.IsOpen) { <div class="text-muted">@AppTime.TimeLeft(c.DeadlineUtc, now)</div> }
+                                        </td>
+                                        <td class="px-3 py-3 text-center">
+                                            <span class="fw-bold">@c.SubmissionCount</span>
+                                            @if (c.ShortlistCount > 0 || c.WinnerCount > 0)
+                                            {
+                                                <div class="small text-muted">@c.ShortlistCount shortlisted · @c.WinnerCount winner@(c.WinnerCount == 1 ? "" : "s")</div>
+                                            }
+                                        </td>
+                                        <td class="px-4 py-3 text-end">
+                                            <div class="d-inline-flex flex-wrap justify-content-end gap-1">
+                                                <a asp-action="JudgeChallenge" asp-route-id="@c.Id" class="btn btn-sm btn-outline-primary" title="Judge submissions"><i class="bi bi-clipboard-check"></i><span class="d-none d-xl-inline ms-1">Judge</span></a>
+                                                <a asp-action="EditChallenge" asp-route-id="@c.Id" class="btn btn-sm btn-outline-secondary" title="Edit"><i class="bi bi-pencil"></i></a>
+                                                @if (!c.ResultsAnnounced)
+                                                {
+                                                    <form asp-action="ToggleChallenge" method="post" class="d-inline">
+                                                        <input type="hidden" name="id" value="@c.Id" />
+                                                        @if (c.IsActive)
+                                                        {
+                                                            <button type="submit" class="btn btn-sm btn-outline-warning" title="Close to new submissions"><i class="bi bi-lock"></i></button>
+                                                        }
+                                                        else
+                                                        {
+                                                            <button type="submit" class="btn btn-sm btn-outline-success" title="Reopen"><i class="bi bi-unlock"></i></button>
+                                                        }
+                                                    </form>
+                                                }
+                                                <form asp-action="DeleteChallenge" method="post" class="d-inline"
+                                                      onsubmit="return confirm('Delete this challenge and its @c.SubmissionCount submission(s)? This cannot be undone.');">
+                                                    <input type="hidden" name="id" value="@c.Id" />
+                                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete"><i class="bi bi-trash"></i></button>
+                                                </form>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>

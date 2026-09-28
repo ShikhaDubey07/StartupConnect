@@ -22,7 +22,9 @@ public enum IdeaStatus
     Submitted,
     UnderReview,
     Approved,
-    Rejected
+    Rejected,
+    /// <summary>Hidden by moderators after reports; the owner can edit and resubmit for review.</summary>
+    Unpublished
 }
 
 public enum InterestType

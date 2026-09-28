@@ -1,0 +1,29 @@
+@model StartupConnect.ViewComponents.AdminNavModel
+@{
+    (string Key, string Action, string Icon, string Label, int Badge, string BadgeClass)[] items =
+    {
+        ("Dashboard", "Dashboard", "bi-speedometer2", "Overview", Model.PendingIdeas, "bg-warning text-dark"),
+        ("Ideas", "Ideas", "bi-lightbulb", "Ideas", 0, ""),
+        ("Users", "Users", "bi-people", "Users", 0, ""),
+        ("Challenges", "Challenges", "bi-trophy", "Challenges", Model.Counts.ChallengesAwaitingResults, "bg-info text-dark"),
+        ("Verification", "VerificationQueue", "bi-patch-check", "Verification", Model.Counts.PendingVerifications, "bg-primary"),
+        ("Reports", "Reports", "bi-flag", "Reports", Model.Counts.ReportedIdeas, "bg-danger"),
+    };
+}
+<nav class="sc-admin-nav mb-4" aria-label="Admin navigation">
+    <ul class="nav nav-pills flex-nowrap">
+        @foreach (var item in items)
+        {
+            var isActive = item.Key == Model.Active;
+            <li class="nav-item">
+                <a class="nav-link @(isActive ? "active" : "")" asp-controller="Admin" asp-action="@item.Action" aria-current="@(isActive ? "page" : null)">
+                    <i class="bi @item.Icon me-1"></i>@item.Label
+                    @if (item.Badge > 0)
+                    {
+                        <span class="badge rounded-pill ms-1 @item.BadgeClass" title="@item.Badge pending">@item.Badge</span>
+                    }
+                </a>
+            </li>
+        }
+    </ul>
+</nav>

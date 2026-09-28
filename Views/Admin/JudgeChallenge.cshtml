@@ -1,0 +1,141 @@
+@model AdminJudgeViewModel
+@using StartupConnect.Infrastructure
+@using StartupConnect.Services
+@{
+    var c = Model.Challenge;
+    ViewData["Title"] = "Judge · " + c.Title;
+    var winners = Model.Submissions.Count(s => s.IsWinner);
+    var shortlisted = Model.Submissions.Count(s => s.IsShortlisted);
+    var locked = c.ResultsAnnounced;
+}
+
+<div class="sc-admin-dashboard pt-4 pb-5">
+    <div class="container">
+        @await Component.InvokeAsync("AdminNav", new { active = "Challenges" })
+
+        <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+            <div>
+                <a asp-action="Challenges" class="small text-decoration-none"><i class="bi bi-arrow-left me-1"></i>All challenges</a>
+                <h1 class="h3 fw-bold text-dark mt-2 mb-1"><i class="bi bi-clipboard-check text-primary me-2"></i>@c.Title</h1>
+                <div class="text-muted small">
+                    <i class="bi bi-gift me-1"></i>@c.Prize ·
+                    <i class="bi bi-calendar-event ms-1 me-1"></i>@(Model.IsOpen ? "Closes" : "Closed") @AppTime.FormatIst(c.Deadline)
+                </div>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                <a asp-controller="Challenges" asp-action="Details" asp-route-id="@c.Id" class="btn btn-outline-secondary"><i class="bi bi-eye me-1"></i>Public page</a>
+                <a asp-action="EditChallenge" asp-route-id="@c.Id" class="btn btn-outline-secondary"><i class="bi bi-pencil me-1"></i>Edit</a>
+            </div>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3"><div class="sc-mini-stat"><span>@Model.Submissions.Count</span>Submissions</div></div>
+            <div class="col-6 col-md-3"><div class="sc-mini-stat"><span>@shortlisted</span>Shortlisted</div></div>
+            <div class="col-6 col-md-3"><div class="sc-mini-stat"><span>@winners</span>Winners</div></div>
+            <div class="col-6 col-md-3"><div class="sc-mini-stat"><span>@(locked ? "Final" : Model.IsOpen ? "Open" : "Closed")</span>Status</div></div>
+        </div>
+
+        @if (locked)
+        {
+            <div class="alert alert-success d-flex align-items-center gap-2">
+                <i class="bi bi-megaphone-fill"></i>
+                Results were announced on @AppTime.FormatIst(c.ResultsAnnouncedAt!.Value) and every submitter was notified. Judging is now locked.
+            </div>
+        }
+        else if (Model.Submissions.Any())
+        {
+            <div class="sc-form-card mb-4 d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div>
+                    <h6 class="fw-bold mb-1"><i class="bi bi-megaphone me-1 text-primary"></i>Announce results</h6>
+                    <p class="small text-muted mb-0">
+                        Closes the challenge, shows winners publicly and notifies every submitter (winner, shortlisted or not selected, with your feedback).
+                        @if (winners == 0) { <strong class="text-danger">Mark at least one winner first.</strong> }
+                    </p>
+                </div>
+                <form asp-action="AnnounceResults" method="post" onsubmit="return confirm('Announce results now? This closes the challenge and notifies all @Model.Submissions.Count submitter(s). It cannot be undone.');">
+                    <input type="hidden" name="id" value="@c.Id" />
+                    <button type="submit" class="btn btn-accent" disabled="@(winners == 0)"><i class="bi bi-send-check me-1"></i>Announce results</button>
+                </form>
+            </div>
+        }
+
+        @if (!Model.Submissions.Any())
+        {
+            <div class="sc-empty-state bg-white rounded-4 border shadow-sm">
+                <div class="sc-empty-icon"><i class="bi bi-inbox"></i></div>
+                <h5>No submissions yet</h5>
+                <p class="text-muted mb-0">@(Model.IsOpen ? "Entries will appear here as founders submit their ideas." : "This challenge closed without any entries.")</p>
+            </div>
+        }
+        else
+        {
+            <div class="row g-4">
+                @foreach (var s in Model.Submissions)
+                {
+                    <div class="col-lg-6" id="sub-@s.Id">
+                        <div class="sc-form-card h-100 @(s.IsWinner ? "sc-judge-winner" : s.IsShortlisted ? "sc-judge-shortlist" : "")">
+                            <div class="d-flex justify-content-between align-items-start gap-2 mb-2">
+                                <div class="min-w-0">
+                                    <h5 class="fw-bold mb-1">
+                                        @if (s.IdeaIsPublic)
+                                        {
+                                            <a asp-controller="Ideas" asp-action="Detail" asp-route-id="@s.IdeaId" target="_blank" class="text-dark">@s.IdeaTitle <i class="bi bi-box-arrow-up-right small"></i></a>
+                                        }
+                                        else
+                                        {
+                                            @s.IdeaTitle <span class="badge bg-secondary-subtle text-secondary small">Not public</span>
+                                        }
+                                    </h5>
+                                    <div class="small text-muted">
+                                        by <a asp-controller="Profile" asp-action="Detail" asp-route-id="@s.FounderId" class="text-muted">@s.FounderName</a>
+                                        @if (s.FounderVerified) { <partial name="_VerifiedBadge" /> }
+                                        · submitted @AppTime.FormatIst(s.SubmittedAt, "MMM dd, h:mm tt")
+                                    </div>
+                                </div>
+                                <div class="text-end flex-shrink-0">
+                                    @if (s.IsWinner) { <span class="badge bg-warning text-dark"><i class="bi bi-trophy-fill me-1"></i>@(s.AwardTitle ?? "Winner")</span> }
+                                    else if (s.IsShortlisted) { <span class="badge bg-primary"><i class="bi bi-star-fill me-1"></i>Shortlisted</span> }
+                                </div>
+                            </div>
+                            <p class="small text-muted mb-2">@s.IdeaTagline</p>
+                            <div class="sc-pitch small mb-3"><i class="bi bi-chat-quote me-1"></i>@s.PitchNotes</div>
+
+                            <form asp-action="JudgeSubmission" method="post">
+                                <input type="hidden" name="id" value="@s.Id" />
+                                <input type="hidden" name="challengeId" value="@c.Id" />
+                                <fieldset disabled="@locked">
+                                    <div class="d-flex flex-wrap gap-3 mb-2">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="IsShortlisted" value="true" id="sl-@s.Id" checked="@s.IsShortlisted" />
+                                            <label class="form-check-label" for="sl-@s.Id">Shortlist</label>
+                                        </div>
+                                        <div class="form-check">
+                                            <input class="form-check-input sc-winner-toggle" type="checkbox" name="IsWinner" value="true" id="win-@s.Id" checked="@s.IsWinner" data-target="#award-@s.Id" />
+                                            <label class="form-check-label" for="win-@s.Id">Winner</label>
+                                        </div>
+                                    </div>
+                                    <div class="mb-2 @(s.IsWinner ? "" : "d-none")" id="award-@s.Id">
+                                        <input type="text" name="AwardTitle" class="form-control form-control-sm" maxlength="@ChallengeService.MaxAwardTitle" value="@s.AwardTitle" placeholder="Award title, e.g. Winner, Runner-up, Jury's Choice" />
+                                    </div>
+                                    <textarea name="JudgeFeedback" class="form-control form-control-sm mb-2" rows="2" maxlength="@ChallengeService.MaxJudgeFeedback" placeholder="Feedback for the founder (sent when results are announced)">@s.JudgeFeedback</textarea>
+                                    <button type="submit" class="btn btn-sm btn-primary-sc"><i class="bi bi-save me-1"></i>Save</button>
+                                </fieldset>
+                            </form>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.querySelectorAll('.sc-winner-toggle').forEach(function (cb) {
+            cb.addEventListener('change', function () {
+                var target = document.querySelector(cb.dataset.target);
+                if (target) target.classList.toggle('d-none', !cb.checked);
+            });
+        });
+    </script>
+}

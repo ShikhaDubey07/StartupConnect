@@ -12,18 +12,27 @@ using Microsoft.EntityFrameworkCore;
 namespace StartupConnect.Controllers;
 
 [Authorize(Roles = "Admin,Panel")]
-public class AdminController : Controller
+public partial class AdminController : Controller
 {
     private readonly IIdeaService _ideaService;
     private readonly Data.ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IChallengeService _challengeService;
+    private readonly IModerationService _moderation;
+    private readonly INotificationService _notifications;
 
-    public AdminController(IIdeaService ideaService, Data.ApplicationDbContext context, UserManager<ApplicationUser> userManager)
+    public AdminController(IIdeaService ideaService, Data.ApplicationDbContext context, UserManager<ApplicationUser> userManager,
+        IChallengeService challengeService, IModerationService moderation, INotificationService notifications)
     {
         _ideaService = ideaService;
         _context = context;
         _userManager = userManager;
+        _challengeService = challengeService;
+        _moderation = moderation;
+        _notifications = notifications;
     }
+
+    private string AdminId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
     public async Task<IActionResult> Dashboard()
     {
@@ -36,6 +45,13 @@ public class AdminController : Controller
             TotalInterests = _context.Interests.Count(),
             PendingIdeasList = await _ideaService.GetPendingIdeasAsync()
         };
+        var counts = await _moderation.GetCountsAsync();
+        model.PendingVerifications = counts.PendingVerifications;
+        model.OpenReports = counts.OpenReports;
+        model.ReportedIdeas = counts.ReportedIdeas;
+        model.ChallengesAwaitingResults = counts.ChallengesAwaitingResults;
+        var now = DateTime.UtcNow;
+        model.ActiveChallenges = await _context.StartupChallenges.CountAsync(c => c.IsActive && c.Deadline > now);
         return View(model);
     }
 
@@ -149,39 +165,5 @@ public class AdminController : Controller
         ViewBag.CurrentStatusFilter = status;
 
         return View(viewModels);
-    }
-    
-    [HttpGet]
-    public async Task<IActionResult> VerificationQueue()
-    {
-        var users = await _userManager.Users
-            .Include(u => u.Profile)
-            .Where(u => u.Profile != null && u.Profile.VerificationRequested && !u.Profile.IsVerifiedFounder)
-            .ToListAsync();
-        return View(users);
-    }
-
-    [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> ApproveVerification(string id)
-    {
-        var user = await _userManager.Users.Include(u => u.Profile).FirstOrDefaultAsync(u => u.Id == id);
-        if (user != null && user.Profile != null)
-        {
-            user.Profile.IsVerifiedFounder = true;
-            user.Profile.VerificationRequested = false;
-            await _userManager.UpdateAsync(user);
-        }
-        TempData["Success"] = "Founder verified successfully.";
-        return RedirectToAction("VerificationQueue");
-    }
-
-    [HttpGet]
-    public async Task<IActionResult> Reports()
-    {
-        var reports = await _context.IdeaReports
-            .Include(r => r.Idea)
-            .Include(r => r.User)
-            .ToListAsync();
-        return View(reports);
     }
 }

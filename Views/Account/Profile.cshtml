@@ -1,7 +1,14 @@
 @model ProfileViewModel
+@using StartupConnect.Infrastructure
+@inject StartupConnect.Services.IModerationService Moderation
+@inject Microsoft.AspNetCore.Identity.UserManager<StartupConnect.Models.ApplicationUser> Users
 @{
     ViewData["Title"] = "My Profile";
     var categories = ViewBag.Categories as List<StartupConnect.Models.Category>;
+    var myId = Users.GetUserId(User)!;
+    var verification = await Moderation.GetVerificationStatusAsync(myId);
+    var emailConfirmed = (await Users.GetUserAsync(User))?.EmailConfirmed == true;
+    var noteDraft = TempData["VerificationNoteDraft"] as string;
 }
 
 <section class="sc-page-header">
@@ -34,6 +41,53 @@
                     <div class="alert alert-warning small mt-3 mb-0">
                         Complete 60% to submit ideas & show interest
                     </div>
+                }
+                @if (verification.IsVerified)
+                {
+                    <div class="mt-3"><partial name="_VerifiedBadge" model="@("lg")" /></div>
+                }
+                <div class="d-grid gap-2 mt-3">
+                    <a asp-controller="Profile" asp-action="Detail" asp-route-id="@myId" class="btn btn-sm btn-outline-secondary"><i class="bi bi-eye me-1"></i>View public profile</a>
+                    <a asp-controller="Profile" asp-action="Analytics" class="btn btn-sm btn-outline-primary"><i class="bi bi-graph-up me-1"></i>Founder analytics</a>
+                </div>
+            </div>
+
+            <div class="sc-form-card mt-4" id="verification">
+                <h6 class="fw-bold mb-2"><i class="bi bi-patch-check-fill text-primary me-1"></i>Verified Founder</h6>
+                @if (verification.IsVerified)
+                {
+                    <p class="small text-muted mb-0">You're verified. The badge appears on your profile, your ideas and challenge entries, so collaborators and investors know you're the real deal.</p>
+                }
+                else if (verification.IsPending)
+                {
+                    <div class="alert alert-info small mb-2"><i class="bi bi-hourglass-split me-1"></i><strong>Pending review</strong> — requested @AppTime.Ago(verification.Latest!.CreatedAt, DateTime.UtcNow). We'll notify you when it's reviewed.</div>
+                    <p class="small text-muted mb-0" style="white-space: pre-line">"@verification.Latest.Note"</p>
+                }
+                else
+                {
+                    <p class="small text-muted">Get a verified badge on your profile and ideas. Tell us what you're building and share your LinkedIn so our team can confirm who you are.</p>
+                    @if (verification.WasRejected)
+                    {
+                        <div class="alert alert-warning small"><i class="bi bi-info-circle me-1"></i>Your last request wasn't approved: <em>@verification.Latest!.RejectionReason</em> You can apply again below.</div>
+                    }
+                    @if (!emailConfirmed)
+                    {
+                        <div class="alert alert-warning small mb-0"><i class="bi bi-envelope-exclamation me-1"></i>Confirm your email address first — then you can request verification.</div>
+                    }
+                    else
+                    {
+                        <form asp-controller="Profile" asp-action="RequestVerification" method="post">
+                            <div class="mb-2">
+                                <label for="verifyNote" class="form-label small fw-semibold">What are you building?</label>
+                                <textarea id="verifyNote" name="note" class="form-control form-control-sm" rows="3" minlength="20" maxlength="500" required placeholder="e.g. I'm the founder of FarmConnect; we've onboarded 40 farmers in Mysuru…">@noteDraft</textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label for="verifyLinkedIn" class="form-label small fw-semibold">LinkedIn URL</label>
+                                <input id="verifyLinkedIn" name="linkedInUrl" type="url" class="form-control form-control-sm" maxlength="300" value="@Model.LinkedInUrl" placeholder="https://www.linkedin.com/in/you" />
+                            </div>
+                            <button type="submit" class="btn btn-sm btn-primary-sc w-100"><i class="bi bi-send me-1"></i>Request verification</button>
+                        </form>
+                    }
                 }
             </div>
         </div>

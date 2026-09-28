@@ -1,63 +1,281 @@
-@model StartupConnect.Models.StartupChallenge
+@model ChallengeDetailsViewModel
+@using StartupConnect.Infrastructure
+@using StartupConnect.Services
 @{
-    ViewData["Title"] = Model.Title;
+    var c = Model.Challenge;
+    ViewData["Title"] = c.Title;
+    var now = DateTime.UtcNow;
+    var cover = UrlSafety.IsSafeHttpUrl(c.CoverImageUrl) ? c.CoverImageUrl : null;
+    var pitchDraft = TempData["PitchDraft"] as string;
 }
 
-<div class="container py-5">
-    <div class="row">
-        <div class="col-lg-8">
-            <h1 class="fw-bold mb-3">@Model.Title</h1>
-            <div class="d-flex gap-3 mb-4">
-                <span class="badge bg-success fs-6 px-3 py-2">Prize: @Model.Prize</span>
-                <span class="badge bg-secondary fs-6 px-3 py-2">Deadline: @Model.Deadline.ToString("MMMM dd, yyyy")</span>
-            </div>
-            
-            <div class="card sc-idea-card mb-4">
-                <div class="card-body p-4">
-                    <h5 class="fw-bold mb-3">Challenge Description</h5>
-                    <p class="text-muted" style="white-space: pre-wrap">@Model.Description</p>
-                </div>
-            </div>
+<section class="sc-detail-hero sc-challenge-hero">
+    @if (cover != null)
+    {
+        <img src="@cover" alt="" class="sc-challenge-hero-img" referrerpolicy="no-referrer" onerror="this.remove()" />
+    }
+    <div class="container position-relative">
+        <a asp-action="Index" asp-route-tab="@(Model.IsOpen ? "active" : "past")" class="small text-decoration-none d-inline-block mb-2 sc-hero-back"><i class="bi bi-arrow-left me-1"></i>All challenges</a>
+        <div class="d-flex flex-wrap gap-2 mb-2">
+            @if (c.Category != null)
+            {
+                <span class="sc-idea-category"><i class="bi @c.Category.IconClass"></i> @c.Category.Name</span>
+            }
+            @if (Model.IsOpen)
+            {
+                <span class="badge bg-success px-3 py-2"><i class="bi bi-broadcast me-1"></i>Open for submissions</span>
+            }
+            else if (c.ResultsAnnounced)
+            {
+                <span class="badge bg-warning text-dark px-3 py-2"><i class="bi bi-award me-1"></i>Results announced</span>
+            }
+            else
+            {
+                <span class="badge bg-secondary px-3 py-2"><i class="bi bi-lock me-1"></i>Closed · judging in progress</span>
+            }
         </div>
-        
-        <div class="col-lg-4">
-            <div class="card sc-idea-card">
-                <div class="card-body p-4">
-                    <h4 class="fw-bold mb-3">Submit Your Idea</h4>
-                    <p class="text-muted small">Select one of your existing ideas to submit to this challenge.</p>
-                    
-                    @if(User.Identity?.IsAuthenticated == true)
+        <h1 class="mb-3">@c.Title</h1>
+        <div class="d-flex flex-wrap gap-3 small">
+            <span><i class="bi bi-gift me-1"></i><strong>Prize:</strong> @c.Prize</span>
+            <span><i class="bi bi-calendar-event me-1"></i><strong>Deadline:</strong> @AppTime.FormatIst(c.Deadline)</span>
+            <span><i class="bi bi-people me-1"></i>@Model.Submissions.Count submission@(Model.Submissions.Count == 1 ? "" : "s")</span>
+        </div>
+    </div>
+</section>
+
+<div class="container pb-5 mt-n3">
+    <div class="row g-4">
+        <div class="col-lg-8">
+            @if (c.ResultsAnnounced && Model.Winners.Any())
+            {
+                <div class="sc-detail-section sc-winners-panel">
+                    <h5 class="fw-bold mb-3"><i class="bi bi-trophy-fill me-2 text-warning"></i>Winners</h5>
+                    <div class="row g-3">
+                        @foreach (var w in Model.Winners)
+                        {
+                            <div class="col-md-6">
+                                <div class="sc-winner-card h-100">
+                                    <span class="badge bg-warning text-dark mb-2"><i class="bi bi-award-fill me-1"></i>@(w.AwardTitle ?? "Winner")</span>
+                                    <h6 class="fw-bold mb-1"><a asp-controller="Ideas" asp-action="Detail" asp-route-id="@w.IdeaId" class="text-dark">@w.IdeaTitle</a></h6>
+                                    <p class="small text-muted mb-2">@w.IdeaTagline</p>
+                                    <a asp-controller="Profile" asp-action="Detail" asp-route-id="@w.FounderId" class="small text-decoration-none">
+                                        <i class="bi bi-person-circle me-1"></i>@w.FounderName
+                                        @if (w.FounderVerified) { <partial name="_VerifiedBadge" /> }
+                                    </a>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    @if (Model.Shortlisted.Any())
                     {
-                        <form asp-action="SubmitIdea" method="post">
-                            <input type="hidden" name="challengeId" value="@Model.Id" />
-                            <div class="mb-3">
-                                <label class="form-label">Select Idea</label>
-                                <select name="ideaId" class="form-select">
-                                    <option value="">-- Choose an Idea --</option>
-                                    <!-- In a real app, populate this with user's ideas -->
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Pitch Notes</label>
-                                <textarea name="pitchNotes" class="form-control" rows="3"></textarea>
-                            </div>
-                            <button type="submit" class="btn btn-primary w-100">Submit to Challenge</button>
-                        </form>
+                        <h6 class="fw-bold mt-4 mb-2"><i class="bi bi-star me-1 text-primary"></i>Shortlisted</h6>
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach (var s in Model.Shortlisted)
+                            {
+                                <a asp-controller="Ideas" asp-action="Detail" asp-route-id="@s.IdeaId" class="sc-role-tag text-decoration-none">@s.IdeaTitle</a>
+                            }
+                        </div>
                     }
-                    else
+                    <p class="small text-muted mb-0 mt-3">Announced on @AppTime.FormatIst(c.ResultsAnnouncedAt!.Value, "MMM dd, yyyy")</p>
+                </div>
+            }
+
+            <div class="sc-detail-section">
+                <h5 class="fw-bold mb-3"><i class="bi bi-flag me-2 text-primary"></i>The challenge</h5>
+                <p class="mb-0" style="white-space: pre-line">@c.Description</p>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(c.Eligibility) || !string.IsNullOrWhiteSpace(c.Rules))
+            {
+                <div class="row g-3 mb-3">
+                    @if (!string.IsNullOrWhiteSpace(c.Eligibility))
                     {
-                        <div class="alert alert-warning">
-                            Please <a asp-controller="Account" asp-action="Login">login</a> to participate.
+                        <div class="col-md-6">
+                            <div class="sc-detail-section h-100 mb-0">
+                                <h6 class="fw-bold"><i class="bi bi-person-check me-2 text-success"></i>Who can enter</h6>
+                                <p class="small text-muted mb-0" style="white-space: pre-line">@c.Eligibility</p>
+                            </div>
+                        </div>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(c.Rules))
+                    {
+                        <div class="@(string.IsNullOrWhiteSpace(c.Eligibility) ? "col-12" : "col-md-6")">
+                            <div class="sc-detail-section h-100 mb-0">
+                                <h6 class="fw-bold"><i class="bi bi-list-check me-2 text-warning"></i>Rules &amp; judging</h6>
+                                <p class="small text-muted mb-0" style="white-space: pre-line">@c.Rules</p>
+                            </div>
                         </div>
                     }
                 </div>
-            </div>
-            
-            <div class="card sc-idea-card mt-4">
-                <div class="card-body">
-                    <h5 class="fw-bold">Current Submissions</h5>
-                    <div class="display-4 fw-bold text-primary mt-2">@Model.Submissions.Count</div>
+            }
+
+            <div class="sc-detail-section" id="submissions">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="fw-bold mb-0"><i class="bi bi-collection me-2 text-info"></i>Submissions</h5>
+                    <span class="badge bg-primary-subtle text-primary rounded-pill px-3">@Model.Submissions.Count</span>
                 </div>
+                @if (!Model.Submissions.Any())
+                {
+                    <div class="text-center text-muted py-4">
+                        <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                        @(Model.IsOpen ? "No submissions yet — be the first to enter!" : "This challenge closed without submissions.")
+                    </div>
+                }
+                else
+                {
+                    <ul class="list-unstyled mb-0 sc-submission-list">
+                        @foreach (var s in Model.Submissions)
+                        {
+                            <li class="sc-submission-item @(s.IsMine ? "is-mine" : "")">
+                                <div class="d-flex justify-content-between gap-3 flex-wrap">
+                                    <div class="min-w-0">
+                                        <div class="d-flex align-items-center flex-wrap gap-2 mb-1">
+                                            @if (s.IdeaIsPublic)
+                                            {
+                                                <a asp-controller="Ideas" asp-action="Detail" asp-route-id="@s.IdeaId" class="fw-semibold text-dark">@s.IdeaTitle</a>
+                                            }
+                                            else
+                                            {
+                                                <span class="fw-semibold">@s.IdeaTitle</span>
+                                                <span class="badge bg-secondary-subtle text-secondary">Not public</span>
+                                            }
+                                            @if (c.ResultsAnnounced && s.IsWinner)
+                                            {
+                                                <span class="badge bg-warning text-dark"><i class="bi bi-trophy-fill me-1"></i>@(s.AwardTitle ?? "Winner")</span>
+                                            }
+                                            else if (c.ResultsAnnounced && s.IsShortlisted)
+                                            {
+                                                <span class="badge bg-primary-subtle text-primary"><i class="bi bi-star-fill me-1"></i>Shortlisted</span>
+                                            }
+                                            @if (s.IsMine)
+                                            {
+                                                <span class="badge bg-success-subtle text-success">Your entry</span>
+                                            }
+                                        </div>
+                                        <div class="small text-muted">
+                                            by <a asp-controller="Profile" asp-action="Detail" asp-route-id="@s.FounderId" class="text-muted">@s.FounderName</a>
+                                            @if (s.FounderVerified) { <partial name="_VerifiedBadge" /> }
+                                            · @AppTime.Ago(s.SubmittedAt, now)
+                                        </div>
+                                        @if (s.IsMine || Model.IsAdmin)
+                                        {
+                                            <p class="small mt-2 mb-0 sc-pitch"><i class="bi bi-chat-quote me-1"></i>@s.PitchNotes</p>
+                                        }
+                                        @if (s.IsMine && c.ResultsAnnounced && !string.IsNullOrEmpty(s.JudgeFeedback))
+                                        {
+                                            <p class="small mt-2 mb-0 text-primary"><i class="bi bi-clipboard-check me-1"></i><strong>Judges:</strong> @s.JudgeFeedback</p>
+                                        }
+                                    </div>
+                                    @if (s.IsMine && Model.IsOpen)
+                                    {
+                                        <form asp-action="Withdraw" method="post" class="flex-shrink-0" onsubmit="return confirm('Withdraw this idea from the challenge? You can re-submit it before the deadline.');">
+                                            <input type="hidden" name="id" value="@s.Id" />
+                                            <input type="hidden" name="challengeId" value="@c.Id" />
+                                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-x-circle me-1"></i>Withdraw</button>
+                                        </form>
+                                    }
+                                </div>
+                            </li>
+                        }
+                    </ul>
+                }
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="sc-detail-section sticky-lg-top" style="top:90px" id="submit">
+                @if (Model.IsOpen)
+                {
+                    <div class="sc-countdown mb-3" data-countdown="@AppTime.ToIsoUtc(c.Deadline)" data-countdown-style="long">
+                        <i class="bi bi-hourglass-split me-1"></i><span class="sc-countdown-text">@AppTime.TimeLeft(c.Deadline, now)</span>
+                    </div>
+                    <h5 class="fw-bold mb-2">Submit your idea</h5>
+
+                    @if (!Model.IsAuthenticated)
+                    {
+                        <p class="text-muted small">Log in to enter one of your approved ideas.</p>
+                        <a asp-controller="Account" asp-action="Login" asp-route-returnUrl="@Url.Action("Details", new { id = c.Id })" class="btn btn-accent w-100">Log in to participate</a>
+                    }
+                    else if (!Model.EmailConfirmed)
+                    {
+                        <div class="alert alert-warning small mb-0">
+                            <i class="bi bi-envelope-exclamation me-1"></i>Confirm your email address to enter challenges. Use the banner at the top of the page to resend the link.
+                        </div>
+                    }
+                    else if (Model.EligibleIdeas.Any())
+                    {
+                        <p class="text-muted small">Pick one of your approved ideas and tell the judges why it fits.</p>
+                        <form asp-action="SubmitIdea" method="post">
+                            <input type="hidden" name="challengeId" value="@c.Id" />
+                            <div class="mb-3">
+                                <label for="ideaId" class="form-label fw-semibold">Your idea</label>
+                                <select name="ideaId" id="ideaId" class="form-select" required>
+                                    @if (Model.EligibleIdeas.Count > 1)
+                                    {
+                                        <option value="">Choose an idea…</option>
+                                    }
+                                    @foreach (var idea in Model.EligibleIdeas)
+                                    {
+                                        <option value="@idea.Id">@idea.Title</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="pitchNotes" class="form-label fw-semibold">Pitch notes</label>
+                                <textarea name="pitchNotes" id="pitchNotes" class="form-control" rows="5" required minlength="1" maxlength="@ChallengeService.MaxPitchNotes"
+                                          placeholder="Why does your idea fit this challenge? Traction, team, what you'd do with the prize…">@pitchDraft</textarea>
+                                <div class="form-text">Only you and the judges can read your pitch.</div>
+                            </div>
+                            <button type="submit" class="btn btn-accent w-100"><i class="bi bi-send me-1"></i>Submit to challenge</button>
+                        </form>
+                    }
+                    else if (Model.MySubmissions.Any() && Model.MyApprovedIdeaCount > 0)
+                    {
+                        <div class="alert alert-success small mb-0">
+                            <i class="bi bi-check2-circle me-1"></i>All your approved ideas are entered. Good luck!
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center py-2">
+                            <i class="bi bi-lightbulb fs-2 text-warning d-block mb-2"></i>
+                            @if (Model.MyPendingIdeaCount > 0)
+                            {
+                                <p class="small text-muted">Your idea@(Model.MyPendingIdeaCount > 1 ? "s are" : " is") still being reviewed. Once approved, you can enter it here.</p>
+                                <a asp-controller="Ideas" asp-action="MyIdeas" class="btn btn-outline-primary w-100">View my ideas</a>
+                            }
+                            else
+                            {
+                                <p class="small text-muted">You need an approved idea to take part. Submit yours — our team usually reviews within a couple of days.</p>
+                                <a asp-controller="Ideas" asp-action="Submit" class="btn btn-accent w-100"><i class="bi bi-plus-lg me-1"></i>Submit an idea</a>
+                            }
+                        </div>
+                    }
+                }
+                else
+                {
+                    <h5 class="fw-bold mb-2"><i class="bi bi-lock me-1"></i>Submissions closed</h5>
+                    <p class="text-muted small mb-3">
+                        @if (c.ResultsAnnounced)
+                        {
+                            @:This challenge has ended and the winners have been announced.
+                        }
+                        else
+                        {
+                            @:This challenge is no longer accepting entries. Winners will be announced here and every participant will be notified.
+                        }
+                    </p>
+                    <a asp-action="Index" class="btn btn-outline-primary w-100">Browse active challenges</a>
+                }
+
+                @if (Model.IsAdmin)
+                {
+                    <hr />
+                    <div class="d-grid gap-2">
+                        <a asp-controller="Admin" asp-action="JudgeChallenge" asp-route-id="@c.Id" class="btn btn-sm btn-outline-secondary"><i class="bi bi-clipboard-check me-1"></i>Judge submissions</a>
+                        <a asp-controller="Admin" asp-action="EditChallenge" asp-route-id="@c.Id" class="btn btn-sm btn-outline-secondary"><i class="bi bi-pencil me-1"></i>Edit challenge</a>
+                    </div>
+                }
             </div>
         </div>
     </div>

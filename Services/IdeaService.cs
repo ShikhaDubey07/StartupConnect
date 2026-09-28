@@ -30,12 +30,14 @@ public class IdeaService : IIdeaService
     private readonly ApplicationDbContext _context;
     private readonly INotificationService _notifications;
     private readonly IMatchingService _matchingService;
+    private readonly IActivityService _activity;
 
-    public IdeaService(ApplicationDbContext context, INotificationService notifications, IMatchingService matchingService)
+    public IdeaService(ApplicationDbContext context, INotificationService notifications, IMatchingService matchingService, IActivityService activity)
     {
         _context = context;
         _notifications = notifications;
         _matchingService = matchingService;
+        _activity = activity;
     }
 
     public async Task<List<IdeaCardViewModel>> GetApprovedIdeasAsync(IdeaBrowseViewModel filter)
@@ -64,7 +66,7 @@ public class IdeaService : IIdeaService
     {
         var idea = await _context.Ideas
             .Include(i => i.Category)
-            .Include(i => i.Submitter)
+            .Include(i => i.Submitter).ThenInclude(u => u.Profile)
             .Include(i => i.RolesNeeded)
             .Include(i => i.Interests)
             .Include(i => i.Likes)
@@ -107,6 +109,8 @@ public class IdeaService : IIdeaService
             ExpectedTeamSize = idea.ExpectedTeamSize,
             RolesNeeded = idea.RolesNeeded.Select(r => r.RoleName).ToList(),
             SubmitterName = idea.Submitter.FullName,
+            SubmitterId = idea.SubmitterUserId,
+            SubmitterVerified = idea.Submitter.Profile?.IsVerifiedFounder == true,
             SubmitterCity = idea.Submitter.City,
             InterestCount = idea.Interests.Count,
             TotalPledged = idea.Interests.Where(x => x.ProposedInvestmentAmount.HasValue).Sum(x => x.ProposedInvestmentAmount ?? 0),
@@ -210,7 +214,13 @@ public class IdeaService : IIdeaService
         idea.UpdatedAt = DateTime.UtcNow;
         idea.RolesNeeded = model.RolesNeeded.Select(r => new IdeaRoleNeeded { RoleName = r }).ToList();
 
+        var isNew = !model.Id.HasValue;
         await _context.SaveChangesAsync();
+        if (isNew)
+        {
+            await _activity.RecordAsync(userId, ActivityTypes.IdeaSubmitted,
+                $"You submitted \"{idea.Title}\" for review.", "/Ideas/MyIdeas");
+        }
         return idea.Id;
     }
 
@@ -222,6 +232,7 @@ public class IdeaService : IIdeaService
             .Include(i => i.RolesNeeded)
             .Include(i => i.Likes)
             .Include(i => i.SavedByUsers)
+            .Include(i => i.Submitter).ThenInclude(u => u.Profile)
             .Where(i => i.SubmitterUserId == userId)
             .OrderByDescending(i => i.CreatedAt)
             .ToListAsync();
@@ -269,6 +280,8 @@ public class IdeaService : IIdeaService
             AdminUserId = adminId,
             Note = "Approved and published"
         });
+        await _activity.RecordAsync(idea.SubmitterUserId, ActivityTypes.IdeaApproved,
+            $"\"{idea.Title}\" was approved and published.", $"/Ideas/Detail/{id}", save: false);
 
         await _context.SaveChangesAsync();
         
@@ -331,6 +344,7 @@ public class IdeaService : IIdeaService
             .Include(i => i.RolesNeeded)
             .Include(i => i.Likes)
             .Include(i => i.Analysis)  // needed for AI Score sort and badge
+            .Include(i => i.Submitter).ThenInclude(u => u.Profile)  // verified founder badge
             .Where(i => i.Status == IdeaStatus.Approved);
 
         if (!string.IsNullOrWhiteSpace(filter.Search))
@@ -373,7 +387,8 @@ public class IdeaService : IIdeaService
         IsSavedByCurrentUser = currentUserId != null && (i.SavedByUsers?.Any(s => s.UserId == currentUserId) ?? false),
         RolesNeeded = i.RolesNeeded.Select(r => r.RoleName).ToList(),
         PublishedAt = i.PublishedAt,
-        AiScore = i.Analysis?.OverallScore
+        AiScore = i.Analysis?.OverallScore,
+        SubmitterVerified = i.Submitter?.Profile?.IsVerifiedFounder == true
     };
 
     public async Task<List<IdeaCardViewModel>> GetMostLikedIdeasThisWeekAsync(int count)
@@ -385,6 +400,7 @@ public class IdeaService : IIdeaService
             .Include(i => i.RolesNeeded)
             .Include(i => i.Likes)
             .Include(i => i.SavedByUsers)
+            .Include(i => i.Submitter).ThenInclude(u => u.Profile)
             .Where(i => i.Status == IdeaStatus.Approved && i.Likes.Any(l => l.CreatedAt >= oneWeekAgo))
             .OrderByDescending(i => i.Likes.Count(l => l.CreatedAt >= oneWeekAgo))
             .Take(count)
@@ -425,6 +441,8 @@ public class IdeaService : IIdeaService
                 .ThenInclude(i => i.Likes)
             .Include(s => s.Idea)
                 .ThenInclude(i => i.SavedByUsers)
+            .Include(s => s.Idea)
+                .ThenInclude(i => i.Submitter).ThenInclude(u => u.Profile)
             .Where(s => s.UserId == userId && s.Idea.Status == IdeaStatus.Approved)
             .OrderByDescending(s => s.SavedAt)
             .Select(s => s.Idea)

@@ -1,0 +1,62 @@
+@model RoadmapViewModel
+@using StartupConnect.Infrastructure
+@{
+    var teamId = (int)ViewData["TeamId"]!;
+    var isFounder = ViewData["IsFounder"] as bool? == true;
+    var isClosed = ViewData["IsClosed"] as bool? == true;
+    var open = Model.Milestones.Where(m => !m.IsCompleted).ToList();
+    var done = Model.Milestones.Where(m => m.IsCompleted).OrderByDescending(m => m.CompletedAt).ToList();
+}
+<div class="d-flex flex-wrap align-items-center gap-3 mb-3">
+    <div class="flex-grow-1">
+        <div class="d-flex justify-content-between small mb-1">
+            <span class="fw-semibold">@Model.Done of @Model.Total milestone@(Model.Total == 1 ? "" : "s") complete</span>
+            <span class="fw-bold">@Model.Percent%</span>
+        </div>
+        <div class="progress sc-milestone-progress" role="progressbar" aria-label="Milestone progress" aria-valuenow="@Model.Percent" aria-valuemin="0" aria-valuemax="100">
+            <div class="progress-bar" style="width:@Model.Percent%"></div>
+        </div>
+    </div>
+    @if (!isClosed)
+    {
+        <button type="button" class="btn btn-primary-sc btn-sm" data-bs-toggle="modal" data-bs-target="#milestoneModal" data-mode="create">
+            <i class="bi bi-plus-lg me-1"></i>Add milestone
+        </button>
+    }
+</div>
+
+@if (!Model.Milestones.Any())
+{
+    <div class="text-center text-muted py-4">
+        <i class="bi bi-signpost-split fs-2 d-block mb-2"></i>
+        <p class="mb-1 fw-semibold text-dark">No milestones yet</p>
+        <p class="small mb-0">Break your roadmap into milestones — e.g. "Customer interviews", "Clickable prototype", "First 100 users".</p>
+    </div>
+}
+else
+{
+    <div class="row g-3">
+        <div class="col-md-6">
+            <h6 class="text-uppercase small fw-bold text-muted mb-2">To do · @open.Count</h6>
+            @if (!open.Any())
+            {
+                <p class="small text-muted">Everything's done. 🎉 Add the next milestone.</p>
+            }
+            @foreach (var m in open)
+            {
+                <partial name="_MilestoneCard" model="m" view-data="ViewData" />
+            }
+        </div>
+        <div class="col-md-6">
+            <h6 class="text-uppercase small fw-bold text-muted mb-2">Done · @done.Count</h6>
+            @if (!done.Any())
+            {
+                <p class="small text-muted">Completed milestones will land here.</p>
+            }
+            @foreach (var m in done)
+            {
+                <partial name="_MilestoneCard" model="m" view-data="ViewData" />
+            }
+        </div>
+    </div>
+}

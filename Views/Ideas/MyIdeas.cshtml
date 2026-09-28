@@ -37,6 +37,13 @@
                             {
                                 <div class="alert alert-danger small py-2">@rejectionReason</div>
                             }
+                            else if (status == StartupConnect.Models.IdeaStatus.Unpublished)
+                            {
+                                <div class="alert alert-warning small py-2">
+                                    <strong>Hidden by moderators.</strong> @rejectionReason
+                                    <div class="mt-1">Edit the idea to address this — saving sends it back for review.</div>
+                                </div>
+                            }
                             <div class="sc-idea-meta">
                                 <span><i class="bi bi-cash"></i> ₹@idea.MinimumFundRequired.ToString("N0")</span>
                                 <span><i class="bi bi-people"></i> @idea.InterestCount interested</span>
@@ -45,6 +52,7 @@
                             {
                                 <div class="d-grid gap-2 mt-3">
                                     <a asp-action="Detail" asp-route-id="@idea.Id" class="btn btn-primary-sc btn-sm">View Public Page</a>
+                                    <a asp-controller="Workspace" asp-action="ForIdea" asp-route-id="@idea.Id" class="btn btn-outline-primary btn-sm"><i class="bi bi-kanban me-1"></i>Open Workspace</a>
                                     <a asp-action="Submit" asp-route-id="@idea.Id" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil me-1"></i>Edit</a>
                                     <a asp-action="Analytics" asp-route-id="@idea.Id" class="btn btn-outline-primary btn-sm"><i class="bi bi-graph-up me-1"></i>Analytics</a>
                                     <a asp-action="AiAnalysis" asp-route-id="@idea.Id" class="btn btn-outline-accent btn-sm">🤖 AI Idea Analysis</a>

@@ -83,6 +83,47 @@ public class IdeasController : Controller
         {
             ViewBag.SimilarIdeas = await _matchingService.GetSimilarIdeasAsync(idea);
             ViewBag.ProgressStage = idea.ProgressStage;
+
+            // Public roadmap (read-only) and team for the sidebar.
+            ViewBag.Roadmap = new RoadmapViewModel
+            {
+                Milestones = await _context.IdeaMilestones.AsNoTracking()
+                    .Where(m => m.IdeaId == id)
+                    .OrderBy(m => m.IsCompleted ? 0 : 1)
+                    .ThenBy(m => m.IsCompleted ? m.CompletedAt : m.DueDate)
+                    .ThenBy(m => m.CreatedAt)
+                    .Select(m => new MilestoneViewModel
+                    {
+                        Id = m.Id,
+                        Title = m.Title,
+                        Description = m.Description,
+                        DueDate = m.DueDate,
+                        IsCompleted = m.IsCompleted,
+                        CompletedAt = m.CompletedAt
+                    })
+                    .ToListAsync()
+            };
+            var team = await _context.Teams.AsNoTracking()
+                .Where(t => t.IdeaId == id)
+                .Select(t => new
+                {
+                    t.Id,
+                    t.Status,
+                    Members = t.Members.OrderBy(m => m.JoinedAt).Select(m => new WorkspaceMemberViewModel
+                    {
+                        UserId = m.UserId,
+                        FullName = m.User.FullName,
+                        Role = m.Role,
+                        IsFounder = m.UserId == idea.SubmitterUserId,
+                        IsVerified = m.User.Profile != null && m.User.Profile.IsVerifiedFounder,
+                        PhotoUrl = m.User.Profile != null ? m.User.Profile.ProfilePhotoUrl : null
+                    }).ToList()
+                })
+                .FirstOrDefaultAsync();
+            ViewBag.TeamMembers = team?.Members ?? new List<WorkspaceMemberViewModel>();
+            ViewBag.TeamStatus = team?.Status;
+            // Founders can always open (or create) the workspace; members get a direct link.
+            ViewBag.CanOpenWorkspace = userId != null && (idea.SubmitterUserId == userId || (team?.Members.Any(m => m.UserId == userId) ?? false));
             
             // Log view
             if (userId == null || idea.SubmitterUserId != userId)
@@ -576,7 +617,8 @@ public class IdeasController : Controller
             return RedirectToAction("Detail", new { id });
         }
         
-        var existingReport = await _context.IdeaReports.FirstOrDefaultAsync(r => r.IdeaId == id && r.UserId == userId);
+        // One open report per user per idea; after moderators handle it the user may report again.
+        var existingReport = await _context.IdeaReports.FirstOrDefaultAsync(r => r.IdeaId == id && r.UserId == userId && r.Status == ReportStatus.Open);
         if (existingReport == null)
         {
             var report = new IdeaReport

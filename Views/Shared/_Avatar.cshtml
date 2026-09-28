@@ -1,0 +1,14 @@
+@model AvatarModel
+@{
+    var safePhoto = !string.IsNullOrWhiteSpace(Model.PhotoUrl)
+        && (StartupConnect.Infrastructure.UrlSafety.IsSafeHttpUrl(Model.PhotoUrl) || StartupConnect.Infrastructure.UrlSafety.IsLocalPath(Model.PhotoUrl));
+    var fontSize = Math.Max(11, (int)(Model.Size * 0.4));
+}
+@if (safePhoto)
+{
+    <img src="@Model.PhotoUrl" alt="@Model.Name" class="rounded-circle object-fit-cover flex-shrink-0 sc-avatar-img" width="@Model.Size" height="@Model.Size" />
+}
+else
+{
+    <span class="sc-initials-avatar sc-avatar-c@(Model.ColorIndex) flex-shrink-0" style="width:@(Model.Size)px;height:@(Model.Size)px;font-size:@(fontSize)px" title="@Model.Name" aria-hidden="true">@Model.Initials</span>
+}

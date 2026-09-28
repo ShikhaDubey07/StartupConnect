@@ -24,7 +24,8 @@ public interface IAccountDeletionService
 /// Removes a user's data explicitly (many FKs are Restrict/NoAction to avoid SQL Server multiple
 /// cascade paths). Ideas the user submitted are deleted with all their activity; the user's own
 /// activity on other people's ideas (likes, comments, saves, reports, interests, team membership,
-/// team messages) is deleted; anonymous traces (idea views, history editor) are anonymised.
+/// team messages, verification requests) is deleted; anonymous traces (idea views, history editor,
+/// milestone assignee/creator, moderation reviewer) are anonymised.
 /// NOTE: when adding a model that references ApplicationUser or Idea, extend this service.
 /// </summary>
 public sealed class AccountDeletionService : IAccountDeletionService
@@ -88,6 +89,13 @@ public sealed class AccountDeletionService : IAccountDeletionService
             await _db.TeamMembers.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
             await _db.IdeaViews.Where(x => x.UserId == userId).ExecuteUpdateAsync(s => s.SetProperty(v => v.UserId, (string?)null), ct);
             await _db.IdeaHistories.Where(x => x.EditorId == userId).ExecuteUpdateAsync(s => s.SetProperty(h => h.EditorId, (string?)null), ct);
+            // Milestones on other teams' ideas stay; they just lose this assignee/creator.
+            await _db.IdeaMilestones.Where(x => x.AssigneeUserId == userId).ExecuteUpdateAsync(s => s.SetProperty(m => m.AssigneeUserId, (string?)null), ct);
+            await _db.IdeaMilestones.Where(x => x.CreatedByUserId == userId).ExecuteUpdateAsync(s => s.SetProperty(m => m.CreatedByUserId, (string?)null), ct);
+            // Moderation records keep their outcome but forget the (admin) reviewer.
+            await _db.IdeaReports.Where(x => x.ResolvedByUserId == userId).ExecuteUpdateAsync(s => s.SetProperty(r => r.ResolvedByUserId, (string?)null), ct);
+            await _db.FounderVerificationRequests.Where(x => x.ReviewedByUserId == userId).ExecuteUpdateAsync(s => s.SetProperty(r => r.ReviewedByUserId, (string?)null), ct);
+            await _db.FounderVerificationRequests.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
 
             var ticketIds = await _db.SupportTickets.Where(t => t.UserId == userId).Select(t => t.Id).ToListAsync(ct);
             await _db.SupportTicketMessages.Where(m => m.UserId == userId || ticketIds.Contains(m.SupportTicketId)).ExecuteDeleteAsync(ct);

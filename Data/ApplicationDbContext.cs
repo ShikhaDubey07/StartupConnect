@@ -39,6 +39,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<ChallengeSubmission> ChallengeSubmissions => Set<ChallengeSubmission>();
     public DbSet<TeamMessage> TeamMessages => Set<TeamMessage>();
     public DbSet<UserActivity> UserActivities => Set<UserActivity>();
+    public DbSet<FounderVerificationRequest> FounderVerificationRequests => Set<FounderVerificationRequest>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -231,9 +232,72 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
         // Advanced features cascading
         builder.Entity<IdeaMilestone>()
             .HasOne(m => m.Idea)
-            .WithMany()
+            .WithMany(i => i.Milestones)
             .HasForeignKey(m => m.IdeaId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Assignee / creator are cleared explicitly by AccountDeletionService (no cascade paths).
+        builder.Entity<IdeaMilestone>()
+            .HasOne(m => m.Assignee)
+            .WithMany()
+            .HasForeignKey(m => m.AssigneeUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<IdeaMilestone>()
+            .HasOne(m => m.CreatedBy)
+            .WithMany()
+            .HasForeignKey(m => m.CreatedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.Entity<IdeaMilestone>().Property(m => m.Title).HasMaxLength(150);
+        builder.Entity<IdeaMilestone>().Property(m => m.Description).HasMaxLength(1000);
+
+        builder.Entity<StartupChallenge>()
+            .HasOne(c => c.Category)
+            .WithMany()
+            .HasForeignKey(c => c.CategoryId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        builder.Entity<StartupChallenge>().Property(c => c.Title).HasMaxLength(150);
+        builder.Entity<StartupChallenge>().Property(c => c.Prize).HasMaxLength(150);
+        builder.Entity<StartupChallenge>().Property(c => c.CoverImageUrl).HasMaxLength(500);
+
+        // One entry per idea per challenge.
+        builder.Entity<ChallengeSubmission>()
+            .HasIndex(s => new { s.ChallengeId, s.IdeaId })
+            .IsUnique();
+        builder.Entity<ChallengeSubmission>().Property(s => s.AwardTitle).HasMaxLength(60);
+        builder.Entity<ChallengeSubmission>().Property(s => s.JudgeFeedback).HasMaxLength(1000);
+
+        builder.Entity<IdeaReport>()
+            .HasOne(r => r.ResolvedBy)
+            .WithMany()
+            .HasForeignKey(r => r.ResolvedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<IdeaReport>().HasIndex(r => new { r.Status, r.IdeaId });
+
+        builder.Entity<FounderVerificationRequest>()
+            .HasOne(v => v.User)
+            .WithMany()
+            .HasForeignKey(v => v.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+        builder.Entity<FounderVerificationRequest>()
+            .HasOne(v => v.ReviewedBy)
+            .WithMany()
+            .HasForeignKey(v => v.ReviewedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<FounderVerificationRequest>().Property(v => v.Note).HasMaxLength(500);
+        builder.Entity<FounderVerificationRequest>().Property(v => v.LinkedInUrl).HasMaxLength(300);
+        builder.Entity<FounderVerificationRequest>().Property(v => v.RejectionReason).HasMaxLength(500);
+        builder.Entity<FounderVerificationRequest>().HasIndex(v => new { v.Status, v.CreatedAt });
+
+        builder.Entity<TeamMember>()
+            .HasIndex(m => new { m.TeamId, m.UserId })
+            .IsUnique();
+        builder.Entity<TeamMember>().Property(m => m.Role).HasMaxLength(TeamRoles.MaxLength);
+
+        builder.Entity<TeamMessage>().HasIndex(m => new { m.TeamId, m.Id });
+        builder.Entity<UserActivity>().HasIndex(a => new { a.UserId, a.CreatedAt });
 
         builder.Entity<ChallengeSubmission>()
             .HasOne(s => s.Challenge)

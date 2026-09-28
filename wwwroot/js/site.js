@@ -341,6 +341,36 @@ function loadNotifications() {
     });
 }
 
+// Live deadline countdowns: <el data-countdown="ISO-UTC" [data-countdown-style="long"]><span class="sc-countdown-text">…</span></el>
+function scFormatCountdown(ms, long) {
+    if (ms <= 0) return 'Closed';
+    var mins = Math.floor(ms / 60000), days = Math.floor(mins / 1440), hours = Math.floor((mins % 1440) / 60), m = mins % 60;
+    if (long) {
+        if (days > 0) return days + 'd ' + hours + 'h ' + m + 'm left';
+        if (hours > 0) return hours + 'h ' + m + 'm left';
+        return Math.max(1, m) + ' min left';
+    }
+    if (days >= 2) return days + ' days left';
+    if (hours + days * 24 >= 2) return (hours + days * 24) + ' hours left';
+    return Math.max(1, mins) + ' minute' + (mins === 1 ? '' : 's') + ' left';
+}
+
+function scTickCountdowns() {
+    document.querySelectorAll('[data-countdown]').forEach(function (el) {
+        var deadline = Date.parse(el.getAttribute('data-countdown'));
+        if (isNaN(deadline)) return;
+        var target = el.querySelector('.sc-countdown-text') || el;
+        target.textContent = scFormatCountdown(deadline - Date.now(), el.getAttribute('data-countdown-style') === 'long');
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+    if (document.querySelector('[data-countdown]')) {
+        scTickCountdowns();
+        setInterval(scTickCountdowns, 30000);
+    }
+});
+
 function formatIndianCurrency(amount) {
     return '₹' + amount.toLocaleString('en-IN');
 }

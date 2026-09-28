@@ -1,6 +1,9 @@
 @model DashboardViewModel
+@inject StartupConnect.Services.ITeamService Teams
+@inject Microsoft.AspNetCore.Identity.UserManager<StartupConnect.Models.ApplicationUser> Users
 @{
     ViewData["Title"] = "Dashboard";
+    var myTeams = await Teams.GetTeamsForUserAsync(Users.GetUserId(User)!);
 }
 
 <section class="sc-page-header">
@@ -74,6 +77,9 @@
                 <a asp-controller="Videos" asp-action="Index" class="btn btn-outline-primary"><i class="bi bi-play-circle-fill me-2 text-warning"></i>Watch Masterclasses</a>
                 <a asp-controller="Account" asp-action="Profile" class="btn btn-outline-secondary"><i class="bi bi-person me-2"></i>Edit Profile</a>
                 <a asp-controller="Ideas" asp-action="MyIdeas" class="btn btn-outline-secondary"><i class="bi bi-folder me-2"></i>My Ideas</a>
+                <a asp-controller="Workspace" asp-action="Index" class="btn btn-outline-secondary"><i class="bi bi-kanban me-2"></i>My Teams</a>
+                <a asp-controller="Challenges" asp-action="Index" class="btn btn-outline-secondary"><i class="bi bi-trophy me-2"></i>Challenges</a>
+                <a asp-controller="Profile" asp-action="Analytics" class="btn btn-outline-secondary"><i class="bi bi-graph-up me-2"></i>Founder Analytics</a>
             </div>
         </div>
     </div>
@@ -86,6 +92,32 @@
                 <strong>Complete your profile</strong> — You need at least 60% completion to submit ideas or show interest.
                 <a asp-controller="Account" asp-action="Profile" class="alert-link">Complete now →</a>
             </div>
+        </div>
+    }
+
+    @if (myTeams.Any())
+    {
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="sc-heading mb-0">My Teams</h4>
+            <a asp-controller="Workspace" asp-action="Index" class="small">View all <i class="bi bi-arrow-right"></i></a>
+        </div>
+        <div class="row g-3 mb-5">
+            @foreach (var t in myTeams.Take(3))
+            {
+                var pct = t.MilestonesTotal == 0 ? 0 : (int)Math.Round(100.0 * t.MilestonesDone / t.MilestonesTotal);
+                <div class="col-md-4">
+                    <a asp-controller="Workspace" asp-action="Team" asp-route-id="@t.TeamId" class="sc-team-card d-block text-decoration-none h-100">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span class="badge sc-team-status sc-team-status-@t.Status.ToString().ToLowerInvariant()">@t.Status</span>
+                            <span class="small text-muted">@t.MemberNames.Count members</span>
+                        </div>
+                        <div class="fw-bold text-dark mb-1">@t.IdeaTitle</div>
+                        <div class="small text-muted mb-2">You're @t.MyRole</div>
+                        <div class="progress sc-milestone-progress" style="height:6px"><div class="progress-bar" style="width:@pct%"></div></div>
+                        <div class="small text-muted mt-1">@t.MilestonesDone/@t.MilestonesTotal milestones</div>
+                    </a>
+                </div>
+            }
         </div>
     }
 

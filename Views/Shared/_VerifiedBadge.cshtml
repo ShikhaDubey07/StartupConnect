@@ -1,0 +1,10 @@
+@* Small "Verified Founder" check shown next to a founder's name. Pass "lg" as the model for the labelled pill. *@
+@model object?
+@if (Model as string == "lg")
+{
+    <span class="sc-verified-pill" title="Verified Founder"><i class="bi bi-patch-check-fill"></i> Verified Founder</span>
+}
+else
+{
+    <i class="bi bi-patch-check-fill sc-verified-icon" title="Verified Founder" aria-label="Verified Founder" role="img"></i>
+}

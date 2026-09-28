@@ -43,6 +43,7 @@ public class Idea
     public IdeaAnalysis? Analysis { get; set; }
 
     public ICollection<IdeaHistory> History { get; set; } = new List<IdeaHistory>();
+    public ICollection<IdeaMilestone> Milestones { get; set; } = new List<IdeaMilestone>();
 }
 
 public class IdeaRoleNeeded

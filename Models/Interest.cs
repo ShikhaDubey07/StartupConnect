@@ -29,6 +29,17 @@ public class Team
     public ICollection<TeamMember> Members { get; set; } = new List<TeamMember>();
 }
 
+public static class TeamRoles
+{
+    /// <summary>Role label of the idea owner's membership row. The founder can't be removed or leave.</summary>
+    public const string Founder = "Founder";
+    public const int MaxLength = 60;
+
+    /// <summary>Suggestions shown in the role picker (free text up to <see cref="MaxLength"/> is allowed).</summary>
+    public static readonly string[] Suggested =
+        ["Co-founder", "Developer", "Designer", "Marketing", "Sales", "Operations", "Finance", "Content Creator", "Advisor", "Investor", "Member"];
+}
+
 public class TeamMember
 {
     public int Id { get; set; }

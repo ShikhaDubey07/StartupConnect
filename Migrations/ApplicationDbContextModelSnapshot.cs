@@ -274,11 +274,25 @@ namespace StartupConnect.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AwardTitle")
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
+
                     b.Property<int>("ChallengeId")
                         .HasColumnType("int");
 
                     b.Property<int>("IdeaId")
                         .HasColumnType("int");
+
+                    b.Property<bool>("IsShortlisted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsWinner")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("JudgeFeedback")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<string>("PitchNotes")
                         .IsRequired()
@@ -289,9 +303,10 @@ namespace StartupConnect.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ChallengeId");
-
                     b.HasIndex("IdeaId");
+
+                    b.HasIndex("ChallengeId", "IdeaId")
+                        .IsUnique();
 
                     b.ToTable("ChallengeSubmissions");
                 });
@@ -360,6 +375,54 @@ namespace StartupConnect.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("ContactMessages");
+                });
+
+            modelBuilder.Entity("StartupConnect.Models.FounderVerificationRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LinkedInUrl")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<string>("Note")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("RejectionReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("ReviewedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ReviewedByUserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ReviewedByUserId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("Status", "CreatedAt");
+
+                    b.ToTable("FounderVerificationRequests");
                 });
 
             modelBuilder.Entity("StartupConnect.Models.Idea", b =>
@@ -565,6 +628,7 @@ namespace StartupConnect.Migrations
                         .HasColumnType("int");
 
                     b.Property<decimal>("MinimumFundRequired")
+                        .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
                     b.Property<string>("ProblemStatement")
@@ -633,12 +697,22 @@ namespace StartupConnect.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<string>("AssigneeUserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("CreatedByUserId")
+                        .HasColumnType("nvarchar(450)");
+
                     b.Property<string>("Description")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<DateTime?>("DueDate")
                         .HasColumnType("datetime2");
@@ -651,9 +725,14 @@ namespace StartupConnect.Migrations
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AssigneeUserId");
+
+                    b.HasIndex("CreatedByUserId");
 
                     b.HasIndex("IdeaId");
 
@@ -678,6 +757,18 @@ namespace StartupConnect.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ResolutionNote")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ResolvedByUserId")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
                     b.Property<string>("UserId")
                         .IsRequired()
                         .HasColumnType("nvarchar(450)");
@@ -686,7 +777,11 @@ namespace StartupConnect.Migrations
 
                     b.HasIndex("IdeaId");
 
+                    b.HasIndex("ResolvedByUserId");
+
                     b.HasIndex("UserId");
+
+                    b.HasIndex("Status", "IdeaId");
 
                     b.ToTable("IdeaReports");
                 });
@@ -883,6 +978,13 @@ namespace StartupConnect.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int?>("CategoryId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("CoverImageUrl")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -893,18 +995,31 @@ namespace StartupConnect.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Eligibility")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
                     b.Property<string>("Prize")
                         .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateTime?>("ResultsAnnouncedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Rules")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CategoryId");
 
                     b.ToTable("StartupChallenges");
                 });
@@ -1026,7 +1141,8 @@ namespace StartupConnect.Migrations
 
                     b.Property<string>("Role")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(60)
+                        .HasColumnType("nvarchar(60)");
 
                     b.Property<int>("TeamId")
                         .HasColumnType("int");
@@ -1037,9 +1153,10 @@ namespace StartupConnect.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TeamId");
-
                     b.HasIndex("UserId");
+
+                    b.HasIndex("TeamId", "UserId")
+                        .IsUnique();
 
                     b.ToTable("TeamMembers");
                 });
@@ -1070,7 +1187,7 @@ namespace StartupConnect.Migrations
 
                     b.HasIndex("SenderUserId");
 
-                    b.HasIndex("TeamId");
+                    b.HasIndex("TeamId", "Id");
 
                     b.ToTable("TeamMessages");
                 });
@@ -1103,7 +1220,7 @@ namespace StartupConnect.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("UserId", "CreatedAt");
 
                     b.ToTable("UserActivities");
                 });
@@ -1325,6 +1442,24 @@ namespace StartupConnect.Migrations
                     b.Navigation("Idea");
                 });
 
+            modelBuilder.Entity("StartupConnect.Models.FounderVerificationRequest", b =>
+                {
+                    b.HasOne("StartupConnect.Models.ApplicationUser", "ReviewedBy")
+                        .WithMany()
+                        .HasForeignKey("ReviewedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("StartupConnect.Models.ApplicationUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ReviewedBy");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("StartupConnect.Models.Idea", b =>
                 {
                     b.HasOne("StartupConnect.Models.Category", "Category")
@@ -1421,11 +1556,25 @@ namespace StartupConnect.Migrations
 
             modelBuilder.Entity("StartupConnect.Models.IdeaMilestone", b =>
                 {
-                    b.HasOne("StartupConnect.Models.Idea", "Idea")
+                    b.HasOne("StartupConnect.Models.ApplicationUser", "Assignee")
                         .WithMany()
+                        .HasForeignKey("AssigneeUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("StartupConnect.Models.ApplicationUser", "CreatedBy")
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("StartupConnect.Models.Idea", "Idea")
+                        .WithMany("Milestones")
                         .HasForeignKey("IdeaId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Assignee");
+
+                    b.Navigation("CreatedBy");
 
                     b.Navigation("Idea");
                 });
@@ -1438,6 +1587,11 @@ namespace StartupConnect.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("StartupConnect.Models.ApplicationUser", "ResolvedBy")
+                        .WithMany()
+                        .HasForeignKey("ResolvedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("StartupConnect.Models.ApplicationUser", "User")
                         .WithMany("IdeaReports")
                         .HasForeignKey("UserId")
@@ -1445,6 +1599,8 @@ namespace StartupConnect.Migrations
                         .IsRequired();
 
                     b.Navigation("Idea");
+
+                    b.Navigation("ResolvedBy");
 
                     b.Navigation("User");
                 });
@@ -1536,6 +1692,16 @@ namespace StartupConnect.Migrations
                     b.Navigation("Idea");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("StartupConnect.Models.StartupChallenge", b =>
+                {
+                    b.HasOne("StartupConnect.Models.Category", "Category")
+                        .WithMany()
+                        .HasForeignKey("CategoryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Category");
                 });
 
             modelBuilder.Entity("StartupConnect.Models.SupportTicket", b =>
@@ -1719,6 +1885,8 @@ namespace StartupConnect.Migrations
                     b.Navigation("Interests");
 
                     b.Navigation("Likes");
+
+                    b.Navigation("Milestones");
 
                     b.Navigation("Reports");
 

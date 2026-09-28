@@ -71,6 +71,10 @@ builder.Services.AddScoped<IInterestService, InterestService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IVideoService, VideoService>();
 builder.Services.AddScoped<IAccountDeletionService, AccountDeletionService>();
+builder.Services.AddScoped<IActivityService, ActivityService>();
+builder.Services.AddScoped<ITeamService, TeamService>();
+builder.Services.AddScoped<IChallengeService, ChallengeService>();
+builder.Services.AddScoped<IModerationService, ModerationService>();
 builder.Services.AddHttpClient<IAIAnalysisService, AIAnalysisService>();
 
 // Background work (AI analysis etc.) runs on a Channel-backed queue with its own DI scopes.
@@ -201,6 +205,7 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
 app.MapHub<NotificationHub>("/hubs/notifications");
+app.MapHub<TeamHub>(TeamHub.Path);
 
 // MUST be before app.Run() — app.Run() blocks forever
 using (var scope = app.Services.CreateScope())
