@@ -1,15 +1,21 @@
 @model StartupConnect.ViewModels.FindTeamViewModel
 @using StartupConnect.Models
+@using StartupConnect.Services.Matching
 
 @{
     ViewData["Title"] = "Find Co-founder & Team";
     var categories = ViewBag.Categories as List<Category> ?? new List<Category>();
     var states = ViewBag.ConnectionStates as Dictionary<string, ConnectionState> ?? new Dictionary<string, ConnectionState>();
+    var results = Model.Results;
+    var forIdea = results.ForIdea;
+    var hasFilters = !string.IsNullOrEmpty(Model.Role) || !string.IsNullOrWhiteSpace(Model.Skill) || Model.IndustryId.HasValue
+        || Model.Availability.HasValue || Model.ForIdeaId.HasValue || Model.IncludeConnections;
 }
 
 <div class="container py-5 mt-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2 class="fw-bold"><i class="bi bi-search text-primary me-2"></i>Find Co-founder & Team</h2>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <h2 class="fw-bold mb-0"><i class="bi bi-search text-primary me-2"></i>Find Co-founder &amp; Team</h2>
+        <a asp-action="Index" class="btn btn-outline-primary rounded-pill btn-sm"><i class="bi bi-stars me-1"></i>Smart Matches</a>
     </div>
 
     <div class="row">
@@ -18,120 +24,140 @@
             <div class="card border-0 shadow-sm rounded-4 position-sticky" style="top: 100px;">
                 <div class="card-body p-4">
                     <h5 class="fw-bold mb-4"><i class="bi bi-funnel me-2"></i>Filters</h5>
-                    
-                    <form method="get" asp-controller="Matches" asp-action="FindTeam">
-                        <!-- Role Filter -->
+
+                    <form method="get" asp-controller="Matches" asp-action="FindTeam" id="findTeamForm">
+                        @if (results.MyIdeas.Any())
+                        {
+                            <div class="mb-4">
+                                <label for="ForIdeaId" class="form-label fw-bold text-muted small">Build a team for</label>
+                                <select id="ForIdeaId" name="ForIdeaId" class="form-select rounded-pill" onchange="this.form.submit()">
+                                    <option value="">Me (general matching)</option>
+                                    @foreach (var idea in results.MyIdeas)
+                                    {
+                                        <option value="@idea.Id" selected="@(Model.ForIdeaId == idea.Id)">@idea.Title@(idea.Status != IdeaStatus.Approved ? $" ({idea.Status})" : "")</option>
+                                    }
+                                </select>
+                                <div class="form-text">Pick one of your ideas to rank people by the roles it still needs.</div>
+                            </div>
+                        }
+
                         <div class="mb-4">
-                            <label class="form-label fw-bold text-muted small">Role</label>
+                            <label asp-for="Role" class="form-label fw-bold text-muted small">Role</label>
                             <select asp-for="Role" class="form-select rounded-pill">
                                 <option value="">Any Role</option>
-                                <option value="Founder">Founder</option>
+                                <option value="Founder">Founder / builder</option>
                                 <option value="Investor">Investor</option>
                             </select>
                         </div>
 
-                        <!-- Industry Filter -->
                         <div class="mb-4">
-                            <label class="form-label fw-bold text-muted small">Industry / Interest</label>
+                            <label asp-for="IndustryId" class="form-label fw-bold text-muted small">Industry / Interest</label>
                             <select asp-for="IndustryId" class="form-select rounded-pill">
                                 <option value="">Any Industry</option>
-                                @foreach(var cat in categories)
+                                @foreach (var cat in categories)
                                 {
                                     <option value="@cat.Id">@cat.Name</option>
                                 }
                             </select>
                         </div>
 
-                        <!-- Availability Filter -->
                         <div class="mb-4">
-                            <label class="form-label fw-bold text-muted small">Availability</label>
+                            <label asp-for="Availability" class="form-label fw-bold text-muted small">Availability</label>
                             <select asp-for="Availability" class="form-select rounded-pill" asp-items="Html.GetEnumSelectList<TimeAvailability>()">
                                 <option value="">Any Availability</option>
                             </select>
                         </div>
 
-                        <!-- Skill Search -->
                         <div class="mb-4">
-                            <label class="form-label fw-bold text-muted small">Skill Search</label>
-                            <div class="input-group">
-                                <span class="input-group-text bg-white border-end-0 rounded-start-pill"><i class="bi bi-search"></i></span>
-                                <input asp-for="Skill" class="form-control border-start-0 rounded-end-pill" placeholder="e.g. Marketing, React..." />
-                            </div>
+                            <label asp-for="Skill" class="form-label fw-bold text-muted small">Skill</label>
+                            <input asp-for="Skill" list="skillOptions" maxlength="60" class="form-control rounded-pill" placeholder="e.g. Marketing, Developer" />
+                            <datalist id="skillOptions">
+                                @foreach (var sk in ProfileViewModel.AvailableSkills) { <option value="@sk"></option> }
+                            </datalist>
+                        </div>
+
+                        <div class="form-check mb-4">
+                            <input class="form-check-input" type="checkbox" asp-for="IncludeConnections" />
+                            <label class="form-check-label small" asp-for="IncludeConnections">Include my connections &amp; teammates</label>
                         </div>
 
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary rounded-pill">Apply Filters</button>
-                            <a asp-action="FindTeam" class="btn btn-dark rounded-pill">Clear</a>
+                            @if (hasFilters)
+                            {
+                                <a asp-action="FindTeam" class="btn btn-outline-secondary rounded-pill">Clear</a>
+                            }
                         </div>
                     </form>
                 </div>
             </div>
         </div>
 
-        <!-- Main Content (Results) -->
+        <!-- Results -->
         <div class="col-lg-9">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <span class="text-muted">Showing @Model.Matches.Count matching profile(s)</span>
+            @if (forIdea != null)
+            {
+                <div class="card border-0 shadow-sm rounded-4 mb-4">
+                    <div class="card-body p-4">
+                        <div class="d-flex flex-wrap justify-content-between gap-2 mb-2">
+                            <h5 class="fw-bold mb-0"><i class="bi bi-lightbulb text-warning me-2"></i>Building a team for “@forIdea.Title”</h5>
+                            <a asp-controller="Ideas" asp-action="Detail" asp-route-id="@forIdea.Id" class="small">View idea</a>
+                        </div>
+                        @if (forIdea.OpenNeeds.Any())
+                        {
+                            <p class="text-muted small mb-2">People are ranked by how well they cover the roles this idea still needs (roles needed minus current team roles).</p>
+                        }
+                        else
+                        {
+                            <p class="text-muted small mb-2">Every role listed on this idea is already covered by its team — people are ranked by the skills you don't have yet. Add more roles to the idea to refine this.</p>
+                        }
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach (var role in forIdea.RolesNeeded)
+                            {
+                                var open = forIdea.OpenNeeds.Any(n => n.Family == RoleFamilies.Classify(role));
+                                <span class="sc-need-chip @(open ? "" : "is-filled")" title="@(open ? "Still needed" : "Covered by the team")">
+                                    <i class="bi @(open ? "bi-person-plus" : "bi-check2")"></i>@role
+                                </span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+                <span class="text-muted">Showing @results.Matches.Count matching profile@(results.Matches.Count == 1 ? "" : "s"), best match first</span>
+                @if (results.NetworkExcluded > 0)
+                {
+                    <span class="text-muted small"><i class="bi bi-people me-1"></i>@results.NetworkExcluded in your network hidden</span>
+                }
             </div>
 
-            @if (Model.Matches.Any())
+            @if (!results.HasProfile)
+            {
+                <div class="sc-empty-state bg-white rounded-4 shadow-sm">
+                    <div class="sc-empty-icon"><i class="bi bi-person-vcard"></i></div>
+                    <h5>Complete your profile first</h5>
+                    <p class="text-muted">Matching compares your skills, industries and availability with other members.</p>
+                    <a asp-controller="Account" asp-action="Profile" class="btn btn-primary-sc rounded-pill">Complete profile</a>
+                </div>
+            }
+            else if (results.Matches.Any())
             {
                 <div class="row g-4">
-                    @foreach (var match in Model.Matches)
+                    @foreach (var match in results.Matches)
                     {
                         <div class="col-md-6 col-xl-4">
-                            <div class="card h-100 shadow-sm border-0 sc-hover-card text-center p-4">
-                                <div class="mx-auto mb-3"><partial name="_Avatar" model="@(new AvatarModel(match.Profile.User.FullName, match.Profile.ProfilePhotoUrl, 80))" /></div>
-                                <h5 class="fw-bold mb-1">@match.Profile.User.FullName</h5>
-                                <div class="text-muted small mb-2 fw-semibold">
-                                    @(match.Profile.IsInvestor ? "Investor" : "Founder")
-                                </div>
-                                @{
-                                    var showLoc = match.Profile.User.Settings?.ShowLocation ?? true;
-                                    var loc = string.Join(", ", new[] { match.Profile.User.City, match.Profile.User.State }.Where(v => !string.IsNullOrWhiteSpace(v)));
-                                }
-                                <p class="text-muted small mb-2"><i class="bi bi-geo-alt"></i> @(showLoc && loc.Length > 0 ? loc : "Location not shared")</p>
-                                
-                                <div class="badge bg-success-subtle text-success mb-3 fs-6 px-3 py-2 border border-success border-opacity-25 rounded-pill shadow-sm">
-                                    🔥 @match.MatchScore% Match
-                                </div>
-                                
-                                <div class="mb-3 text-start flex-grow-1">
-                                    <small class="text-muted d-block mb-1 fw-bold">Top Skills</small>
-                                    <div class="d-flex flex-wrap gap-1">
-                                        @if(match.Profile.Skills.Any())
-                                        {
-                                            @foreach (var skill in match.Profile.Skills.Take(3))
-                                            {
-                                                <span class="sc-role-tag">@skill.SkillName</span>
-                                            }
-                                            @if(match.Profile.Skills.Count > 3)
-                                            {
-                                                <span class="sc-role-tag bg-white text-muted">+@(match.Profile.Skills.Count - 3)</span>
-                                            }
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted small">No skills listed</span>
-                                        }
-                                    </div>
-                                </div>
-
-                                <div class="d-flex gap-2 mt-auto pt-3">
-                                    <a asp-controller="Profile" asp-action="Detail" asp-route-id="@match.Profile.UserId" class="btn btn-outline-primary rounded-pill flex-grow-1">View</a>
-                                    <partial name="_ConnectButton" model="@(new ConnectButtonModel(match.Profile.UserId, states.GetValueOrDefault(match.Profile.UserId), match.Profile.User.FullName))" />
-                                </div>
-                            </div>
+                            <partial name="_TeamMatchCard" model="@(new TeamMatchCardModel(match, states.GetValueOrDefault(match.UserId)))" />
                         </div>
                     }
                 </div>
             }
             else
             {
-                <div class="alert alert-light border text-center p-5 rounded-4 shadow-sm">
-                    <i class="bi bi-search fs-1 text-muted mb-3 d-block"></i>
-                    <h5 class="fw-bold">No profiles found</h5>
-                    <p class="text-muted mb-3">Try adjusting your filters to see more results. Members with private profiles don't appear in search.</p>
+                <div class="sc-empty-state bg-white rounded-4 shadow-sm">
+                    <div class="sc-empty-icon"><i class="bi bi-search"></i></div>
+                    <h5>No profiles found</h5>
+                    <p class="text-muted">Try removing a filter. Members with private profiles don't appear in search@(Model.IncludeConnections ? "" : ", and people already in your network are hidden unless you tick “Include my connections”").</p>
                     <a asp-action="FindTeam" class="btn btn-outline-secondary rounded-pill">Clear filters</a>
                 </div>
             }

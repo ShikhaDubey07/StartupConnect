@@ -2842,3 +2842,48 @@ a {
 .text-warning-emphasis { color: #7a5200 !important; }
 .text-danger-emphasis { color: #8a1f1f !important; }
 .text-info-emphasis { color: #1d5566 !important; }
+
+/* =====================================================================
+   Matching & discovery (Session 4)
+   ===================================================================== */
+.sc-match-score {
+    flex-shrink: 0; width: 58px; height: 58px; border-radius: 50%; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; line-height: 1; font-family: var(--sc-heading);
+    border: 3px solid currentColor; background: var(--sc-surface);
+}
+.sc-match-score span { font-size: 1.15rem; font-weight: 800; }
+.sc-match-score small { font-size: 0.58rem; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 700; opacity: 0.8; }
+.sc-match-score.is-high { color: var(--sc-success); }
+.sc-match-score.is-mid { color: var(--sc-coral); }
+.sc-match-score.is-low { color: #8a8494; }
+.sc-match-reasons li { display: flex; gap: 0.5rem; align-items: flex-start; font-size: 0.85rem; padding: 0.2rem 0; color: var(--sc-text-secondary); }
+.sc-match-reasons li i { color: var(--sc-primary); margin-top: 0.1rem; }
+.sc-match-reasons li.sc-reason-covers { color: var(--sc-text); font-weight: 600; }
+.sc-match-reasons li.sc-reason-covers i { color: var(--sc-success); }
+.sc-role-tag.sc-role-tag-match { background: rgba(77, 148, 108, 0.12); border-color: rgba(77, 148, 108, 0.35); color: #2f6b4a; font-weight: 600; }
+.sc-ai-note { background: rgba(91, 58, 112, 0.06); border-left: 3px solid var(--sc-primary); }
+.sc-score-breakdown summary { cursor: pointer; color: var(--sc-primary); font-weight: 600; list-style: none; }
+.sc-score-breakdown summary::-webkit-details-marker { display: none; }
+.sc-score-breakdown summary::before { content: '\25B8'; display: inline-block; margin-right: 0.35rem; transition: transform 0.15s; }
+.sc-score-breakdown[open] summary::before { transform: rotate(90deg); }
+.sc-need-chip {
+    display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.78rem; font-weight: 600; padding: 0.25rem 0.7rem;
+    border-radius: var(--sc-radius-pill); background: rgba(196, 122, 90, 0.12); color: #8a4a2e; border: 1px solid rgba(196, 122, 90, 0.3);
+}
+.sc-need-chip.is-filled { background: rgba(77, 148, 108, 0.1); color: #2f6b4a; border-color: rgba(77, 148, 108, 0.3); text-decoration: line-through; }
+.sc-similar-reasons li { font-size: 0.82rem; color: var(--sc-text-secondary); padding: 0.1rem 0; }
+.sc-similar-reasons li i { color: var(--sc-accent); margin-right: 0.35rem; }
+.sc-keyword { display: inline-block; font-size: 0.72rem; padding: 0.1rem 0.5rem; margin: 0.1rem; border-radius: 6px; background: rgba(63, 125, 107, 0.1); color: var(--sc-accent); font-weight: 600; }
+.sc-filter-chip { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.78rem; padding: 0.2rem 0.65rem; border-radius: var(--sc-radius-pill); background: rgba(91, 58, 112, 0.08); color: var(--sc-primary); text-decoration: none; }
+.sc-filter-chip:hover { background: rgba(91, 58, 112, 0.16); color: var(--sc-primary-dark); }
+.sc-interest-card .sc-interest-meta { font-size: 0.82rem; color: var(--sc-text-secondary); }
+.sc-interest-card .sc-interest-message { background: var(--sc-bg); border-radius: var(--sc-radius-sm); padding: 0.6rem 0.8rem; white-space: pre-line; font-size: 0.88rem; }
+.sc-interest-card .sc-reply-note { border-left: 3px solid var(--sc-accent); background: rgba(63, 125, 107, 0.06); border-radius: 0 var(--sc-radius-sm) var(--sc-radius-sm) 0; padding: 0.5rem 0.75rem; font-size: 0.85rem; white-space: pre-line; }
+.sc-trend-rank { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; }
+.sc-role-toggle {
+    display: inline-block; cursor: pointer; font-size: 0.75rem; font-weight: 600; padding: 0.15rem 0.6rem; border-radius: var(--sc-radius-pill);
+    border: 1px solid var(--sc-border-light); background: var(--sc-surface); color: var(--sc-text-secondary); user-select: none;
+}
+.sc-role-toggle:hover { border-color: var(--sc-primary-light); color: var(--sc-primary); }
+.btn-check:checked + .sc-role-toggle { background: var(--sc-primary); border-color: var(--sc-primary); color: #fff; }
+.btn-check:focus-visible + .sc-role-toggle { outline: 2px solid var(--sc-primary-light); outline-offset: 2px; }

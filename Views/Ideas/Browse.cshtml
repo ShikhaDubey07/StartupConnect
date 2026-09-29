@@ -1,16 +1,36 @@
 @model List<StartupConnect.ViewModels.IdeaCardViewModel>
 @{
     ViewData["Title"] = "Explore Ideas";
-    var categories = ViewBag.Categories as List<StartupConnect.Models.Category>;
-    var filter = ViewContext.HttpContext.Request.Query;
+    var categories = ViewBag.Categories as List<StartupConnect.Models.Category> ?? new();
+    var filter = (IdeaBrowseViewModel)ViewBag.Filter;
     int totalPages = ViewBag.TotalPages;
-    int currentPage = int.TryParse(filter["Page"], out var p) ? p : 1;
+    int totalCount = ViewBag.TotalCount;
+    var currentPage = filter.Page;
+    var firstShown = totalCount == 0 ? 0 : (currentPage - 1) * filter.PageSize + 1;
+    var lastShown = Math.Min(totalCount, currentPage * filter.PageSize);
+
+    // Compact page window: 1 … (p-2..p+2) … last
+    var pages = new SortedSet<int> { 1, totalPages };
+    for (var i = Math.Max(1, currentPage - 2); i <= Math.Min(totalPages, currentPage + 2); i++) pages.Add(i);
+
+    string PageUrl(int page) => Url.Action("Browse", "Ideas", filter.ToRouteValues(page).ToDictionary(kv => kv.Key, kv => (object?)kv.Value))!;
+    string Without(Action<IdeaBrowseViewModel> clear)
+    {
+        var copy = new IdeaBrowseViewModel
+        {
+            Search = filter.Search, CategoryId = filter.CategoryId, Stage = filter.Stage, MinFund = filter.MinFund, MaxFund = filter.MaxFund,
+            Roles = filter.Roles.ToList(), VerifiedOnly = filter.VerifiedOnly, SortBy = filter.SortBy, PageSize = filter.PageSize
+        };
+        clear(copy);
+        return Url.Action("Browse", "Ideas", copy.ToRouteValues().ToDictionary(kv => kv.Key, kv => (object?)kv.Value))!;
+    }
+    var categoryName = categories.FirstOrDefault(c => c.Id == filter.CategoryId)?.Name;
 }
 
 <section class="sc-page-header" data-aos="fade-down">
     <div class="container">
         <h1>Explore Startup Ideas</h1>
-        <p class="opacity-75 mb-0">Verified ideas looking for teammates and investors</p>
+        <p class="opacity-75 mb-0">Panel-approved ideas looking for teammates and investors</p>
     </div>
 </section>
 
@@ -20,63 +40,101 @@
         <div class="col-lg-3" data-aos="fade-right">
             <div class="sc-filter-panel">
                 <h6 class="fw-bold mb-3"><i class="bi bi-funnel me-2"></i>Filters</h6>
-                <form method="get" asp-action="Browse">
+                <form method="get" asp-action="Browse" id="browseFilters">
                     <div class="mb-3">
-                        <label class="form-label small fw-semibold">Search</label>
-                        <input name="Search" value="@filter["Search"]" class="form-control form-control-sm" placeholder="Keyword..." />
+                        <label class="form-label small fw-semibold" for="f-search">Search</label>
+                        <input id="f-search" name="Search" value="@filter.Search" maxlength="100" class="form-control form-control-sm" placeholder="Title, problem, keywords…" />
                     </div>
                     <div class="mb-3">
-                        <label class="form-label small fw-semibold">Category</label>
-                        <select name="CategoryId" class="form-select form-select-sm">
-                            <option value="">All Categories</option>
-                            @if (categories != null)
+                        <label class="form-label small fw-semibold" for="f-sort">Sort by</label>
+                        <select id="f-sort" name="SortBy" class="form-select form-select-sm">
+                            @foreach (var (value, label) in IdeaBrowseViewModel.SortOptions)
                             {
-                                foreach (var c in categories)
-                                {
-                                    <option value="@c.Id" selected="@(filter["CategoryId"] == c.Id.ToString())">@c.Name</option>
-                                }
+                                <option value="@value" selected="@(filter.SortBy == value)">@label</option>
                             }
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label small fw-semibold">Sort By</label>
-                        <select name="SortBy" class="form-select form-select-sm">
-                            <option value="newest" selected="@(filter["SortBy"] != "popular" && filter["SortBy"] != "fund-low" && filter["SortBy"] != "ai-score")">Newest</option>
-                            <option value="popular" selected="@(filter["SortBy"] == "popular")">Most Popular</option>
-                            <option value="fund-low" selected="@(filter["SortBy"] == "fund-low")">Lowest Fund Need</option>
-                            <option value="ai-score" selected="@(filter["SortBy"] == "ai-score")">🤖 AI Score</option>
+                        <label class="form-label small fw-semibold" for="f-cat">Category</label>
+                        <select id="f-cat" name="CategoryId" class="form-select form-select-sm">
+                            <option value="">All categories</option>
+                            @foreach (var c in categories)
+                            {
+                                <option value="@c.Id" selected="@(filter.CategoryId == c.Id)">@c.Name</option>
+                            }
                         </select>
                     </div>
-                    
                     <div class="mb-3">
-                        <label class="form-label small fw-semibold">Required Roles</label>
-                        <input name="RolesNeeded" value="@filter["RolesNeeded"]" class="form-control form-control-sm" placeholder="e.g. Developer, Designer" />
+                        <label class="form-label small fw-semibold" for="f-stage">Stage</label>
+                        <select id="f-stage" name="Stage" class="form-select form-select-sm">
+                            <option value="">Any stage</option>
+                            @foreach (var st in Enum.GetValues<IdeaProgressStage>())
+                            {
+                                <option value="@st" selected="@(filter.Stage == st)">@st</option>
+                            }
+                        </select>
                     </div>
-                    
                     <div class="mb-3">
-                        <label class="form-label small fw-semibold">Min Engagement Score</label>
-                        <input type="number" name="MinEngagementScore" value="@filter["MinEngagementScore"]" class="form-control form-control-sm" placeholder="0" />
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold">Target Funding</label>
-                        <div class="input-group input-group-sm">
-                            <input type="number" name="MinFund" value="@filter["MinFund"]" class="form-control" placeholder="Min" />
-                            <span class="input-group-text">-</span>
-                            <input type="number" name="MaxFund" value="@filter["MaxFund"]" class="form-control" placeholder="Max" />
+                        <label class="form-label small fw-semibold d-block">Roles needed</label>
+                        <div class="d-flex flex-wrap gap-1">
+                            @foreach (var role in ProfileViewModel.AvailableSkills)
+                            {
+                                var id = "role-" + role.Replace(" ", "-").ToLowerInvariant();
+                                <input type="checkbox" class="btn-check" name="Roles" value="@role" id="@id" autocomplete="off" checked="@filter.Roles.Contains(role)" />
+                                <label class="sc-role-toggle" for="@id">@role</label>
+                            }
                         </div>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-semibold">Funding needed (₹)</label>
+                        <div class="input-group input-group-sm">
+                            <input type="number" min="0" step="1000" name="MinFund" value="@filter.MinFund?.ToString("0")" class="form-control" placeholder="Min" aria-label="Minimum funding" />
+                            <span class="input-group-text">–</span>
+                            <input type="number" min="0" step="1000" name="MaxFund" value="@filter.MaxFund?.ToString("0")" class="form-control" placeholder="Max" aria-label="Maximum funding" />
+                        </div>
+                    </div>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" role="switch" id="f-verified" name="VerifiedOnly" value="true" checked="@filter.VerifiedOnly" />
+                        <label class="form-check-label small" for="f-verified">Verified founders only</label>
+                    </div>
                     <button type="submit" class="btn btn-primary-sc btn-sm w-100">Apply Filters</button>
+                    @if (filter.HasFilters)
+                    {
+                        <a asp-action="Browse" asp-route-SortBy="@(filter.SortBy == "newest" ? null : filter.SortBy)" class="btn btn-link btn-sm w-100 mt-1">Clear all filters</a>
+                    }
                 </form>
             </div>
         </div>
 
         <!-- Ideas Grid -->
         <div class="col-lg-9">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <span class="text-muted">@ViewBag.TotalCount ideas found</span>
-                <a asp-action="Trending" class="btn btn-outline-primary btn-sm"><i class="bi bi-fire me-1"></i> View Trending Ideas</a>
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+                <span class="text-muted">
+                    @if (totalCount > 0)
+                    {
+                        <text>Showing @firstShown–@lastShown of @totalCount idea@(totalCount == 1 ? "" : "s")</text>
+                    }
+                    else
+                    {
+                        <text>No ideas found</text>
+                    }
+                </span>
+                <a asp-action="Trending" class="btn btn-outline-primary btn-sm"><i class="bi bi-fire me-1"></i>Trending Ideas</a>
             </div>
+
+            @if (filter.HasFilters)
+            {
+                <div class="d-flex flex-wrap gap-2 mb-3" aria-label="Active filters">
+                    @if (!string.IsNullOrWhiteSpace(filter.Search)) { <a class="sc-filter-chip" href="@Without(f => f.Search = null)">“@filter.Search” <i class="bi bi-x"></i></a> }
+                    @if (categoryName != null) { <a class="sc-filter-chip" href="@Without(f => f.CategoryId = null)">@categoryName <i class="bi bi-x"></i></a> }
+                    @if (filter.Stage.HasValue) { <a class="sc-filter-chip" href="@Without(f => f.Stage = null)">Stage: @filter.Stage <i class="bi bi-x"></i></a> }
+                    @foreach (var role in filter.Roles) { <a class="sc-filter-chip" href="@Without(f => f.Roles.Remove(role))">Needs @role <i class="bi bi-x"></i></a> }
+                    @if (filter.MinFund.HasValue) { <a class="sc-filter-chip" href="@Without(f => f.MinFund = null)">≥ ₹@filter.MinFund.Value.ToString("N0") <i class="bi bi-x"></i></a> }
+                    @if (filter.MaxFund.HasValue) { <a class="sc-filter-chip" href="@Without(f => f.MaxFund = null)">≤ ₹@filter.MaxFund.Value.ToString("N0") <i class="bi bi-x"></i></a> }
+                    @if (filter.VerifiedOnly) { <a class="sc-filter-chip" href="@Without(f => f.VerifiedOnly = false)">Verified founders <i class="bi bi-x"></i></a> }
+                </div>
+            }
+
             @if (Model.Any())
             {
                 <div class="row g-4">
@@ -87,26 +145,46 @@
                 </div>
                 @if (totalPages > 1)
                 {
-                    <nav class="mt-4">
-                        <ul class="pagination justify-content-center">
-                            @for (int i = 1; i <= totalPages; i++)
+                    <nav class="mt-4" aria-label="Idea pages">
+                        <ul class="pagination justify-content-center flex-wrap">
+                            <li class="page-item @(currentPage == 1 ? "disabled" : "")">
+                                <a class="page-link" href="@(currentPage == 1 ? "#" : PageUrl(currentPage - 1))" aria-label="Previous">&laquo;</a>
+                            </li>
+                            @{ var prev = 0; }
+                            @foreach (var i in pages)
                             {
+                                if (prev > 0 && i - prev > 1)
+                                {
+                                    <li class="page-item disabled"><span class="page-link">…</span></li>
+                                }
                                 <li class="page-item @(i == currentPage ? "active" : "")">
-                                    <a class="page-link" asp-action="Browse" asp-route-Page="@i"
-                                       asp-route-Search="@filter["Search"]" asp-route-CategoryId="@filter["CategoryId"]"
-                                       asp-route-SortBy="@filter["SortBy"]">@i</a>
+                                    <a class="page-link" href="@PageUrl(i)" aria-current="@(i == currentPage ? "page" : null)">@i</a>
                                 </li>
+                                prev = i;
                             }
+                            <li class="page-item @(currentPage == totalPages ? "disabled" : "")">
+                                <a class="page-link" href="@(currentPage == totalPages ? "#" : PageUrl(currentPage + 1))" aria-label="Next">&raquo;</a>
+                            </li>
                         </ul>
                     </nav>
                 }
             }
             else
             {
-                <div class="text-center py-5">
-                    <i class="bi bi-search fs-1 text-muted d-block mb-3"></i>
-                    <h5>No ideas found</h5>
-                    <p class="text-muted">Try adjusting your filters or check back later.</p>
+                <div class="sc-empty-state">
+                    <div class="sc-empty-icon"><i class="bi bi-search"></i></div>
+                    @if (filter.HasFilters)
+                    {
+                        <h5>No ideas match these filters</h5>
+                        <p class="text-muted">Try a broader search, remove a filter above, or widen the funding range.</p>
+                        <a asp-action="Browse" class="btn btn-outline-secondary rounded-pill">Clear all filters</a>
+                    }
+                    else
+                    {
+                        <h5>No ideas published yet</h5>
+                        <p class="text-muted">Be the first — submit your idea for panel review.</p>
+                        <a asp-action="Submit" class="btn btn-primary-sc rounded-pill">Submit an idea</a>
+                    }
                 </div>
             }
         </div>

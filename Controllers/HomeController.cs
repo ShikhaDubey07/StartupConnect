@@ -20,8 +20,9 @@ public class HomeController : Controller
 
     public async Task<IActionResult> Index()
     {
-        ViewBag.FeaturedIdeas = await _ideaService.GetApprovedIdeasAsync(new IdeaBrowseViewModel { PageSize = 6 });
-        ViewBag.MostLikedIdeas = await _ideaService.GetMostLikedIdeasThisWeekAsync(3);
+        var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        ViewBag.FeaturedIdeas = await _ideaService.GetApprovedIdeasAsync(new IdeaBrowseViewModel { PageSize = 6 }, userId);
+        ViewBag.MostLikedIdeas = await _ideaService.GetMostLikedIdeasThisWeekAsync(3, userId);
         ViewBag.Stats = new
         {
             Users = await _context.Users.CountAsync(),

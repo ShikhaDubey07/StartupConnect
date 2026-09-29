@@ -22,6 +22,7 @@ public class IdeasController : Controller
     private readonly IAIAnalysisService _aiService;
     private readonly IConfiguration _configuration;
     private readonly IPrivacyService _privacy;
+    private readonly IIdeaViewTracker _viewTracker;
 
     public const int MaxCommentLength = 1000;
     public const int MaxReportReasonLength = 500;
@@ -35,9 +36,11 @@ public class IdeasController : Controller
         IAnalysisJobTracker analysisTracker,
         IAIAnalysisService aiService,
         IConfiguration configuration,
-        IPrivacyService privacy)
+        IPrivacyService privacy,
+        IIdeaViewTracker viewTracker)
     {
         _privacy = privacy;
+        _viewTracker = viewTracker;
         _ideaService = ideaService;
         _context = context;
         _matchingService = matchingService;
@@ -68,10 +71,22 @@ public class IdeasController : Controller
 
     public async Task<IActionResult> Browse(IdeaBrowseViewModel filter)
     {
-        ViewBag.Categories = await _context.Categories.Where(c => c.IsActive).ToListAsync();
-        ViewBag.TotalCount = await _ideaService.GetApprovedIdeasCountAsync(filter);
-        ViewBag.TotalPages = (int)Math.Ceiling(ViewBag.TotalCount / (double)filter.PageSize);
-        var ideas = await _ideaService.GetApprovedIdeasAsync(filter);
+        filter.PageSize = Math.Clamp(filter.PageSize, 1, IdeaBrowseViewModel.MaxPageSize);
+        if (!IdeaBrowseViewModel.SortOptions.Any(o => o.Value == filter.SortBy)) filter.SortBy = "newest";
+        filter.Roles = filter.Roles.Where(r => ProfileViewModel.AvailableSkills.Contains(r)).Distinct().ToList();
+        if (filter.MinFund < 0) filter.MinFund = null;
+        if (filter.MaxFund < 0) filter.MaxFund = null;
+        if (filter.MinFund > filter.MaxFund) (filter.MinFund, filter.MaxFund) = (filter.MaxFund, filter.MinFund);
+
+        var total = await _ideaService.GetApprovedIdeasCountAsync(filter);
+        var totalPages = Math.Max(1, (int)Math.Ceiling(total / (double)filter.PageSize));
+        filter.Page = Math.Clamp(filter.Page, 1, totalPages);
+
+        ViewBag.Categories = await _context.Categories.Where(c => c.IsActive).OrderBy(c => c.Name).ToListAsync();
+        ViewBag.TotalCount = total;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.Filter = filter;
+        var ideas = await _ideaService.GetApprovedIdeasAsync(filter, CurrentUserId);
         return View(ideas);
     }
 
@@ -84,7 +99,7 @@ public class IdeasController : Controller
         var idea = await _context.Ideas.FindAsync(id);
         if (idea != null)
         {
-            ViewBag.SimilarIdeas = await _matchingService.GetSimilarIdeasAsync(idea);
+            ViewBag.SimilarIdeas = await _matchingService.GetSimilarIdeasAsync(id, 4);
             ViewBag.ProgressStage = idea.ProgressStage;
 
             // Public roadmap (read-only) and team for the sidebar.
@@ -138,12 +153,8 @@ public class IdeasController : Controller
             // Founders can always open (or create) the workspace; members get a direct link.
             ViewBag.CanOpenWorkspace = userId != null && (idea.SubmitterUserId == userId || (team?.Members.Any(m => m.UserId == userId) ?? false));
             
-            // Log view
-            if (userId == null || idea.SubmitterUserId != userId)
-            {
-                _context.IdeaViews.Add(new IdeaView { IdeaId = id, UserId = userId });
-                await _context.SaveChangesAsync();
-            }
+            // One view per viewer per 24h; owner and bots are ignored (see IdeaViewTracker).
+            await _viewTracker.TrackAsync(HttpContext, id, idea.SubmitterUserId);
         }
 
         return View(model);
@@ -652,66 +663,24 @@ public class IdeasController : Controller
     [Authorize]
     public async Task<IActionResult> Matches()
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        
-        // Fetch user's ideas
-        var myIdeas = await _context.Ideas
-            .Include(i => i.Category)
+        var userId = CurrentUserId!;
+        var myIdeas = await _context.Ideas.AsNoTracking()
             .Where(i => i.SubmitterUserId == userId && i.Status == IdeaStatus.Approved)
+            .OrderByDescending(i => i.PublishedAt)
+            .Select(i => new IdeaMatchViewModel { IdeaId = i.Id, Title = i.Title, CategoryName = i.Category.Name, TargetMarket = i.TargetMarket })
             .ToListAsync();
 
-        var viewModels = new List<IdeaMatchViewModel>();
-
+        // One candidate pool + one display query for all of my ideas (no per-idea / per-match queries).
+        var similar = await _matchingService.GetSimilarIdeasForAsync(myIdeas.Select(i => i.IdeaId).ToList(), 6, excludeOwnerId: userId);
         foreach (var idea in myIdeas)
-        {
-            var matches = await _matchingService.GetSimilarIdeasAsync(idea);
-            if (matches.Any())
-            {
-                var matchDetailsList = new List<MatchedIdeaDetails>();
-                foreach (var match in matches)
-                {
-                    // Reload idea with Submitter and Category to display information
-                    var matchedIdea = await _context.Ideas
-                        .Include(i => i.Submitter)
-                        .Include(i => i.Category)
-                        .FirstOrDefaultAsync(i => i.Id == match.Idea.Id);
-                        
-                    if (matchedIdea == null) continue;
+            idea.Matches = similar.TryGetValue(idea.IdeaId, out var list) ? list : new();
 
-                    var myTokens = GetTokens(idea.Title, idea.Tagline, idea.Description);
-                    var theirTokens = GetTokens(matchedIdea.Title, matchedIdea.Tagline, matchedIdea.Description);
-                    var commonKeywords = myTokens.Intersect(theirTokens).Where(t => t.Length > 3).Take(5).ToList();
-
-                    matchDetailsList.Add(new MatchedIdeaDetails
-                    {
-                        Idea = matchedIdea,
-                        MatchScore = match.Score,
-                        SubmitterName = matchedIdea.Submitter?.FullName ?? "Unknown User",
-                        SubmitterId = matchedIdea.SubmitterUserId,
-                        CategoryName = matchedIdea.Category?.Name ?? "Unknown",
-                        CommonKeywords = commonKeywords,
-                        SameCategory = idea.CategoryId == matchedIdea.CategoryId,
-                        SameTargetMarket = !string.IsNullOrWhiteSpace(idea.TargetMarket) && idea.TargetMarket.Equals(matchedIdea.TargetMarket, StringComparison.OrdinalIgnoreCase)
-                    });
-                }
-                
-                viewModels.Add(new IdeaMatchViewModel
-                {
-                    MyIdea = idea,
-                    Matches = matchDetailsList
-                });
-            }
-        }
-
-        return View(viewModels);
-    }
-
-    private HashSet<string> GetTokens(params string[] texts)
-    {
-        var allText = string.Join(" ", texts).ToLower();
-        var chars = allText.Where(c => char.IsLetterOrDigit(c) || char.IsWhiteSpace(c)).ToArray();
-        var cleanText = new string(chars);
-        return cleanText.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries).ToHashSet();
+        var submitterIds = myIdeas.SelectMany(i => i.Matches).Select(m => m.SubmitterId).Distinct().ToList();
+        ViewBag.ViewableProfiles = await _privacy.GetViewableAsync(submitterIds, userId, User.IsInRole("Admin"));
+        ViewBag.HasApprovedIdeas = myIdeas.Count > 0;
+        ViewBag.PendingIdeas = await _context.Ideas.CountAsync(i => i.SubmitterUserId == userId
+            && (i.Status == IdeaStatus.Submitted || i.Status == IdeaStatus.UnderReview));
+        return View(myIdeas);
     }
 
     [Authorize]
@@ -737,41 +706,44 @@ public class IdeasController : Controller
     [Authorize]
     public async Task<IActionResult> Analytics(int id)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        
-        var idea = await _context.Ideas
+        var userId = CurrentUserId!;
+        var idea = await _context.Ideas.AsNoTracking()
             .Include(i => i.Category)
-            .Include(i => i.Views)
-            .Include(i => i.Likes)
-            .Include(i => i.Comments)
-            .Include(i => i.SavedByUsers)
-            .Include(i => i.Interests)
             .FirstOrDefaultAsync(i => i.Id == id && i.SubmitterUserId == userId);
-
         if (idea == null) return NotFound();
 
+        // All counts are SQL-side; views are unique per viewer per 24h (see IdeaViewTracker).
         var vm = new IdeaAnalyticsViewModel
         {
             Idea = idea,
-            TotalViews = idea.Views.Count,
-            TotalLikes = idea.Likes.Count,
-            TotalSaves = idea.SavedByUsers.Count,
-            TotalComments = idea.Comments.Count,
-            TotalInterests = idea.Interests.Count,
-            TotalMatches = idea.Interests.Count(i => i.Status == InterestStatus.Accepted)
+            TotalViews = await _context.IdeaViews.CountAsync(v => v.IdeaId == id),
+            UniqueViewers = await _context.IdeaViews.Where(v => v.IdeaId == id).Select(v => v.ViewerKey ?? ("legacy:" + v.Id)).Distinct().CountAsync(),
+            TotalLikes = await _context.IdeaLikes.CountAsync(l => l.IdeaId == id),
+            TotalSaves = await _context.SavedIdeas.CountAsync(s => s.IdeaId == id),
+            TotalComments = await _context.IdeaComments.CountAsync(c => c.IdeaId == id),
+            TotalInterests = await _context.Interests.CountAsync(i => i.IdeaId == id),
+            TotalMatches = await _context.Interests.CountAsync(i => i.IdeaId == id && i.Status == InterestStatus.Accepted)
         };
 
-        // Prepare timeseries data for the last 30 days
+        // Time series for the last 30 days, grouped by day in SQL.
         var startDate = DateTime.UtcNow.Date.AddDays(-29);
         var endDate = DateTime.UtcNow.Date;
+        var views = await _context.IdeaViews.Where(v => v.IdeaId == id && v.CreatedAt >= startDate)
+            .GroupBy(v => v.CreatedAt.Date).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count);
+        var likes = await _context.IdeaLikes.Where(l => l.IdeaId == id && l.CreatedAt >= startDate)
+            .GroupBy(l => l.CreatedAt.Date).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count);
+        var saves = await _context.SavedIdeas.Where(s => s.IdeaId == id && s.SavedAt >= startDate)
+            .GroupBy(s => s.SavedAt.Date).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count);
+        var comments = await _context.IdeaComments.Where(c => c.IdeaId == id && c.CreatedAt >= startDate)
+            .GroupBy(c => c.CreatedAt.Date).Select(g => new { g.Key, Count = g.Count() }).ToDictionaryAsync(x => x.Key, x => x.Count);
 
         for (var date = startDate; date <= endDate; date = date.AddDays(1))
         {
             vm.Dates.Add(date.ToString("MMM dd"));
-            vm.ViewsData.Add(idea.Views.Count(v => v.CreatedAt.Date == date));
-            vm.LikesData.Add(idea.Likes.Count(l => l.CreatedAt.Date == date));
-            vm.SavesData.Add(idea.SavedByUsers.Count(s => s.SavedAt.Date == date));
-            vm.CommentsData.Add(idea.Comments.Count(c => c.CreatedAt.Date == date));
+            vm.ViewsData.Add(views.GetValueOrDefault(date));
+            vm.LikesData.Add(likes.GetValueOrDefault(date));
+            vm.SavesData.Add(saves.GetValueOrDefault(date));
+            vm.CommentsData.Add(comments.GetValueOrDefault(date));
         }
 
         return View(vm);
@@ -796,10 +768,11 @@ public class IdeasController : Controller
                     .Include(v => v.User).ThenInclude(u => u!.Profile)
                     .Where(v => v.IdeaId == id)
                     .OrderByDescending(v => v.CreatedAt)
+                    .Take(200)
                     .ToListAsync();
                 details = views.Select(v => new AnalyticsDetailItemViewModel
                 {
-                    UserName = v.User?.FullName ?? "Anonymous User",
+                    UserName = v.User?.FullName ?? "Anonymous visitor",
                     UserProfilePhoto = v.User?.Profile?.ProfilePhotoUrl,
                     ActivityType = "View",
                     ActivityDate = v.CreatedAt
@@ -911,24 +884,7 @@ public class IdeasController : Controller
 
     public async Task<IActionResult> Trending()
     {
-        var ideas = await _context.Ideas
-            .Include(i => i.Category)
-            .Where(i => i.Status == IdeaStatus.Approved)
-            .OrderByDescending(i => (i.Views.Count * 1) + (i.Likes.Count * 5) + (i.Comments.Count * 10))
-            .Take(12)
-            .Select(i => new IdeaCardViewModel
-            {
-                Id = i.Id,
-                Title = i.Title,
-                Tagline = i.Tagline,
-                CategoryName = i.Category.Name,
-                MinimumFundRequired = i.MinimumFundRequired,
-                ExpectedTeamSize = i.ExpectedTeamSize,
-                InterestCount = i.Interests.Count,
-                LikesCount = i.Likes.Count
-            })
-            .ToListAsync();
-            
+        var ideas = await _ideaService.GetTrendingIdeasAsync(12, CurrentUserId);
         return View(ideas);
     }
 }

@@ -49,7 +49,9 @@ public sealed class ProfileAccess
 /// <list type="bullet">
 /// <item><b>Public</b> — anyone, including signed-out visitors.</item>
 /// <item><b>RegisteredUsers</b> — any signed-in member.</item>
-/// <item><b>Private</b> — only the member, admins, accepted connections and teammates (people who share a team);
+/// <item><b>Private</b> — only the member, admins, accepted connections, teammates (people who share a team) and founders the
+/// member has sent an interest request to (the sender initiated contact, so the idea owner may see who they are — name on the
+/// notification, mini profile on Interests › Manage and the full profile; cancelled requests don't count).
 /// Private members are also left out of discovery lists (Smart Matches, Find Team, investor lists, public API).</item>
 /// </list>
 /// ShowEmail / ShowLocation / ShowAge apply to everyone except the member themself and admins.
@@ -134,7 +136,7 @@ public sealed class PrivacyService : IPrivacyService
     private async Task<bool> HasRelationshipAsync(string viewerId, string targetId) =>
         (await RelatedUserIdsAsync(viewerId, new List<string> { targetId })).Count > 0;
 
-    /// <summary>Of <paramref name="candidates"/>, users connected to (accepted) or on a team with the viewer.</summary>
+    /// <summary>Of <paramref name="candidates"/>, users connected to (accepted), on a team with, or who sent an interest request to the viewer.</summary>
     private async Task<List<string>> RelatedUserIdsAsync(string viewerId, List<string> candidates)
     {
         var connected = await _db.Connections.AsNoTracking()
@@ -150,6 +152,12 @@ public sealed class PrivacyService : IPrivacyService
             .Select(m => m.UserId)
             .ToListAsync();
 
-        return connected.Concat(teammates).Distinct().ToList();
+        // Members who sent the viewer an interest request on one of the viewer's ideas.
+        var requesters = await _db.Interests.AsNoTracking()
+            .Where(i => candidates.Contains(i.UserId) && i.Idea.SubmitterUserId == viewerId && i.Status != InterestStatus.Cancelled)
+            .Select(i => i.UserId)
+            .ToListAsync();
+
+        return connected.Concat(teammates).Concat(requesters).Distinct().ToList();
     }
 }

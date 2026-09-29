@@ -234,10 +234,13 @@ public interface IInterestService
 {
     Task<(bool Success, string Message)> SubmitInterestAsync(ShowInterestViewModel model, string userId);
     Task<int> GetUserInterestCountAsync(string userId);
-    Task<List<Interest>> GetIncomingRequestsAsync(string userId);
-    Task<List<Interest>> GetOutgoingRequestsAsync(string userId);
-    Task<bool> AcceptInterestAsync(int interestId, string userId);
-    Task<bool> RejectInterestAsync(int interestId, string userId);
+    /// <summary>Requests on the user's ideas, with the sender's mini profile (pending first).</summary>
+    Task<List<InterestRequestViewModel>> GetIncomingRequestsAsync(string userId);
+    /// <summary>Requests the user sent, with the idea owner's details and any reply note.</summary>
+    Task<List<InterestRequestViewModel>> GetOutgoingRequestsAsync(string userId);
+    /// <summary>Owner accepts a pending request; <paramref name="note"/> (optional) is sent to the requester.</summary>
+    Task<ServiceResult> AcceptInterestAsync(int interestId, string userId, string? note = null);
+    Task<ServiceResult> RejectInterestAsync(int interestId, string userId, string? note = null);
     Task<bool> CancelInterestAsync(int interestId, string userId);
 }
 
@@ -287,6 +290,9 @@ public class InterestService : IInterestService
             existing.SelectedRoles = model.SelectedRoles.Any() ? string.Join(",", model.SelectedRoles) : null;
             existing.Message = model.Message;
             existing.Status = InterestStatus.Pending;
+            existing.CreatedAt = DateTime.UtcNow;
+            existing.ResponseNote = null;
+            existing.RespondedAt = null;
         }
         else
         {
@@ -301,11 +307,20 @@ public class InterestService : IInterestService
             });
         }
 
+        // The idea owner always sees who reached out — even when the sender's profile is Private — because the
+        // sender initiated contact with them (see PrivacyService: interest senders are visible to the idea owner).
+        var senderName = await _context.Users.Where(u => u.Id == userId).Select(u => u.FullName).FirstOrDefaultAsync() ?? "A member";
+        var what = model.InterestType switch
+        {
+            InterestType.Invest => $"wants to invest ₹{model.ProposedInvestmentAmount:N0} in",
+            InterestType.Both => $"wants to join and invest ₹{model.ProposedInvestmentAmount:N0} in",
+            _ => model.SelectedRoles.Any() ? $"wants to join as {string.Join(", ", model.SelectedRoles)} on" : "wants to work on"
+        };
         await _activity.RecordAsync(idea.SubmitterUserId, ActivityTypes.InterestReceived,
-            $"Someone showed interest in your idea \"{idea.Title}\".", "/Interests/Manage", save: false);
+            $"{senderName} {what} your idea \"{idea.Title}\".", "/Interests/Manage", save: false);
         await _context.SaveChangesAsync();
-        await _notifications.CreateAsync(idea.SubmitterUserId, "New Interest!",
-            $"Someone showed interest in your idea '{idea.Title}'.", "/Interests/Manage", category: NotificationCategory.Interest);
+        await _notifications.CreateAsync(idea.SubmitterUserId, $"New interest from {senderName}",
+            $"{senderName} {what} your idea '{idea.Title}'.", "/Interests/Manage", category: NotificationCategory.Interest);
 
         return (true, "Your interest has been submitted successfully!");
     }
@@ -315,37 +330,118 @@ public class InterestService : IInterestService
         return await _context.Interests.CountAsync(i => i.UserId == userId);
     }
 
-    public async Task<List<Interest>> GetIncomingRequestsAsync(string userId)
+    public async Task<List<InterestRequestViewModel>> GetIncomingRequestsAsync(string userId)
     {
-        return await _context.Interests
-            .Include(i => i.Idea)
-            .Include(i => i.User)
+        var rows = await _context.Interests.AsNoTracking()
             .Where(i => i.Idea.SubmitterUserId == userId)
-            .OrderByDescending(i => i.CreatedAt)
+            .OrderBy(i => i.Status == InterestStatus.Pending ? 0 : 1)
+            .ThenByDescending(i => i.CreatedAt)
+            .Select(i => new
+            {
+                Request = new InterestRequestViewModel
+                {
+                    Id = i.Id,
+                    IdeaId = i.IdeaId,
+                    IdeaTitle = i.Idea.Title,
+                    InterestType = i.InterestType,
+                    Status = i.Status,
+                    ProposedInvestmentAmount = i.ProposedInvestmentAmount,
+                    Message = i.Message,
+                    CreatedAt = i.CreatedAt,
+                    ResponseNote = i.ResponseNote,
+                    RespondedAt = i.RespondedAt,
+                    OtherUserId = i.UserId,
+                    OtherName = i.User.FullName,
+                    OtherPhotoUrl = i.User.Profile != null ? i.User.Profile.ProfilePhotoUrl : null,
+                    OtherBio = i.User.Profile != null ? i.User.Profile.Bio : null,
+                    OtherVerified = i.User.Profile != null && i.User.Profile.IsVerifiedFounder,
+                    OtherIsInvestor = i.User.Profile != null && i.User.Profile.IsInvestor,
+                    OtherAvailability = i.User.Profile != null ? i.User.Profile.TimeAvailability : null,
+                    OtherHoursPerWeek = i.User.Profile != null ? i.User.Profile.HoursPerWeek : null,
+                    OtherSkills = i.User.Profile != null ? i.User.Profile.Skills.Select(s => s.SkillName).ToList() : new List<string>()
+                },
+                i.SelectedRoles,
+                i.User.City,
+                i.User.State,
+                ShowLocation = i.User.Settings == null || i.User.Settings.ShowLocation
+            })
+            .AsSplitQuery()
             .ToListAsync();
+
+        return rows.Select(r =>
+        {
+            r.Request.SelectedRoles.AddRange(SplitRoles(r.SelectedRoles));
+            if (r.ShowLocation) r.Request.OtherLocation = JoinLocation(r.City, r.State);
+            return r.Request;
+        }).ToList();
     }
 
-    public async Task<List<Interest>> GetOutgoingRequestsAsync(string userId)
+    public async Task<List<InterestRequestViewModel>> GetOutgoingRequestsAsync(string userId)
     {
-        return await _context.Interests
-            .Include(i => i.Idea)
-                .ThenInclude(idea => idea.Submitter)
+        var rows = await _context.Interests.AsNoTracking()
             .Where(i => i.UserId == userId)
             .OrderByDescending(i => i.CreatedAt)
+            .Select(i => new
+            {
+                Request = new InterestRequestViewModel
+                {
+                    Id = i.Id,
+                    IdeaId = i.IdeaId,
+                    IdeaTitle = i.Idea.Title,
+                    InterestType = i.InterestType,
+                    Status = i.Status,
+                    ProposedInvestmentAmount = i.ProposedInvestmentAmount,
+                    Message = i.Message,
+                    CreatedAt = i.CreatedAt,
+                    ResponseNote = i.ResponseNote,
+                    RespondedAt = i.RespondedAt,
+                    OtherUserId = i.Idea.SubmitterUserId,
+                    OtherName = i.Idea.Submitter.FullName,
+                    OtherPhotoUrl = i.Idea.Submitter.Profile != null ? i.Idea.Submitter.Profile.ProfilePhotoUrl : null,
+                    OtherVerified = i.Idea.Submitter.Profile != null && i.Idea.Submitter.Profile.IsVerifiedFounder
+                },
+                i.SelectedRoles
+            })
             .ToListAsync();
+
+        return rows.Select(r =>
+        {
+            r.Request.SelectedRoles.AddRange(SplitRoles(r.SelectedRoles));
+            return r.Request;
+        }).ToList();
     }
 
-    public async Task<bool> AcceptInterestAsync(int interestId, string userId)
+    private static IEnumerable<string> SplitRoles(string? roles) =>
+        string.IsNullOrWhiteSpace(roles) ? Enumerable.Empty<string>() : roles.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    private static string? JoinLocation(string? city, string? state)
+    {
+        var loc = string.Join(", ", new[] { city, state }.Where(v => !string.IsNullOrWhiteSpace(v)));
+        return loc.Length == 0 ? null : loc;
+    }
+
+    private static string? NormaliseNote(string? note)
+    {
+        note = note?.Trim();
+        if (string.IsNullOrEmpty(note)) return null;
+        return note.Length > Interest.MaxResponseNoteLength ? note[..Interest.MaxResponseNoteLength] : note;
+    }
+
+    public async Task<ServiceResult> AcceptInterestAsync(int interestId, string userId, string? note = null)
     {
         var interest = await _context.Interests
             .Include(i => i.Idea)
                 .ThenInclude(idea => idea.Team)
+            .Include(i => i.User)
             .FirstOrDefaultAsync(i => i.Id == interestId && i.Idea.SubmitterUserId == userId);
 
-        if (interest == null || interest.Status != InterestStatus.Pending) return false;
+        if (interest == null) return ServiceResult.Fail("Request not found.");
+        if (interest.Status != InterestStatus.Pending) return ServiceResult.Fail("This request has already been answered.");
 
+        note = NormaliseNote(note);
         interest.Status = InterestStatus.Accepted;
-
+        interest.ResponseNote = note;
+        interest.RespondedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
 
         string? workspaceLink = null;
@@ -357,26 +453,36 @@ public class InterestService : IInterestService
             workspaceLink = $"/Workspace/Team/{team.Id}";
         }
 
-        await _notifications.CreateAsync(interest.UserId, "Request Accepted!",
-            workspaceLink != null
-                ? $"Your collaboration request for '{interest.Idea.Title}' was accepted — welcome to the team workspace!"
-                : $"Your collaboration request for '{interest.Idea.Title}' was accepted.",
+        var ownerName = await _context.Users.Where(u => u.Id == userId).Select(u => u.FullName).FirstOrDefaultAsync() ?? "The founder";
+        var message = workspaceLink != null
+            ? $"{ownerName} accepted your request for '{interest.Idea.Title}' — welcome to the team workspace!"
+            : $"{ownerName} accepted your request for '{interest.Idea.Title}'.";
+        if (note != null) message += $" Their note: “{note}”";
+        await _notifications.CreateAsync(interest.UserId, "Request Accepted!", message,
             workspaceLink ?? $"/Ideas/Detail/{interest.IdeaId}", category: NotificationCategory.Interest);
-        return true;
+        return ServiceResult.Ok($"You accepted {interest.User.FullName}'s request{(workspaceLink != null ? " and added them to the team workspace" : "")}.");
     }
 
-    public async Task<bool> RejectInterestAsync(int interestId, string userId)
+    public async Task<ServiceResult> RejectInterestAsync(int interestId, string userId, string? note = null)
     {
         var interest = await _context.Interests
             .Include(i => i.Idea)
+            .Include(i => i.User)
             .FirstOrDefaultAsync(i => i.Id == interestId && i.Idea.SubmitterUserId == userId);
 
-        if (interest == null || interest.Status != InterestStatus.Pending) return false;
+        if (interest == null) return ServiceResult.Fail("Request not found.");
+        if (interest.Status != InterestStatus.Pending) return ServiceResult.Fail("This request has already been answered.");
 
+        note = NormaliseNote(note);
         interest.Status = InterestStatus.Rejected;
+        interest.ResponseNote = note;
+        interest.RespondedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
-        await _notifications.CreateAsync(interest.UserId, "Request Update", $"Your request for '{interest.Idea.Title}' was declined.", $"/Ideas/Detail/{interest.IdeaId}", category: NotificationCategory.Interest);
-        return true;
+
+        var message = $"Your request for '{interest.Idea.Title}' was declined.";
+        if (note != null) message += $" The founder's note: “{note}”";
+        await _notifications.CreateAsync(interest.UserId, "Request Update", message, "/Interests/Manage", category: NotificationCategory.Interest);
+        return ServiceResult.Ok($"You declined {interest.User.FullName}'s request.");
     }
 
     public async Task<bool> CancelInterestAsync(int interestId, string userId)

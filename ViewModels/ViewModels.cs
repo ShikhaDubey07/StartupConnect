@@ -190,15 +190,52 @@ public class IdeaSubmitViewModel
 
 public class IdeaBrowseViewModel
 {
+    public const int MaxPageSize = 48;
+
     public string? Search { get; set; }
     public int? CategoryId { get; set; }
+    public IdeaProgressStage? Stage { get; set; }
     public decimal? MinFund { get; set; }
     public decimal? MaxFund { get; set; }
-    public string? RolesNeeded { get; set; }
-    public double? MinEngagementScore { get; set; }
+    /// <summary>Ideas needing any of these roles (values from <see cref="ProfileViewModel.AvailableSkills"/>).</summary>
+    public List<string> Roles { get; set; } = new();
+    public bool VerifiedOnly { get; set; }
+    /// <summary>newest | liked | viewed | trending | fund-asc | fund-desc | interest | ai-score</summary>
     public string SortBy { get; set; } = "newest";
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 9;
+
+    public static readonly (string Value, string Label)[] SortOptions =
+    [
+        ("newest", "Newest"),
+        ("trending", "Trending"),
+        ("liked", "Most liked"),
+        ("viewed", "Most viewed"),
+        ("interest", "Most interest"),
+        ("fund-asc", "Funding: low to high"),
+        ("fund-desc", "Funding: high to low"),
+        ("ai-score", "AI score")
+    ];
+
+    public bool HasFilters => !string.IsNullOrWhiteSpace(Search) || CategoryId.HasValue || Stage.HasValue || MinFund.HasValue
+        || MaxFund.HasValue || Roles.Count > 0 || VerifiedOnly;
+
+    /// <summary>Route values for links (pagination) that keep the current filter state.</summary>
+    public Dictionary<string, string> ToRouteValues(int? page = null)
+    {
+        var d = new Dictionary<string, string>();
+        if (!string.IsNullOrWhiteSpace(Search)) d["Search"] = Search.Trim();
+        if (CategoryId.HasValue) d["CategoryId"] = CategoryId.Value.ToString();
+        if (Stage.HasValue) d["Stage"] = Stage.Value.ToString();
+        if (MinFund.HasValue) d["MinFund"] = MinFund.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (MaxFund.HasValue) d["MaxFund"] = MaxFund.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        for (var i = 0; i < Roles.Count; i++) d[$"Roles[{i}]"] = Roles[i];
+        if (VerifiedOnly) d["VerifiedOnly"] = "true";
+        if (!string.IsNullOrWhiteSpace(SortBy) && SortBy != "newest") d["SortBy"] = SortBy;
+        if (PageSize != 9) d["PageSize"] = PageSize.ToString();
+        if (page.HasValue && page.Value > 1) d["Page"] = page.Value.ToString();
+        return d;
+    }
 }
 
 public class IdeaCardViewModel
@@ -218,6 +255,8 @@ public class IdeaCardViewModel
     /// <summary>AI OverallScore (0–100) from IdeaAnalysis. Null if not yet analyzed.</summary>
     public int? AiScore { get; set; }
     public bool SubmitterVerified { get; set; }
+    public int ViewsCount { get; set; }
+    public IdeaProgressStage ProgressStage { get; set; }
 }
 
 
@@ -339,20 +378,11 @@ public class ContactViewModel
 
 public class IdeaMatchViewModel
 {
-    public Idea MyIdea { get; set; } = null!;
-    public List<MatchedIdeaDetails> Matches { get; set; } = new();
-}
-
-public class MatchedIdeaDetails
-{
-    public Idea Idea { get; set; } = null!;
-    public double MatchScore { get; set; }
-    public string SubmitterName { get; set; } = string.Empty;
-    public string SubmitterId { get; set; } = string.Empty;
+    public int IdeaId { get; set; }
+    public string Title { get; set; } = string.Empty;
     public string CategoryName { get; set; } = string.Empty;
-    public List<string> CommonKeywords { get; set; } = new();
-    public bool SameCategory { get; set; }
-    public bool SameTargetMarket { get; set; }
+    public string TargetMarket { get; set; } = string.Empty;
+    public List<StartupConnect.Services.Matching.SimilarIdeaMatch> Matches { get; set; } = new();
 }
 
 public class AdminUserViewModel
@@ -410,7 +440,10 @@ public class IdeaAnalyticsViewModel
 {
     public Idea Idea { get; set; } = null!;
     
+    /// <summary>Unique daily views (one per viewer per 24h).</summary>
     public int TotalViews { get; set; }
+    /// <summary>Distinct viewers (members + anonymous visitors) ever.</summary>
+    public int UniqueViewers { get; set; }
     public int TotalLikes { get; set; }
     public int TotalSaves { get; set; }
     public int TotalComments { get; set; }
@@ -435,12 +468,16 @@ public class AnalyticsDetailItemViewModel
 
 public class FindTeamViewModel
 {
-    public string? Role { get; set; } // "Any", "Founder", "Investor"
+    public string? Role { get; set; } // "", "Founder", "Investor"
     public string? Skill { get; set; }
     public int? IndustryId { get; set; }
     public TimeAvailability? Availability { get; set; }
+    /// <summary>"For idea" mode: rank people by the roles this idea (owned by the viewer) still needs.</summary>
+    public int? ForIdeaId { get; set; }
+    public bool IncludeConnections { get; set; }
 
-    public List<(UserProfile Profile, double MatchScore)> Matches { get; set; } = new();
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+    public StartupConnect.Services.Matching.TeamMatchResults Results { get; set; } = new();
 }
 
 public class IdeaAnalysisViewModel

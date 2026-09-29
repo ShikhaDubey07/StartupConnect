@@ -24,15 +24,17 @@ public class MatchesController : Controller
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
-        var coFounders = await _matchingService.GetCoFounderMatchesAsync(userId);
+        var results    = await _matchingService.GetCoFounderMatchesAsync(userId);
+        var coFounders = results.Matches;
         var investors  = await _matchingService.GetRecommendedInvestorsAsync(userId);
         var ideas      = await _matchingService.GetRecommendedIdeasForInvestmentAsync(userId);
 
+        ViewBag.CoFounderResults = results;
         ViewBag.CoFounders    = coFounders;
         ViewBag.Investors     = investors;
         ViewBag.IdeasToInvest = ideas;
         ViewBag.ConnectionStates = await _connections.GetStatesAsync(userId,
-            coFounders.Select(m => m.Profile.UserId).Concat(investors.Select(i => i.UserId)));
+            coFounders.Select(m => m.UserId).Concat(investors.Select(i => i.UserId)));
 
         // --- AI: co-founder match rationales (top 5, cached per pair) ---
         var rationaleDict = new Dictionary<string, string>();
@@ -44,12 +46,12 @@ public class MatchesController : Controller
             {
                 try
                 {
-                    var r = await _aiService.GetCoFounderRationaleAsync(userId, m.Profile.UserId);
-                    return (m.Profile.UserId, Rationale: r);
+                    var r = await _aiService.GetCoFounderRationaleAsync(userId, m.UserId);
+                    return (m.UserId, Rationale: r ?? string.Empty);
                 }
                 catch
                 {
-                    return (m.Profile.UserId, Rationale: string.Empty);
+                    return (m.UserId, Rationale: string.Empty);
                 }
             });
 
@@ -96,20 +98,22 @@ public class MatchesController : Controller
     public async Task<IActionResult> FindTeam([FromQuery] StartupConnect.ViewModels.FindTeamViewModel filter, [FromServices] StartupConnect.Data.ApplicationDbContext context)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        
-        // Populate Categories for the Industry dropdown
-        ViewBag.Categories = await context.Categories.Where(c => c.IsActive).ToListAsync();
 
-        filter.Matches = await _matchingService.GetFilteredTeamMatchesAsync(
-            userId, 
-            filter.Role, 
-            filter.Skill, 
-            filter.IndustryId, 
-            filter.Availability, 
-            30 // Increased count for directory page
-        );
-        ViewBag.ConnectionStates = await _connections.GetStatesAsync(userId, filter.Matches.Select(m => m.Profile.UserId));
+        ViewBag.Categories = await context.Categories.Where(c => c.IsActive).OrderBy(c => c.Name).ToListAsync();
 
+        filter.Results = await _matchingService.FindTeamAsync(userId, new StartupConnect.Services.Matching.TeamSearch
+        {
+            Role = filter.Role,
+            Skill = string.IsNullOrWhiteSpace(filter.Skill) ? null : filter.Skill.Trim()[..Math.Min(filter.Skill.Trim().Length, 60)],
+            IndustryId = filter.IndustryId,
+            Availability = filter.Availability,
+            ForIdeaId = filter.ForIdeaId,
+            IncludeConnections = filter.IncludeConnections
+        }, 30);
+        // An idea id that isn't one of the viewer's live ideas silently falls back to the general directory.
+        if (filter.ForIdeaId.HasValue && filter.Results.ForIdea == null) filter.ForIdeaId = null;
+
+        ViewBag.ConnectionStates = await _connections.GetStatesAsync(userId, filter.Results.Matches.Select(m => m.UserId));
         return View(filter);
     }
 }

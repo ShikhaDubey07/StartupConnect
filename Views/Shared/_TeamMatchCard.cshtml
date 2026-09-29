@@ -1,0 +1,85 @@
+@model TeamMatchCardModel
+@using StartupConnect.Services.Matching
+@{
+    var m = Model.Match;
+    var s = m.Match;
+    var brings = s.Brings.ToHashSet();
+    var scoreClass = m.Score >= 60 ? "is-high" : m.Score >= 35 ? "is-mid" : "is-low";
+    var reasons = s.Reasons.Where(r => r.Kind != MatchReasonKind.Quality).Take(4).ToList();
+}
+<div class="card h-100 shadow-sm border-0 sc-hover-card sc-match-card">
+    <div class="card-body p-4 d-flex flex-column">
+        <div class="d-flex align-items-start justify-content-between gap-3 mb-2">
+            <partial name="_Avatar" model="@(new AvatarModel(m.FullName, m.PhotoUrl, 56))" />
+            <div class="sc-match-score @scoreClass" title="Match score out of 100 — see “How this score adds up”">
+                <span>@m.Score</span><small>match</small>
+            </div>
+        </div>
+        <div class="mb-3 min-w-0">
+            <h5 class="fw-bold mb-0">@m.FullName @if (m.IsVerified) { <partial name="_VerifiedBadge" /> }</h5>
+            <div class="text-muted small">
+                @(m.IsInvestor ? "Investor" : "Founder") · @TeamMatchScorer.AvailabilityLabel(m.Availability)@(m.HoursPerWeek > 0 ? $" · {m.HoursPerWeek}h/wk" : "")
+            </div>
+            @if (m.Location != null)
+            {
+                <div class="text-muted small"><i class="bi bi-geo-alt"></i> @m.Location</div>
+            }
+        </div>
+
+        @if (reasons.Any())
+        {
+            <ul class="list-unstyled sc-match-reasons mb-3">
+                @foreach (var r in reasons)
+                {
+                    <li class="sc-reason-@r.Kind.ToString().ToLowerInvariant()"><i class="bi @r.Icon"></i><span>@r.Text</span></li>
+                }
+            </ul>
+        }
+        else
+        {
+            <p class="text-muted small mb-3"><i class="bi bi-info-circle me-1"></i>Little overlap with your profile or ideas yet.</p>
+        }
+
+        <div class="mb-3">
+            <small class="text-muted d-block mb-1 fw-bold">Skills</small>
+            @if (m.Skills.Any())
+            {
+                <div class="d-flex flex-wrap gap-1">
+                    @foreach (var skill in m.Skills.Take(5))
+                    {
+                        var highlight = RoleFamilies.Classify(skill) is RoleFamily f && brings.Contains(f);
+                        <span class="sc-role-tag @(highlight ? "sc-role-tag-match" : "")" title="@(highlight ? "Fills a gap for you" : null)">@skill</span>
+                    }
+                    @if (m.Skills.Count > 5) { <span class="sc-role-tag">+@(m.Skills.Count - 5)</span> }
+                </div>
+            }
+            else
+            {
+                <span class="text-muted small">No skills listed</span>
+            }
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(Model.AiRationale))
+        {
+            <div class="mb-3 px-2 py-2 rounded-3 sc-ai-note">
+                <small class="text-muted fst-italic"><i class="bi bi-robot me-1 text-primary"></i>@Model.AiRationale</small>
+            </div>
+        }
+
+        <details class="sc-score-breakdown small text-muted mb-3">
+            <summary>How this score adds up</summary>
+            <div class="mt-2 d-grid gap-1">
+                <div class="d-flex justify-content-between"><span>Complementary skills &amp; roles</span><span>@Math.Round(s.Complementarity) / 45</span></div>
+                <div class="d-flex justify-content-between"><span>Shared industries</span><span>@Math.Round(s.Domain) / 20</span></div>
+                <div class="d-flex justify-content-between"><span>Commitment</span><span>@Math.Round(s.Commitment) / 15</span></div>
+                <div class="d-flex justify-content-between"><span>Location</span><span>@Math.Round(s.Location) / 10</span></div>
+                <div class="d-flex justify-content-between"><span>Profile quality &amp; activity</span><span>@Math.Round(s.Quality, 1) / 10</span></div>
+            </div>
+        </details>
+
+        <div class="d-flex gap-2 mt-auto">
+            <a asp-controller="Profile" asp-action="Detail" asp-route-id="@m.UserId" class="btn btn-outline-primary rounded-pill flex-grow-1">View</a>
+            <partial name="_ConnectButton" model="@(new ConnectButtonModel(m.UserId, Model.State, m.FullName))" />
+        </div>
+    </div>
+</div>

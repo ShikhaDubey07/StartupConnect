@@ -37,9 +37,10 @@
         </div>
         <div class="sc-idea-meta">
             <span><i class="bi bi-cash"></i> <span class="sc-fund-badge">₹@Model.MinimumFundRequired.ToString("N0")</span></span>
-            <span><i class="bi bi-people"></i> @Model.InterestCount</span>
-            <span><i class="bi bi-heart-fill text-danger"></i> @Model.LikesCount</span>
-            <span><i class="bi bi-person-badge"></i> @Model.ExpectedTeamSize</span>
+            <span title="Interested members"><i class="bi bi-people"></i> @Model.InterestCount</span>
+            <span title="Likes"><i class="bi bi-heart-fill text-danger"></i> @Model.LikesCount</span>
+            <span title="Unique views"><i class="bi bi-eye"></i> @Model.ViewsCount</span>
+            <span title="Expected team size"><i class="bi bi-person-badge"></i> @Model.ExpectedTeamSize</span>
         </div>
         <a asp-controller="Ideas" asp-action="Detail" asp-route-id="@Model.Id" class="btn btn-primary-sc btn-sm w-100 mt-3">
             View Details <i class="bi bi-arrow-right ms-1"></i>

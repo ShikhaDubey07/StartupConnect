@@ -173,6 +173,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             .HasForeignKey(v => v.IdeaId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        builder.Entity<IdeaView>().Property(v => v.ViewerKey).HasMaxLength(IdeaView.ViewerKeyMaxLength);
+        // Supports the 24h de-duplication lookup and per-idea view counts / time series.
+        builder.Entity<IdeaView>().HasIndex(v => new { v.IdeaId, v.ViewerKey, v.CreatedAt });
+        // Discovery: Browse/Trending filter on Status and sort by PublishedAt; similar ideas pre-filter by category.
+        builder.Entity<Idea>().HasIndex(i => new { i.Status, i.PublishedAt });
+        builder.Entity<Idea>().HasIndex(i => new { i.Status, i.CategoryId });
+        builder.Entity<Interest>().Property(i => i.ResponseNote).HasMaxLength(Interest.MaxResponseNoteLength);
+
         builder.Entity<IdeaView>()
             .HasOne(v => v.User)
             .WithMany()

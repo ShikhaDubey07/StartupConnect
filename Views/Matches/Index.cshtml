@@ -1,6 +1,8 @@
 @{
     ViewData["Title"] = "Smart Matches";
-    var coFounders = (List<(StartupConnect.Models.UserProfile Profile, double Score)>)ViewBag.CoFounders;
+    var coFounderResults = (StartupConnect.Services.Matching.TeamMatchResults)ViewBag.CoFounderResults;
+    var coFounders = coFounderResults.Matches;
+    var openNeeds = coFounderResults.OpenNeeds.GroupBy(n => n.RoleName, StringComparer.OrdinalIgnoreCase).Select(g => g.First()).ToList();
     var investors = (List<StartupConnect.Models.UserProfile>)ViewBag.Investors;
     var ideas = (List<StartupConnect.Models.Idea>)ViewBag.IdeasToInvest;
     var coFounderRationales = ViewBag.CoFounderRationales as Dictionary<string, string> ?? new Dictionary<string, string>();
@@ -46,73 +48,57 @@
     <div class="tab-content" id="matchesTabsContent">
         <!-- Co-founders Tab -->
         <div class="tab-pane fade show active" id="cofounders" role="tabpanel">
-            @if (coFounders.Any())
+            <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+                <div class="min-w-0">
+                    <p class="text-muted mb-2">Ranked by how well people <strong>complement</strong> you — skills you don't have and roles your ideas still need count most; shared industries, commitment and location add to it.</p>
+                    @if (openNeeds.Any())
+                    {
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                            <small class="text-muted fw-semibold">Your ideas still need:</small>
+                            @foreach (var need in openNeeds)
+                            {
+                                <span class="sc-need-chip" title="Needed by @string.Join(", ", coFounderResults.OpenNeeds.Where(n => string.Equals(n.RoleName, need.RoleName, StringComparison.OrdinalIgnoreCase)).Select(n => n.IdeaTitle))"><i class="bi bi-person-plus"></i>@need.RoleName</span>
+                            }
+                        </div>
+                    }
+                </div>
+                <a asp-action="FindTeam" class="btn btn-outline-primary rounded-pill btn-sm flex-shrink-0"><i class="bi bi-search me-1"></i>Search the full directory</a>
+            </div>
+            @if (!coFounderResults.HasProfile)
+            {
+                <div class="sc-empty-state">
+                    <div class="sc-empty-icon"><i class="bi bi-person-vcard"></i></div>
+                    <h5>Complete your profile to get matches</h5>
+                    <p class="text-muted">We match you on skills, industries, availability and location — add them to your profile first.</p>
+                    <a asp-controller="Account" asp-action="Profile" class="btn btn-primary-sc rounded-pill">Complete profile</a>
+                </div>
+            }
+            else if (coFounders.Any())
             {
                 <div class="row g-4">
                     @foreach (var match in coFounders)
                     {
                         <div class="col-md-6 col-lg-4">
-                            <div class="card h-100 shadow-sm border-0 sc-hover-card text-center p-4">
-                                <div class="mx-auto mb-3"><partial name="_Avatar" model="@(new AvatarModel(match.Profile.User.FullName, match.Profile.ProfilePhotoUrl, 80))" /></div>
-                                <h5 class="fw-bold mb-1">@match.Profile.User.FullName</h5>
-                                <div class="text-muted small mb-2 fw-semibold">
-                                    @(match.Profile.IsInvestor ? "Investor" : "Founder")
-                                </div>
-                                @if (Location(match.Profile.User) is string loc)
-                                {
-                                    <p class="text-muted small mb-2"><i class="bi bi-geo-alt"></i> @loc</p>
-                                }
-                                <div class="badge bg-success-subtle text-success mb-3 fs-6 px-3 py-2 border border-success border-opacity-25 rounded-pill shadow-sm">
-                                    🔥 @match.Score% Match
-                                </div>
-                                
-                                <div class="mb-3 text-start">
-                                    <small class="text-muted d-block mb-1 fw-bold">Skills</small>
-                                    <div class="d-flex flex-wrap gap-1">
-                                        @foreach (var skill in match.Profile.Skills.Take(3))
-                                        {
-                                            <span class="sc-role-tag">@skill.SkillName</span>
-                                        }
-                                        @if(match.Profile.Skills.Count > 3)
-                                        {
-                                            <span class="sc-role-tag bg-white text-muted">+@(match.Profile.Skills.Count - 3)</span>
-                                        }
-                                    </div>
-                                </div>
-
-                                <div class="mb-4 text-start">
-                                    <small class="text-muted d-block mb-1 fw-bold">Industries & Interests</small>
-                                    <div class="d-flex flex-wrap gap-1">
-                                        @foreach (var interest in match.Profile.InterestTags.Take(3))
-                                        {
-                                            <span class="badge bg-white text-dark border">@interest.Category.Name</span>
-                                        }
-                                    </div>
-                                </div>
-
-                                @if (coFounderRationales.TryGetValue(match.Profile.UserId, out var rationale))
-                                {
-                                    <div class="text-start mb-3 px-2 py-2 rounded-3" style="background:rgba(var(--bs-primary-rgb),.06);border-left:3px solid var(--bs-primary)">
-                                        <small class="text-muted fst-italic"><i class="bi bi-robot me-1 text-primary"></i>@rationale</small>
-                                    </div>
-                                }
-
-                                <div class="d-flex gap-2 mt-auto">
-                                    <a asp-controller="Profile" asp-action="Detail" asp-route-id="@match.Profile.UserId" class="btn btn-outline-primary rounded-pill flex-grow-1">View</a>
-                                    <partial name="_ConnectButton" model="@(new ConnectButtonModel(match.Profile.UserId, states.GetValueOrDefault(match.Profile.UserId), match.Profile.User.FullName))" />
-                                </div>
-                            </div>
+                            <partial name="_TeamMatchCard" model="@(new TeamMatchCardModel(match, states.GetValueOrDefault(match.UserId), coFounderRationales.GetValueOrDefault(match.UserId)))" />
                         </div>
                     }
                 </div>
             }
             else
             {
-                <div class="alert alert-light border text-center p-5 rounded-4">
-                    <i class="bi bi-person-x fs-1 text-muted mb-3 d-block"></i>
-                    <h5>No co-founder matches yet</h5>
-                    <p class="text-muted mb-0">Update your profile with more skills and interests to get better matches.</p>
+                <div class="sc-empty-state">
+                    <div class="sc-empty-icon"><i class="bi bi-person-x"></i></div>
+                    <h5>No strong co-founder matches yet</h5>
+                    <p class="text-muted">Add more skills and industries to your profile, or list the roles you need on your ideas — matches are built from both.</p>
+                    <div class="d-flex gap-2 justify-content-center flex-wrap">
+                        <a asp-controller="Account" asp-action="Profile" class="btn btn-primary-sc rounded-pill">Update profile</a>
+                        <a asp-action="FindTeam" class="btn btn-outline-secondary rounded-pill">Browse everyone</a>
+                    </div>
                 </div>
+            }
+            @if (coFounderResults.NetworkExcluded > 0)
+            {
+                <p class="text-muted small mt-4 mb-0"><i class="bi bi-people me-1"></i>@coFounderResults.NetworkExcluded @(coFounderResults.NetworkExcluded == 1 ? "person" : "people") already in your network (connections and teammates) @(coFounderResults.NetworkExcluded == 1 ? "isn't" : "aren't") shown here — see <a asp-controller="Network" asp-action="Index">My Network</a>.</p>
             }
         </div>
 

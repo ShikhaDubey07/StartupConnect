@@ -7,8 +7,11 @@ namespace StartupConnect.Services;
 
 public interface IIdeaService
 {
-    Task<List<IdeaCardViewModel>> GetApprovedIdeasAsync(IdeaBrowseViewModel filter);
+    /// <summary>One page of approved ideas matching the filter (sorted in SQL; counts are SQL-side projections).</summary>
+    Task<List<IdeaCardViewModel>> GetApprovedIdeasAsync(IdeaBrowseViewModel filter, string? currentUserId = null);
     Task<int> GetApprovedIdeasCountAsync(IdeaBrowseViewModel filter);
+    /// <summary>Approved ideas ranked by time-decayed engagement (views, likes, comments, interests).</summary>
+    Task<List<IdeaCardViewModel>> GetTrendingIdeasAsync(int count, string? currentUserId = null);
     /// <summary>
     /// Returns an approved idea's details. Pass includeUnapproved only after checking the caller is
     /// the owner or an admin.
@@ -20,7 +23,7 @@ public interface IIdeaService
     Task ApproveIdeaAsync(int id, string adminId);
     Task RejectIdeaAsync(int id, string reason, string adminId);
     Task<List<Idea>> GetPendingIdeasAsync();
-    Task<List<IdeaCardViewModel>> GetMostLikedIdeasThisWeekAsync(int count);
+    Task<List<IdeaCardViewModel>> GetMostLikedIdeasThisWeekAsync(int count, string? currentUserId = null);
     Task<bool> ToggleSaveIdeaAsync(int ideaId, string userId);
     Task<List<IdeaCardViewModel>> GetSavedIdeasAsync(string userId);
 }
@@ -40,26 +43,20 @@ public class IdeaService : IIdeaService
         _activity = activity;
     }
 
-    public async Task<List<IdeaCardViewModel>> GetApprovedIdeasAsync(IdeaBrowseViewModel filter)
+    public async Task<List<IdeaCardViewModel>> GetApprovedIdeasAsync(IdeaBrowseViewModel filter, string? currentUserId = null)
     {
-        var query = BuildApprovedQuery(filter);
-        query = ApplySort(query, filter.SortBy);
-
-        var ideas = await query
-            .Skip((filter.Page - 1) * filter.PageSize)
-            .Take(filter.PageSize)
-            .ToListAsync();
-            
-        // We don't have current user ID here, so IsSavedByCurrentUser defaults to false.
-        // It's usually fine for browse if we don't need accurate save state on cards for anonymous,
-        // but if we need it for authenticated, we should pass currentUserId.
-        // For now, MapToCard just maps it.
-        return ideas.Select(i => MapToCard(i, null)).ToList();
+        var pageSize = Math.Clamp(filter.PageSize, 1, IdeaBrowseViewModel.MaxPageSize);
+        var page = Math.Max(1, filter.Page);
+        var query = ApplySort(BuildApprovedQuery(filter), filter.SortBy, DateTime.UtcNow);
+        return await ProjectCards(query.Skip((page - 1) * pageSize).Take(pageSize), currentUserId).ToListAsync();
     }
 
-    public async Task<int> GetApprovedIdeasCountAsync(IdeaBrowseViewModel filter)
+    public Task<int> GetApprovedIdeasCountAsync(IdeaBrowseViewModel filter) => BuildApprovedQuery(filter).CountAsync();
+
+    public async Task<List<IdeaCardViewModel>> GetTrendingIdeasAsync(int count, string? currentUserId = null)
     {
-        return await BuildApprovedQuery(filter).CountAsync();
+        var query = OrderByTrending(_context.Ideas.Where(i => i.Status == IdeaStatus.Approved), DateTime.UtcNow);
+        return await ProjectCards(query.Take(count), currentUserId).ToListAsync();
     }
 
     public async Task<IdeaDetailViewModel?> GetIdeaDetailAsync(int id, string? currentUserId, bool includeUnapproved = false)
@@ -68,17 +65,26 @@ public class IdeaService : IIdeaService
             .Include(i => i.Category)
             .Include(i => i.Submitter).ThenInclude(u => u.Profile)
             .Include(i => i.RolesNeeded)
-            .Include(i => i.Interests)
-            .Include(i => i.Likes)
-            .Include(i => i.SavedByUsers)
             .Include(i => i.Comments)
                 .ThenInclude(c => c.User)
             .Include(i => i.History)
                 .ThenInclude(h => h.Category)
             .Include(i => i.Analysis)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(i => i.Id == id && (includeUnapproved || i.Status == IdeaStatus.Approved));
 
         if (idea == null) return null;
+
+        // Engagement numbers are SQL-side aggregates (no likes/interests/saves collections loaded).
+        var stats = await _context.Ideas.AsNoTracking().Where(i => i.Id == id).Select(i => new
+        {
+            Interests = i.Interests.Count(x => x.Status != InterestStatus.Cancelled),
+            Pledged = i.Interests.Where(x => x.Status != InterestStatus.Cancelled && x.Status != InterestStatus.Rejected)
+                .Sum(x => (decimal?)x.ProposedInvestmentAmount) ?? 0m,
+            Likes = i.Likes.Count(),
+            Liked = currentUserId != null && i.Likes.Any(l => l.UserId == currentUserId),
+            Saved = currentUserId != null && i.SavedByUsers.Any(s => s.UserId == currentUserId)
+        }).FirstAsync();
 
         return new IdeaDetailViewModel
         {
@@ -112,13 +118,13 @@ public class IdeaService : IIdeaService
             SubmitterId = idea.SubmitterUserId,
             SubmitterVerified = idea.Submitter.Profile?.IsVerifiedFounder == true,
             SubmitterCity = idea.Submitter.City,
-            InterestCount = idea.Interests.Count,
-            TotalPledged = idea.Interests.Where(x => x.ProposedInvestmentAmount.HasValue).Sum(x => x.ProposedInvestmentAmount ?? 0),
+            InterestCount = stats.Interests,
+            TotalPledged = stats.Pledged,
             CanShowInterest = currentUserId != null && idea.SubmitterUserId != currentUserId && idea.Status == IdeaStatus.Approved,
             IsOwner = currentUserId == idea.SubmitterUserId,
-            IsLikedByCurrentUser = currentUserId != null && idea.Likes.Any(l => l.UserId == currentUserId),
-            IsSavedByCurrentUser = currentUserId != null && idea.SavedByUsers.Any(s => s.UserId == currentUserId),
-            LikesCount = idea.Likes.Count,
+            IsLikedByCurrentUser = stats.Liked,
+            IsSavedByCurrentUser = stats.Saved,
+            LikesCount = stats.Likes,
             PublishedAt = idea.PublishedAt,
             Comments = idea.Comments.OrderByDescending(c => c.CreatedAt).Select(c => new IdeaCommentViewModel
             {
@@ -226,18 +232,8 @@ public class IdeaService : IIdeaService
 
     public async Task<List<IdeaCardViewModel>> GetUserIdeasAsync(string userId)
     {
-        var ideas = await _context.Ideas
-            .Include(i => i.Category)
-            .Include(i => i.Interests)
-            .Include(i => i.RolesNeeded)
-            .Include(i => i.Likes)
-            .Include(i => i.SavedByUsers)
-            .Include(i => i.Submitter).ThenInclude(u => u.Profile)
-            .Where(i => i.SubmitterUserId == userId)
-            .OrderByDescending(i => i.CreatedAt)
-            .ToListAsync();
-            
-        return ideas.Select(i => MapToCard(i, userId)).ToList();
+        var query = _context.Ideas.Where(i => i.SubmitterUserId == userId).OrderByDescending(i => i.CreatedAt);
+        return await ProjectCards(query, userId).ToListAsync();
     }
 
     public async Task<IdeaSubmitViewModel?> GetIdeaForEditAsync(int id, string userId)
@@ -285,16 +281,17 @@ public class IdeaService : IIdeaService
 
         await _context.SaveChangesAsync();
         
-        var matches = await _matchingService.GetSimilarIdeasAsync(idea);
+        // Similar ideas by other founders; each of those founders hears about it once (strong matches only).
+        var matches = await _matchingService.GetSimilarIdeasAsync(idea.Id, 5, excludeOwnerId: idea.SubmitterUserId);
         if (matches.Any())
         {
             await _notifications.CreateAsync(idea.SubmitterUserId, "Idea Approved & Matches Found! 🎉",
-                $"Your idea '{idea.Title}' is live, and we found {matches.Count} potential matches for you!", $"/Ideas/Matches", category: NotificationCategory.Moderation);
-                
-            foreach (var match in matches)
+                $"Your idea '{idea.Title}' is live, and we found {matches.Count} similar idea{(matches.Count == 1 ? "" : "s")} by other founders.", "/Ideas/Matches", category: NotificationCategory.Moderation);
+
+            foreach (var match in matches.Where(m => m.Score >= 30).GroupBy(m => m.SubmitterId).Select(g => g.First()))
             {
-                await _notifications.CreateAsync(match.Idea.SubmitterUserId, "New Match Found",
-                    $"A newly approved idea '{idea.Title}' matches your idea '{match.Idea.Title}'.", $"/Ideas/Detail/{idea.Id}", category: NotificationCategory.Match);
+                await _notifications.CreateAsync(match.SubmitterId, "New Match Found",
+                    $"A newly approved idea '{idea.Title}' is similar to your idea '{match.Title}'.", $"/Ideas/Detail/{idea.Id}", category: NotificationCategory.Match);
             }
         }
         else
@@ -338,75 +335,102 @@ public class IdeaService : IIdeaService
 
     private IQueryable<Idea> BuildApprovedQuery(IdeaBrowseViewModel filter)
     {
-        var query = _context.Ideas
-            .Include(i => i.Category)
-            .Include(i => i.Interests)
-            .Include(i => i.RolesNeeded)
-            .Include(i => i.Likes)
-            .Include(i => i.Analysis)  // needed for AI Score sort and badge
-            .Include(i => i.Submitter).ThenInclude(u => u.Profile)  // verified founder badge
-            .Where(i => i.Status == IdeaStatus.Approved);
+        var query = _context.Ideas.AsNoTracking().Where(i => i.Status == IdeaStatus.Approved);
 
         if (!string.IsNullOrWhiteSpace(filter.Search))
         {
             var term = filter.Search.Trim();
-            query = query.Where(i => i.Title.Contains(term) || i.Tagline.Contains(term) || i.Description.Contains(term));
+            if (term.Length > 100) term = term[..100];
+            query = query.Where(i => i.Title.Contains(term) || i.Tagline.Contains(term) || i.Description.Contains(term)
+                || i.ProblemStatement.Contains(term) || i.Solution.Contains(term));
         }
 
         if (filter.CategoryId.HasValue)
             query = query.Where(i => i.CategoryId == filter.CategoryId);
 
-        if (filter.MinFund.HasValue)
-            query = query.Where(i => i.MinimumFundRequired >= filter.MinFund);
+        if (filter.Stage.HasValue)
+            query = query.Where(i => i.ProgressStage == filter.Stage.Value);
 
-        if (filter.MaxFund.HasValue)
-            query = query.Where(i => i.MinimumFundRequired <= filter.MaxFund);
+        var (min, max) = (filter.MinFund, filter.MaxFund);
+        if (min.HasValue && max.HasValue && min > max) (min, max) = (max, min);
+        if (min.HasValue) query = query.Where(i => i.MinimumFundRequired >= min);
+        if (max.HasValue) query = query.Where(i => i.MinimumFundRequired <= max);
+
+        var roles = filter.Roles.Where(r => !string.IsNullOrWhiteSpace(r)).Select(r => r.Trim()).Distinct().Take(20).ToList();
+        if (roles.Count > 0)
+            query = query.Where(i => i.RolesNeeded.Any(r => roles.Contains(r.RoleName)));
+
+        if (filter.VerifiedOnly)
+            query = query.Where(i => i.Submitter.Profile != null && i.Submitter.Profile.IsVerifiedFounder);
 
         return query;
     }
 
-    private static IQueryable<Idea> ApplySort(IQueryable<Idea> query, string sortBy) => sortBy switch
+    private static IQueryable<Idea> ApplySort(IQueryable<Idea> query, string? sortBy, DateTime now) => sortBy switch
     {
-        "popular"  => query.OrderByDescending(i => i.Interests.Count),
-        "fund-low" => query.OrderBy(i => i.MinimumFundRequired),
-        "ai-score" => query.OrderByDescending(i => i.Analysis != null ? i.Analysis.OverallScore : 0),
-        _          => query.OrderByDescending(i => i.PublishedAt)
+        "trending"  => OrderByTrending(query, now),
+        "liked"     => query.OrderByDescending(i => i.Likes.Count()).ThenByDescending(i => i.PublishedAt).ThenByDescending(i => i.Id),
+        "viewed"    => query.OrderByDescending(i => i.Views.Count()).ThenByDescending(i => i.PublishedAt).ThenByDescending(i => i.Id),
+        "interest" or "popular" => query.OrderByDescending(i => i.Interests.Count(x => x.Status != InterestStatus.Cancelled)).ThenByDescending(i => i.PublishedAt).ThenByDescending(i => i.Id),
+        "fund-asc" or "fund-low" => query.OrderBy(i => i.MinimumFundRequired).ThenByDescending(i => i.Id),
+        "fund-desc" => query.OrderByDescending(i => i.MinimumFundRequired).ThenByDescending(i => i.Id),
+        "ai-score"  => query.OrderByDescending(i => i.Analysis != null ? i.Analysis.OverallScore : -1).ThenByDescending(i => i.PublishedAt).ThenByDescending(i => i.Id),
+        _           => query.OrderByDescending(i => i.PublishedAt).ThenByDescending(i => i.Id)
     };
 
-    private static IdeaCardViewModel MapToCard(Idea i, string? currentUserId) => new()
+    /// <summary>
+    /// Time-decayed engagement, computed in SQL. Each event (unique view 1, like 4, comment 6, interest 8) counts
+    /// 1.75× in its first 3 days, 0.75× in days 3–7, 0.25× in days 7–30 and not at all afterwards, so fresh activity wins.
+    /// </summary>
+    private static IQueryable<Idea> OrderByTrending(IQueryable<Idea> query, DateTime now)
     {
-        Id = i.Id,
-        Title = i.Title,
-        Tagline = i.Tagline,
-        CategoryName = i.Category.Name,
-        CategoryIcon = i.Category.IconClass,
-        MinimumFundRequired = i.MinimumFundRequired,
-        ExpectedTeamSize = i.ExpectedTeamSize,
-        InterestCount = i.Interests.Count,
-        LikesCount = i.Likes?.Count ?? 0,
-        IsSavedByCurrentUser = currentUserId != null && (i.SavedByUsers?.Any(s => s.UserId == currentUserId) ?? false),
-        RolesNeeded = i.RolesNeeded.Select(r => r.RoleName).ToList(),
-        PublishedAt = i.PublishedAt,
-        AiScore = i.Analysis?.OverallScore,
-        SubmitterVerified = i.Submitter?.Profile?.IsVerifiedFounder == true
-    };
+        var d3 = now.AddDays(-3);
+        var d7 = now.AddDays(-7);
+        var d30 = now.AddDays(-30);
+        return query
+            .OrderByDescending(i =>
+                1.0 * (i.Views.Count(v => v.CreatedAt >= d3) + 4 * i.Likes.Count(l => l.CreatedAt >= d3)
+                       + 6 * i.Comments.Count(c => c.CreatedAt >= d3) + 8 * i.Interests.Count(x => x.CreatedAt >= d3))
+                + 0.5 * (i.Views.Count(v => v.CreatedAt >= d7) + 4 * i.Likes.Count(l => l.CreatedAt >= d7)
+                       + 6 * i.Comments.Count(c => c.CreatedAt >= d7) + 8 * i.Interests.Count(x => x.CreatedAt >= d7))
+                + 0.25 * (i.Views.Count(v => v.CreatedAt >= d30) + 4 * i.Likes.Count(l => l.CreatedAt >= d30)
+                       + 6 * i.Comments.Count(c => c.CreatedAt >= d30) + 8 * i.Interests.Count(x => x.CreatedAt >= d30)))
+            .ThenByDescending(i => i.PublishedAt)
+            .ThenByDescending(i => i.Id);
+    }
 
-    public async Task<List<IdeaCardViewModel>> GetMostLikedIdeasThisWeekAsync(int count)
+    /// <summary>Card projection: every count is a SQL sub-query, no collections are loaded.</summary>
+    private static IQueryable<IdeaCardViewModel> ProjectCards(IQueryable<Idea> query, string? currentUserId) =>
+        query.Select(i => new IdeaCardViewModel
+        {
+            Id = i.Id,
+            Title = i.Title,
+            Tagline = i.Tagline,
+            CategoryName = i.Category.Name,
+            CategoryIcon = i.Category.IconClass,
+            MinimumFundRequired = i.MinimumFundRequired,
+            ExpectedTeamSize = i.ExpectedTeamSize,
+            InterestCount = i.Interests.Count(x => x.Status != InterestStatus.Cancelled),
+            LikesCount = i.Likes.Count(),
+            ViewsCount = i.Views.Count(),
+            IsSavedByCurrentUser = currentUserId != null && i.SavedByUsers.Any(s => s.UserId == currentUserId),
+            RolesNeeded = i.RolesNeeded.Select(r => r.RoleName).ToList(),
+            PublishedAt = i.PublishedAt,
+            AiScore = i.Analysis != null ? (int?)i.Analysis.OverallScore : null,
+            SubmitterVerified = i.Submitter.Profile != null && i.Submitter.Profile.IsVerifiedFounder,
+            ProgressStage = i.ProgressStage
+        });
+
+    public async Task<List<IdeaCardViewModel>> GetMostLikedIdeasThisWeekAsync(int count, string? currentUserId = null)
     {
         var oneWeekAgo = DateTime.UtcNow.AddDays(-7);
-        var ideas = await _context.Ideas
-            .Include(i => i.Category)
-            .Include(i => i.Interests)
-            .Include(i => i.RolesNeeded)
-            .Include(i => i.Likes)
-            .Include(i => i.SavedByUsers)
-            .Include(i => i.Submitter).ThenInclude(u => u.Profile)
+        var query = _context.Ideas.AsNoTracking()
             .Where(i => i.Status == IdeaStatus.Approved && i.Likes.Any(l => l.CreatedAt >= oneWeekAgo))
             .OrderByDescending(i => i.Likes.Count(l => l.CreatedAt >= oneWeekAgo))
-            .Take(count)
-            .ToListAsync();
-            
-        return ideas.Select(i => MapToCard(i, null)).ToList();
+            .ThenByDescending(i => i.Likes.Count())
+            .ThenByDescending(i => i.PublishedAt)
+            .Take(count);
+        return await ProjectCards(query, currentUserId).ToListAsync();
     }
 
     public async Task<bool> ToggleSaveIdeaAsync(int ideaId, string userId)
@@ -430,24 +454,10 @@ public class IdeaService : IIdeaService
 
     public async Task<List<IdeaCardViewModel>> GetSavedIdeasAsync(string userId)
     {
-        var savedIdeas = await _context.SavedIdeas
-            .Include(s => s.Idea)
-                .ThenInclude(i => i.Category)
-            .Include(s => s.Idea)
-                .ThenInclude(i => i.Interests)
-            .Include(s => s.Idea)
-                .ThenInclude(i => i.RolesNeeded)
-            .Include(s => s.Idea)
-                .ThenInclude(i => i.Likes)
-            .Include(s => s.Idea)
-                .ThenInclude(i => i.SavedByUsers)
-            .Include(s => s.Idea)
-                .ThenInclude(i => i.Submitter).ThenInclude(u => u.Profile)
+        var query = _context.SavedIdeas
             .Where(s => s.UserId == userId && s.Idea.Status == IdeaStatus.Approved)
             .OrderByDescending(s => s.SavedAt)
-            .Select(s => s.Idea)
-            .ToListAsync();
-            
-        return savedIdeas.Select(i => MapToCard(i, userId)).ToList();
+            .Select(s => s.Idea);
+        return await ProjectCards(query, userId).ToListAsync();
     }
 }

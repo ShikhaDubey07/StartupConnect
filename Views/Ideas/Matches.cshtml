@@ -1,146 +1,145 @@
 @model List<StartupConnect.ViewModels.IdeaMatchViewModel>
 @{
     ViewData["Title"] = "Idea Matches";
+    var viewable = ViewBag.ViewableProfiles as HashSet<string> ?? new HashSet<string>();
+    var hasApproved = (bool)(ViewBag.HasApprovedIdeas ?? false);
+    var pending = (int)(ViewBag.PendingIdeas ?? 0);
 }
 
 <section class="sc-page-header">
     <div class="container d-flex justify-content-between align-items-center flex-wrap gap-2">
         <div>
             <h1>Idea Matches</h1>
-            <p class="opacity-75 mb-0">Discover similar ideas and potential collaborators based on your submitted ideas</p>
+            <p class="opacity-75 mb-0">Similar ideas by other founders — potential collaborators, competitors or partners</p>
         </div>
         <a asp-action="Submit" class="btn btn-accent"><i class="bi bi-plus-lg me-2"></i>New Idea</a>
     </div>
 </section>
 
 <div class="container pb-5 mt-4">
-    @if (Model.Any())
+    @if (hasApproved)
     {
+        <p class="text-muted small mb-4"><i class="bi bi-info-circle me-1"></i>Similarity compares titles and taglines most, then problem &amp; solution, then descriptions — common words are ignored, rare shared terms count more, and same category / target market add a boost.</p>
         @foreach (var entry in Model)
         {
             <div class="card shadow-sm border-0 mb-5 rounded-4 overflow-hidden">
-                <div class="card-header bg-primary text-black border-0 py-3 px-4">
+                <div class="card-header bg-white border-0 py-3 px-4 border-bottom">
                     <h5 class="fw-bold mb-1">
-                        <i class="bi bi-lightbulb-fill text-warning me-2"></i> Your Idea: @entry.MyIdea.Title
+                        <i class="bi bi-lightbulb-fill text-warning me-2"></i>Your idea: <a asp-action="Detail" asp-route-id="@entry.IdeaId" class="text-decoration-none">@entry.Title</a>
                     </h5>
-                    <div class="small opacity-75 d-flex gap-3">
-                        <span><i class="bi bi-tag"></i> @entry.MyIdea.Category?.Name</span>
-                        <span><i class="bi bi-bullseye"></i> @entry.MyIdea.TargetMarket</span>
+                    <div class="small text-muted d-flex flex-wrap gap-3">
+                        <span><i class="bi bi-tag"></i> @entry.CategoryName</span>
+                        @if (!string.IsNullOrWhiteSpace(entry.TargetMarket)) { <span class="sc-clamp-1"><i class="bi bi-bullseye"></i> @entry.TargetMarket</span> }
                     </div>
                 </div>
-                <div class="card-body p-4 bg-white">
-                    <h6 class="text-muted fw-bold mb-4">We found @entry.Matches.Count similar ideas:</h6>
-                    <div class="row g-4">
-                        @foreach (var match in entry.Matches)
-                        {
-                            <div class="col-md-6 col-lg-6">
-                                <div class="card h-100 shadow-sm border-0 sc-hover-card">
-                                    <div class="card-body p-4 d-flex flex-column">
-                                        
-                                        <div class="d-flex justify-content-between align-items-start mb-3 border-bottom pb-3">
-                                            <div>
-                                                <span class="text-muted small fw-semibold text-uppercase tracking-wider">Matched With</span>
-                                                <div class="d-flex align-items-center mt-1 gap-2">
-                                                    <div class="sc-avatar bg-accent text-black rounded-circle d-flex align-items-center justify-content-center fs-6 fw-bold" style="width: 32px; height: 32px;">
-                                                        @(match.SubmitterName.FirstOrDefault().ToString().ToUpper())
+                <div class="card-body p-4">
+                    @if (!entry.Matches.Any())
+                    {
+                        <p class="text-muted mb-0"><i class="bi bi-emoji-neutral me-1"></i>No similar ideas from other founders yet — that could mean open space. We'll notify you when one is published.</p>
+                    }
+                    else
+                    {
+                        <h6 class="text-muted fw-bold mb-4">@entry.Matches.Count similar idea@(entry.Matches.Count == 1 ? "" : "s")</h6>
+                        <div class="row g-4">
+                            @foreach (var match in entry.Matches)
+                            {
+                                <div class="col-md-6">
+                                    <div class="card h-100 shadow-sm border-0 sc-hover-card">
+                                        <div class="card-body p-4 d-flex flex-column">
+                                            <div class="d-flex justify-content-between align-items-start gap-2 mb-3 border-bottom pb-3">
+                                                <div class="d-flex align-items-center gap-2 min-w-0">
+                                                    <partial name="_Avatar" model="@(new AvatarModel(match.SubmitterName, null, 32))" />
+                                                    <div class="min-w-0">
+                                                        <span class="text-muted small d-block">Founder</span>
+                                                        <h6 class="mb-0 fw-bold text-truncate">@match.SubmitterName @if (match.SubmitterVerified) { <partial name="_VerifiedBadge" /> }</h6>
                                                     </div>
-                                                    <h6 class="mb-0 fw-bold">@match.SubmitterName</h6>
                                                 </div>
+                                                <span class="badge bg-success-subtle text-success fs-6 py-2 px-3 rounded-pill flex-shrink-0">@match.Score% similar</span>
                                             </div>
-                                            <div class="text-end">
-                                                <span class="badge bg-success fs-6 py-2 px-3 rounded-pill shadow-sm">
-                                                    @(Math.Round(match.MatchScore))% Match
-                                                </span>
+
+                                            <h5 class="card-title fw-bold text-dark mb-1">@match.Title</h5>
+                                            <div class="mb-2 d-flex gap-2 flex-wrap">
+                                                <span class="badge bg-white text-primary border"><i class="bi @match.CategoryIcon me-1"></i>@match.CategoryName</span>
+                                                <span class="badge bg-white text-success border"><i class="bi bi-cash me-1"></i>₹@match.MinimumFundRequired.ToString("N0")</span>
                                             </div>
-                                        </div>
+                                            <p class="card-text text-muted small mb-3 sc-clamp-2">@match.Tagline</p>
 
-                                        <h5 class="card-title fw-bold text-dark mb-1">@match.Idea.Title</h5>
-                                        <div class="mb-3 d-flex gap-2 flex-wrap">
-                                            <span class="badge bg-white text-primary border"><i class="bi bi-tag me-1"></i> @match.CategoryName</span>
-                                            @if (match.Idea.MinimumFundRequired > 0)
-                                            {
-                                                <span class="badge bg-white text-success border"><i class="bi bi-cash me-1"></i> ₹@match.Idea.MinimumFundRequired.ToString("N0")</span>
-                                            }
-                                        </div>
+                                            <div class="p-3 rounded-3 mb-3 flex-grow-1" style="background:var(--sc-bg)">
+                                                <h6 class="fw-bold small text-muted mb-2"><i class="bi bi-lightning-charge me-1"></i>Why it matched</h6>
+                                                <ul class="list-unstyled mb-0 sc-similar-reasons">
+                                                    @if (match.SameCategory) { <li><i class="bi bi-check-circle"></i>Same category (@match.CategoryName)</li> }
+                                                    @if (match.SimilarMarket) { <li><i class="bi bi-check-circle"></i>Similar target market</li> }
+                                                    @if (match.CommonKeywords.Any())
+                                                    {
+                                                        <li><i class="bi bi-hash"></i>Shared topics:
+                                                            @foreach (var kw in match.CommonKeywords) { <span class="sc-keyword">@kw</span> }
+                                                        </li>
+                                                    }
+                                                </ul>
+                                            </div>
 
-                                        <p class="card-text text-muted small mb-4">@match.Idea.Tagline</p>
-
-                                        <div class="bg-white p-3 rounded-3 mb-4 flex-grow-1">
-                                            <h6 class="fw-bold fs-7 text-muted mb-2"><i class="bi bi-lightning-charge me-1"></i> Why it matched:</h6>
-                                            <ul class="list-unstyled small mb-0 d-flex flex-column gap-1">
-                                                @if (match.SameCategory)
+                                            <div class="d-flex flex-wrap gap-2 mt-auto pt-3 border-top">
+                                                <a asp-controller="Ideas" asp-action="Detail" asp-route-id="@match.IdeaId" class="btn btn-outline-primary rounded-pill flex-grow-1 btn-sm">
+                                                    <i class="bi bi-lightbulb me-1"></i>View Idea
+                                                </a>
+                                                @if (viewable.Contains(match.SubmitterId))
                                                 {
-                                                    <li class="text-success"><i class="bi bi-check-circle me-1"></i> Same category (@match.CategoryName)</li>
+                                                    <a asp-controller="Profile" asp-action="Detail" asp-route-id="@match.SubmitterId" class="btn btn-outline-secondary rounded-pill flex-grow-1 btn-sm">
+                                                        <i class="bi bi-person me-1"></i>Profile
+                                                    </a>
                                                 }
-                                                @if (match.SameTargetMarket)
-                                                {
-                                                    <li class="text-success"><i class="bi bi-check-circle me-1"></i> Similar target audience</li>
-                                                }
-                                                @if (match.CommonKeywords.Any())
-                                                {
-                                                    <li class="text-secondary"><i class="bi bi-hash me-1"></i> Shared topics: 
-                                                        @foreach(var kw in match.CommonKeywords)
-                                                        {
-                                                            <span class="badge bg-secondary-subtle text-secondary me-1">@kw</span>
-                                                        }
-                                                    </li>
-                                                }
-                                            </ul>
-                                        </div>
-
-                                        <div class="d-flex gap-2 mt-auto pt-3 border-top">
-                                            <a asp-controller="Ideas" asp-action="Detail" asp-route-id="@match.Idea.Id" class="btn btn-outline-primary rounded-pill flex-grow-1 btn-sm">
-                                                <i class="bi bi-lightbulb me-1"></i> View Idea
-                                            </a>
-                                            <a asp-controller="Profile" asp-action="Detail" asp-route-id="@match.SubmitterId" class="btn btn-outline-secondary rounded-pill flex-grow-1 btn-sm">
-                                                <i class="bi bi-person me-1"></i> Profile
-                                            </a>
-                                            <button type="button" class="btn btn-primary-sc rounded-pill flex-grow-1 btn-sm" data-bs-toggle="modal" data-bs-target="#collabModal-@match.Idea.Id">
-                                                <i class="bi bi-chat-text me-1"></i> Collaborate
-                                            </button>
-                                        </div>
-
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Collab Modal for this Match -->
-                            <div class="modal fade" id="collabModal-@match.Idea.Id" tabindex="-1" aria-hidden="true">
-                                <div class="modal-dialog modal-dialog-centered">
-                                    <div class="modal-content rounded-4 border-0 shadow-lg">
-                                        <div class="modal-header border-0 pb-0">
-                                            <h5 class="modal-title fw-bold">Connect with @match.SubmitterName</h5>
-                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                                        </div>
-                                        <div class="modal-body">
-                                            <p class="text-muted small">Send a message to express your interest in collaborating on <strong>@match.Idea.Title</strong>, since your idea <strong>@entry.MyIdea.Title</strong> shares similarities.</p>
-                                            <form asp-controller="Ideas" asp-action="Collaborate" method="post" class="collab-form">
-                                                @Html.AntiForgeryToken()
-                                                <input type="hidden" name="IdeaId" value="@match.Idea.Id" />
-                                                <input type="hidden" name="MyIdeaId" value="@entry.MyIdea.Id" />
-                                                <div class="mb-3">
-                                                    <label class="form-label fw-bold small">Message</label>
-                                                    <textarea name="Message" class="form-control" rows="4" placeholder="Hi @match.SubmitterName, I noticed our ideas are very similar. Would you be open to collaborating?"></textarea>
-                                                </div>
-                                                <button type="submit" class="btn btn-accent w-100 rounded-pill">Send Request</button>
-                                            </form>
+                                                <button type="button" class="btn btn-primary-sc rounded-pill flex-grow-1 btn-sm" data-bs-toggle="modal" data-bs-target="#collabModal-@entry.IdeaId-@match.IdeaId">
+                                                    <i class="bi bi-chat-text me-1"></i>Collaborate
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
-                        }
-                    </div>
+
+                                <div class="modal fade" id="collabModal-@entry.IdeaId-@match.IdeaId" tabindex="-1" aria-hidden="true">
+                                    <div class="modal-dialog modal-dialog-centered">
+                                        <div class="modal-content rounded-4 border-0 shadow-lg">
+                                            <div class="modal-header border-0 pb-0">
+                                                <h5 class="modal-title fw-bold">Reach out to @match.SubmitterName</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p class="text-muted small">Send a collaboration request for <strong>@match.Title</strong> — your idea <strong>@entry.Title</strong> covers similar ground.</p>
+                                                <form asp-controller="Ideas" asp-action="Collaborate" method="post" class="collab-form">
+                                                    <input type="hidden" name="IdeaId" value="@match.IdeaId" />
+                                                    <input type="hidden" name="MyIdeaId" value="@entry.IdeaId" />
+                                                    <div class="mb-3">
+                                                        <label class="form-label fw-bold small" for="msg-@entry.IdeaId-@match.IdeaId">Message</label>
+                                                        <textarea id="msg-@entry.IdeaId-@match.IdeaId" name="Message" class="form-control" rows="4" maxlength="500" placeholder="Hi @match.SubmitterName, our ideas overlap quite a bit. Would you be open to collaborating?"></textarea>
+                                                    </div>
+                                                    <button type="submit" class="btn btn-accent w-100 rounded-pill">Send Request</button>
+                                                </form>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    }
                 </div>
             </div>
         }
     }
     else
     {
-        <div class="text-center py-5">
-            <i class="bi bi-search fs-1 text-muted d-block mb-3"></i>
-            <h5>No matches found yet</h5>
-            <p class="text-muted mb-4">We couldn't find any similar ideas at the moment, or you haven't submitted any approved ideas yet.</p>
-            <a asp-action="Submit" class="btn btn-accent btn-lg">Submit a New Idea</a>
+        <div class="sc-empty-state">
+            <div class="sc-empty-icon"><i class="bi bi-diagram-3"></i></div>
+            <h5>No approved ideas yet</h5>
+            @if (pending > 0)
+            {
+                <p class="text-muted">You have @pending idea@(pending == 1 ? "" : "s") waiting for review. Once approved, we'll show similar ideas by other founders here.</p>
+                <a asp-action="MyIdeas" class="btn btn-primary-sc rounded-pill">View my ideas</a>
+            }
+            else
+            {
+                <p class="text-muted">Submit an idea — once it's approved we'll find similar ideas and potential collaborators for you.</p>
+                <a asp-action="Submit" class="btn btn-accent rounded-pill">Submit a New Idea</a>
+            }
         </div>
     }
 </div>
@@ -184,12 +183,12 @@
                                 form.reset();
                             }, 2000);
                         } else {
-                            alert(data.message || 'Failed to send request.');
+                            showToast(data.message || 'Failed to send request.', 'error');
                             btn.innerHTML = originalText;
                             btn.disabled = false;
                         }
                     } catch (error) {
-                        alert('A network error occurred while sending the request.');
+                        showToast('A network error occurred while sending the request.', 'error');
                         btn.innerHTML = originalText;
                         btn.disabled = false;
                     }

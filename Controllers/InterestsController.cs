@@ -11,8 +11,15 @@ namespace StartupConnect.Controllers;
 public class InterestsController : Controller
 {
     private readonly IInterestService _interestService;
+    private readonly IPrivacyService _privacy;
+    private readonly IConnectionService _connections;
 
-    public InterestsController(IInterestService interestService) => _interestService = interestService;
+    public InterestsController(IInterestService interestService, IPrivacyService privacy, IConnectionService connections)
+    {
+        _interestService = interestService;
+        _privacy = privacy;
+        _connections = connections;
+    }
 
     [HttpPost, ValidateAntiForgeryToken]
     [RequireConfirmedEmail]
@@ -26,29 +33,39 @@ public class InterestsController : Controller
         return Json(new { success, message });
     }
 
-    public async Task<IActionResult> Manage()
+    public async Task<IActionResult> Manage(string? tab = null)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        ViewBag.Incoming = await _interestService.GetIncomingRequestsAsync(userId);
-        ViewBag.Outgoing = await _interestService.GetOutgoingRequestsAsync(userId);
+        var incoming = await _interestService.GetIncomingRequestsAsync(userId);
+        var outgoing = await _interestService.GetOutgoingRequestsAsync(userId);
+
+        // Incoming senders reached out to this user, so PrivacyService lets the owner open their profile.
+        var others = incoming.Select(r => r.OtherUserId).Concat(outgoing.Select(r => r.OtherUserId)).Distinct().ToList();
+        var viewable = await _privacy.GetViewableAsync(others, userId, User.IsInRole("Admin"));
+        foreach (var r in incoming.Concat(outgoing)) r.CanViewProfile = viewable.Contains(r.OtherUserId);
+
+        ViewBag.Incoming = incoming;
+        ViewBag.Outgoing = outgoing;
+        ViewBag.ConnectionStates = await _connections.GetStatesAsync(userId, incoming.Select(r => r.OtherUserId));
+        ViewBag.Tab = tab == "outgoing" ? "outgoing" : "incoming";
         return View();
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Accept(int id)
+    public async Task<IActionResult> Accept(int id, string? note)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        await _interestService.AcceptInterestAsync(id, userId);
-        TempData["Success"] = "Request accepted successfully.";
+        var result = await _interestService.AcceptInterestAsync(id, userId, note);
+        TempData[result.Succeeded ? "Success" : "Error"] = result.Message;
         return RedirectToAction("Manage");
     }
 
     [HttpPost, ValidateAntiForgeryToken]
-    public async Task<IActionResult> Reject(int id)
+    public async Task<IActionResult> Reject(int id, string? note)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        await _interestService.RejectInterestAsync(id, userId);
-        TempData["Success"] = "Request rejected.";
+        var result = await _interestService.RejectInterestAsync(id, userId, note);
+        TempData[result.Succeeded ? "Success" : "Error"] = result.Message;
         return RedirectToAction("Manage");
     }
 
@@ -56,8 +73,8 @@ public class InterestsController : Controller
     public async Task<IActionResult> Cancel(int id)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        await _interestService.CancelInterestAsync(id, userId);
-        TempData["Success"] = "Request cancelled.";
-        return RedirectToAction("Manage");
+        var cancelled = await _interestService.CancelInterestAsync(id, userId);
+        TempData[cancelled ? "Success" : "Error"] = cancelled ? "Request cancelled." : "Only pending requests can be cancelled.";
+        return RedirectToAction("Manage", new { tab = "outgoing" });
     }
 }

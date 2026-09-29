@@ -199,6 +199,7 @@ public static class DbInitializer
         {
             await CollaborationSeed.SeedAsync(context, userManager, demoPassword, logger);
             await NetworkSeed.SeedAsync(context, userManager, demoPassword, logger);
+            await MatchingSeed.SeedAsync(context, userManager, demoPassword, logger);
         }
     }
 }

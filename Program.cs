@@ -74,7 +74,9 @@ builder.Services.Configure<Microsoft.AspNetCore.Builder.ForwardedHeadersOptions>
 
 builder.Services.AddScoped<IIdeaService, IdeaService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
+builder.Services.AddMemoryCache();
 builder.Services.AddScoped<IMatchingService, MatchingService>();
+builder.Services.AddScoped<IIdeaViewTracker, IdeaViewTracker>();
 builder.Services.AddScoped<IInterestService, InterestService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IVideoService, VideoService>();

@@ -27,8 +27,6 @@ public class Idea
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public IdeaProgressStage ProgressStage { get; set; } = IdeaProgressStage.Idea;
-    
-    public double EngagementScore => (Views?.Count ?? 0) * 1 + (Likes?.Count ?? 0) * 5 + (Comments?.Count ?? 0) * 10;
 
     public ICollection<IdeaRoleNeeded> RolesNeeded { get; set; } = new List<IdeaRoleNeeded>();
     public ICollection<Interest> Interests { get; set; } = new List<Interest>();

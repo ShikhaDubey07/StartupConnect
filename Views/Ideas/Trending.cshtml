@@ -1,4 +1,4 @@
-@model IEnumerable<StartupConnect.ViewModels.IdeaCardViewModel>
+@model List<StartupConnect.ViewModels.IdeaCardViewModel>
 @{
     ViewData["Title"] = "Trending Ideas";
 }
@@ -6,57 +6,34 @@
 <section class="sc-page-header py-5" data-aos="fade-down">
     <div class="container text-center">
         <h1><i class="bi bi-fire text-warning"></i> Trending Ideas</h1>
-        <p class="opacity-75 mb-0">The most engaging and popular startup ideas this week.</p>
+        <p class="opacity-75 mb-0">Ranked by recent activity — unique views, likes, comments and interest, with the last few days counting most.</p>
     </div>
 </section>
 
 <div class="container py-5">
-    @if (Model != null && Model.Any())
+    @if (Model.Any())
     {
         <div class="row g-4">
-            @foreach (var idea in Model)
+            @for (var i = 0; i < Model.Count; i++)
             {
-                <div class="col-md-6 col-lg-4" data-aos="fade-up">
-                    <div class="card h-100 sc-idea-card border-0 shadow-sm rounded-4 position-relative">
-                        <!-- Rank Badge -->
-                        <div class="position-absolute top-0 start-0 m-3 z-3">
-                            <span class="badge bg-warning text-dark fs-6 rounded-circle shadow-sm" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">#@(Model.ToList().IndexOf(idea) + 1)</span>
-                        </div>
-                        
-                        <div class="card-body p-4 pt-5 mt-2">
-                            <span class="badge bg-primary bg-opacity-10 text-primary mb-2">@idea.CategoryName</span>
-                            <h5 class="fw-bold mb-2">
-                                <a asp-action="Detail" asp-route-id="@idea.Id" class="text-dark text-decoration-none sc-idea-title">
-                                    @idea.Title
-                                </a>
-                            </h5>
-                            <p class="text-muted small mb-3 sc-idea-desc">@idea.Tagline</p>
-                            
-                            <div class="d-flex align-items-center justify-content-between mt-auto pt-3 border-top">
-                                <div class="d-flex align-items-center gap-3">
-                                    <span class="text-danger small fw-bold" title="Likes">
-                                        <i class="bi bi-heart-fill"></i> @idea.LikesCount
-                                    </span>
-                                    <span class="text-info small fw-bold" title="Interests">
-                                        <i class="bi bi-people-fill"></i> @idea.InterestCount
-                                    </span>
-                                </div>
-                                <div>
-                                    <strong class="text-success small">₹@idea.MinimumFundRequired.ToString("N0")</strong>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                var idea = Model[i];
+                <div class="col-md-6 col-lg-4 position-relative" data-aos="fade-up">
+                    <span class="sc-trend-rank badge @(i < 3 ? "bg-warning text-dark" : "bg-light text-dark border") shadow-sm position-absolute z-3" style="top:-10px;left:4px" aria-label="Rank @(i + 1)">#@(i + 1)</span>
+                    @await Html.PartialAsync("_IdeaCard", idea)
                 </div>
             }
+        </div>
+        <div class="text-center mt-5">
+            <a asp-action="Browse" asp-route-SortBy="trending" class="btn btn-outline-primary rounded-pill">See all ideas by trend <i class="bi bi-arrow-right ms-1"></i></a>
         </div>
     }
     else
     {
-        <div class="alert alert-info text-center py-5">
-            <i class="bi bi-activity display-4 mb-3 d-block"></i>
-            <h5>No trending ideas right now.</h5>
-            <p>Check back later to see what the community is engaging with.</p>
+        <div class="sc-empty-state">
+            <div class="sc-empty-icon"><i class="bi bi-activity"></i></div>
+            <h5>No trending ideas right now</h5>
+            <p class="text-muted">Nothing has been published yet. Explore ideas or submit your own to get things moving.</p>
+            <a asp-action="Browse" class="btn btn-primary-sc rounded-pill">Explore ideas</a>
         </div>
     }
 </div>

@@ -14,6 +14,12 @@ public class Interest
     public string? Message { get; set; }
     public InterestStatus Status { get; set; } = InterestStatus.Pending;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>Optional note from the idea owner when accepting/declining; sent to the requester.</summary>
+    public string? ResponseNote { get; set; }
+    public DateTime? RespondedAt { get; set; }
+
+    public const int MaxResponseNoteLength = 500;
 }
 
 public class Team
