@@ -289,18 +289,18 @@ public class IdeaService : IIdeaService
         if (matches.Any())
         {
             await _notifications.CreateAsync(idea.SubmitterUserId, "Idea Approved & Matches Found! 🎉",
-                $"Your idea '{idea.Title}' is live, and we found {matches.Count} potential matches for you!", $"/Ideas/Matches");
+                $"Your idea '{idea.Title}' is live, and we found {matches.Count} potential matches for you!", $"/Ideas/Matches", category: NotificationCategory.Moderation);
                 
             foreach (var match in matches)
             {
                 await _notifications.CreateAsync(match.Idea.SubmitterUserId, "New Match Found",
-                    $"A newly approved idea '{idea.Title}' matches your idea '{match.Idea.Title}'.", $"/Ideas/Detail/{idea.Id}");
+                    $"A newly approved idea '{idea.Title}' matches your idea '{match.Idea.Title}'.", $"/Ideas/Detail/{idea.Id}", category: NotificationCategory.Match);
             }
         }
         else
         {
             await _notifications.CreateAsync(idea.SubmitterUserId, "Idea Approved! 🎉",
-                $"Your idea '{idea.Title}' has been approved and is now live.", $"/Ideas/Detail/{id}");
+                $"Your idea '{idea.Title}' has been approved and is now live.", $"/Ideas/Detail/{id}", category: NotificationCategory.Moderation);
         }
     }
 
@@ -322,7 +322,7 @@ public class IdeaService : IIdeaService
 
         await _context.SaveChangesAsync();
         await _notifications.CreateAsync(idea.SubmitterUserId, "Idea Needs Revision",
-            $"Your idea '{idea.Title}' was not approved. Reason: {reason}", "/Ideas/MyIdeas");
+            $"Your idea '{idea.Title}' was not approved. Reason: {reason}", "/Ideas/MyIdeas", category: NotificationCategory.Moderation);
     }
 
     public async Task<List<Idea>> GetPendingIdeasAsync()

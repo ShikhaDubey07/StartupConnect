@@ -1398,7 +1398,7 @@ a {
 }
 
 .sc-admin-stat-label {
-    color: var(--sc-text-muted);
+    color: var(--sc-text-secondary);
     font-size: 0.82rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -2809,3 +2809,36 @@ a {
     .sc-chat-bubble { max-width: 85%; }
     .sc-detail-section { padding: 1.25rem; }
 }
+
+/* ---- Connections / network ---- */
+.btn-success-subtle-sc { background: rgba(77, 148, 108, 0.12); color: #2f6b4b; border: 1px solid rgba(77, 148, 108, 0.35); font-weight: 600; }
+.btn-success-subtle-sc:hover, .btn-success-subtle-sc.show { background: rgba(77, 148, 108, 0.2); color: #24563c; border-color: rgba(77, 148, 108, 0.5); }
+.sc-connect .dropdown-menu { min-width: 12rem; }
+.sc-person-card { background: var(--sc-surface); border: 1px solid var(--sc-border-light); border-radius: var(--sc-radius); padding: 1.1rem; box-shadow: var(--sc-shadow-sm); height: 100%; display: flex; flex-direction: column; }
+.sc-person-card .sc-person-name { font-weight: 700; color: var(--sc-text); text-decoration: none; }
+.sc-person-card .sc-person-name:hover { color: var(--sc-primary); }
+.sc-request-note { background: var(--sc-bg); border-left: 3px solid var(--sc-primary); border-radius: 8px; padding: 0.5rem 0.75rem; font-size: 0.88rem; color: var(--sc-text-secondary); white-space: pre-wrap; overflow-wrap: anywhere; }
+.sc-privacy-hint { background: rgba(91, 58, 112, 0.06); border: 1px dashed rgba(91, 58, 112, 0.35); border-radius: var(--sc-radius-sm); }
+.sc-private-card { max-width: 520px; margin: 0 auto; }
+
+/* ---- Investor dashboard ---- */
+.sc-match-score { width: 52px; height: 52px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 800; font-family: var(--sc-heading); flex-shrink: 0; border: 3px solid var(--sc-accent); color: var(--sc-text); background: var(--sc-surface); }
+.sc-match-score.mid { border-color: #d6a23a; }
+.sc-match-score.low { border-color: var(--sc-border); }
+.sc-reasons li { font-size: 0.85rem; color: var(--sc-text-secondary); display: flex; gap: 0.4rem; margin-bottom: 0.2rem; }
+.sc-reasons li i { color: var(--sc-accent); }
+.sc-status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 0.35rem; }
+
+/* Bootstrap 5.3 "subtle"/"emphasis" colour utilities used across views (the vendored Bootstrap is 5.1). */
+.bg-primary-subtle { background-color: #e7e0ee !important; }
+.bg-secondary-subtle { background-color: #e9e7ec !important; }
+.bg-success-subtle { background-color: #dcefe3 !important; }
+.bg-warning-subtle { background-color: #fdf0cf !important; }
+.bg-danger-subtle { background-color: #f8dcdc !important; }
+.bg-info-subtle { background-color: #dbeef3 !important; }
+.text-primary-emphasis { color: #3d2550 !important; }
+.text-secondary-emphasis { color: #3f3a45 !important; }
+.text-success-emphasis { color: #24563c !important; }
+.text-warning-emphasis { color: #7a5200 !important; }
+.text-danger-emphasis { color: #8a1f1f !important; }
+.text-info-emphasis { color: #1d5566 !important; }

@@ -40,6 +40,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<TeamMessage> TeamMessages => Set<TeamMessage>();
     public DbSet<UserActivity> UserActivities => Set<UserActivity>();
     public DbSet<FounderVerificationRequest> FounderVerificationRequests => Set<FounderVerificationRequest>();
+    public DbSet<Connection> Connections => Set<Connection>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -328,5 +329,25 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
             .WithMany()
             .HasForeignKey(a => a.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        // Connections: two FKs to AspNetUsers → no cascades (AccountDeletionService deletes rows explicitly).
+        builder.Entity<Connection>()
+            .HasOne(c => c.Requester)
+            .WithMany()
+            .HasForeignKey(c => c.RequesterId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Connection>()
+            .HasOne(c => c.Addressee)
+            .WithMany()
+            .HasForeignKey(c => c.AddresseeId)
+            .OnDelete(DeleteBehavior.Restrict);
+        builder.Entity<Connection>().Property(c => c.UserAId).HasMaxLength(450);
+        builder.Entity<Connection>().Property(c => c.UserBId).HasMaxLength(450);
+        builder.Entity<Connection>().Property(c => c.Message).HasMaxLength(Connection.MaxMessageLength);
+        builder.Entity<Connection>().HasIndex(c => new { c.UserAId, c.UserBId }).IsUnique();
+        builder.Entity<Connection>().HasIndex(c => new { c.AddresseeId, c.Status });
+        builder.Entity<Connection>().HasIndex(c => new { c.RequesterId, c.Status });
+
+        builder.Entity<Notification>().HasIndex(n => new { n.UserId, n.IsRead, n.CreatedAt });
     }
 }

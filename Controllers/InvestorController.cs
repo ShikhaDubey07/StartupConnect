@@ -1,49 +1,28 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using StartupConnect.Data;
-using StartupConnect.Models;
+using StartupConnect.Services;
+using StartupConnect.ViewModels;
 
 namespace StartupConnect.Controllers;
 
 [Authorize]
 public class InvestorController : Controller
 {
-    private readonly ApplicationDbContext _context;
-    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IInvestorDashboardService _dashboard;
 
-    public InvestorController(ApplicationDbContext context, UserManager<ApplicationUser> userManager)
+    public InvestorController(IInvestorDashboardService dashboard) => _dashboard = dashboard;
+
+    /// <summary>Ranked deal flow for investors (with filters), their investment interests and saved ideas.</summary>
+    [HttpGet]
+    public async Task<IActionResult> Dashboard([FromQuery] InvestorDashboardFilter filter)
     {
-        _context = context;
-        _userManager = userManager;
-    }
+        if (!ModelState.IsValid) filter = new InvestorDashboardFilter();
+        if (filter.MinFund.HasValue && filter.MaxFund.HasValue && filter.MinFund > filter.MaxFund)
+            (filter.MinFund, filter.MaxFund) = (filter.MaxFund, filter.MinFund);
 
-    public async Task<IActionResult> Dashboard()
-    {
-        var user = await _userManager.GetUserAsync(User);
-        if (user == null) return Unauthorized();
-
-        var profile = await _context.UserProfiles
-            .Include(p => p.InterestTags)
-            .FirstOrDefaultAsync(p => p.UserId == user.Id);
-            
-        if (profile == null || !profile.IsInvestor) return Forbid();
-
-        // Get highly engaged ideas that match investor's tags
-        var investorCategoryIds = profile.InterestTags.Select(t => t.CategoryId).ToList();
-        
-        var matchedIdeas = await _context.Ideas
-            .Include(i => i.Category)
-            .Include(i => i.Submitter)
-            .Where(i => i.Status == IdeaStatus.Approved)
-            .OrderByDescending(i => i.Views.Count * 1 + i.Likes.Count * 5 + i.Comments.Count * 10)
-            .Take(10)
-            .ToListAsync();
-            
-        ViewBag.MatchedIdeas = matchedIdeas;
-        ViewBag.TotalFundsRequested = matchedIdeas.Sum(i => i.MinimumFundRequired);
-        
-        return View();
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var model = await _dashboard.BuildAsync(userId, filter);
+        return View(model);
     }
 }

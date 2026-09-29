@@ -5,6 +5,8 @@
     var roadmap = ViewBag.Roadmap as RoadmapViewModel ?? new RoadmapViewModel();
     var teamMembers = ViewBag.TeamMembers as List<WorkspaceMemberViewModel> ?? new List<WorkspaceMemberViewModel>();
     var canOpenWorkspace = ViewBag.CanOpenWorkspace as bool? == true;
+    var viewableProfiles = ViewBag.ViewableProfiles as HashSet<string> ?? new HashSet<string>();
+    var hiddenMembers = ViewBag.HiddenMembers as HashSet<string> ?? new HashSet<string>();
 }
 
 <section class="sc-detail-hero">
@@ -15,7 +17,14 @@
         <div class="d-flex flex-wrap gap-3 small">
             <span>
                 <i class="bi bi-person me-1"></i>
-                <a asp-controller="Profile" asp-action="Detail" asp-route-id="@Model.SubmitterId" class="text-reset">@Model.SubmitterName</a>
+                @if (viewableProfiles.Contains(Model.SubmitterId))
+                {
+                    <a asp-controller="Profile" asp-action="Detail" asp-route-id="@Model.SubmitterId" class="text-reset">@Model.SubmitterName</a>
+                }
+                else
+                {
+                    <span>@Model.SubmitterName</span>
+                }
                 @if (Model.SubmitterVerified) { <partial name="_VerifiedBadge" /> }
                 @(Model.SubmitterCity != null ? $"· {Model.SubmitterCity}" : "")
             </span>
@@ -380,11 +389,30 @@
                     <ul class="list-unstyled mb-3">
                         @foreach (var tm in teamMembers)
                         {
+                            var hidden = hiddenMembers.Contains(tm.UserId);
                             <li class="d-flex align-items-center gap-2 mb-2">
-                                <partial name="_Avatar" model="@(new AvatarModel(tm.FullName, tm.PhotoUrl, 30))" />
+                                @if (hidden)
+                                {
+                                    <span class="sc-initials-avatar sc-avatar-c0 flex-shrink-0" style="width:30px;height:30px;font-size:12px" aria-hidden="true"><i class="bi bi-lock-fill"></i></span>
+                                }
+                                else
+                                {
+                                    <partial name="_Avatar" model="@(new AvatarModel(tm.FullName, tm.PhotoUrl, 30))" />
+                                }
                                 <div class="small min-w-0">
-                                    <a asp-controller="Profile" asp-action="Detail" asp-route-id="@tm.UserId" class="text-dark fw-semibold">@tm.FullName</a>
-                                    @if (tm.IsVerified) { <partial name="_VerifiedBadge" /> }
+                                    @if (hidden)
+                                    {
+                                        <span class="text-muted fw-semibold">Private member</span>
+                                    }
+                                    else if (viewableProfiles.Contains(tm.UserId))
+                                    {
+                                        <a asp-controller="Profile" asp-action="Detail" asp-route-id="@tm.UserId" class="text-dark fw-semibold">@tm.FullName</a>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-dark fw-semibold">@tm.FullName</span>
+                                    }
+                                    @if (tm.IsVerified && !hidden) { <partial name="_VerifiedBadge" /> }
                                     <div class="text-muted text-truncate">@tm.Role</div>
                                 </div>
                             </li>

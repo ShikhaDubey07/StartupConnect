@@ -60,6 +60,7 @@ public class Notification
     public string Message { get; set; } = string.Empty;
     public bool IsRead { get; set; }
     public string? LinkUrl { get; set; }
+    public NotificationCategory Category { get; set; } = NotificationCategory.System;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }
 

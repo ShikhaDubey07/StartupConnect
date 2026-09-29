@@ -79,7 +79,7 @@ public class DeleteAccountViewModel
 
 public class ForgotPasswordViewModel
 {
-    [Required, EmailAddress]
+    [Required, EmailAddress, StringLength(256)]
     public string Email { get; set; } = string.Empty;
 }
 
@@ -462,4 +462,28 @@ public class SimilarIdeaViewModel
     public string Title { get; set; } = string.Empty;
     public int MatchPercentage { get; set; }
     public string Detail { get; set; } = string.Empty;
+}
+
+public class ResetPasswordViewModel
+{
+    public string UserId { get; set; } = string.Empty;
+    public string Code { get; set; } = string.Empty;
+
+    [Required, StringLength(100, MinimumLength = 8, ErrorMessage = "Password must be at least 8 characters.")]
+    [RegularExpression(PasswordRules.Pattern, ErrorMessage = PasswordRules.Message)]
+    [DataType(DataType.Password)]
+    [Display(Name = "New password")]
+    public string Password { get; set; } = string.Empty;
+
+    [Required, Compare(nameof(Password), ErrorMessage = "Passwords do not match.")]
+    [DataType(DataType.Password)]
+    [Display(Name = "Confirm new password")]
+    public string ConfirmPassword { get; set; } = string.Empty;
+
+    /// <summary>Display-only (never bound): the account the link belongs to.</summary>
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+    public string? Email { get; set; }
+
+    [Microsoft.AspNetCore.Mvc.ModelBinding.BindNever]
+    public bool LinkInvalid { get; set; }
 }

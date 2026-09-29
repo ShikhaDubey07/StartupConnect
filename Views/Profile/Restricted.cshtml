@@ -1,0 +1,59 @@
+@model PrivateProfileViewModel
+@{
+    ViewData["Title"] = Model.FullName + " - Profile";
+}
+
+<div class="container py-5 mt-4">
+    @if (Model.IsOwnerPreview)
+    {
+        <div class="sc-privacy-hint p-3 mb-4 d-flex flex-wrap align-items-center gap-3 sc-private-card">
+            <i class="bi bi-eye fs-4 text-primary"></i>
+            <div class="flex-grow-1 small">
+                <div class="fw-semibold">Preview: this is all @(Model.SignInRequired ? "signed-out visitors" : "other members") see of your profile.</div>
+                Your connections, teammates and admins still see everything.
+            </div>
+            <a asp-action="Detail" asp-route-id="@Model.UserId" class="btn btn-sm btn-primary rounded-pill">Exit preview</a>
+        </div>
+    }
+
+    <div class="card border-0 shadow-sm rounded-4 sc-private-card">
+        <div class="card-body p-4 p-lg-5 text-center">
+            <div class="d-inline-block mb-3"><partial name="_Avatar" model="@(new AvatarModel(Model.FullName, Model.PhotoUrl, 88))" /></div>
+            <h3 class="fw-bold mb-1">@Model.FullName</h3>
+            @if (Model.SignInRequired)
+            {
+                <p class="text-muted mb-4"><i class="bi bi-lock me-1"></i>This profile is only visible to StartupConnect members.</p>
+                @if (Model.IsOwnerPreview)
+                {
+                    <button type="button" class="btn btn-primary-sc rounded-pill px-4" disabled>Sign in to view</button>
+                }
+                else
+                {
+                    <div class="d-flex flex-wrap justify-content-center gap-2">
+                        <a asp-controller="Account" asp-action="Login" asp-route-returnUrl="@($"/Profile/Detail/{Model.UserId}")" class="btn btn-primary-sc rounded-pill px-4">
+                            <i class="bi bi-box-arrow-in-right me-1"></i>Sign in to view
+                        </a>
+                        <a asp-controller="Account" asp-action="Register" class="btn btn-outline-secondary rounded-pill px-4">Join free</a>
+                    </div>
+                }
+            }
+            else
+            {
+                <p class="text-muted mb-4">
+                    <i class="bi bi-shield-lock me-1"></i>@Model.FullName keeps their profile private. Only their connections and teammates can see it.
+                </p>
+                @if (Model.IsOwnerPreview)
+                {
+                    <button type="button" class="btn btn-primary-sc rounded-pill px-4" disabled><i class="bi bi-person-plus-fill me-1"></i>Connect</button>
+                }
+                else
+                {
+                    <div class="mx-auto" style="max-width:280px">
+                        <partial name="_ConnectButton" model="@(new ConnectButtonModel(Model.UserId, Model.ConnectionState, Model.FullName, "profile"))" />
+                    </div>
+                    <p class="small text-muted mt-3 mb-0">Once they accept your request, you'll be able to see their full profile.</p>
+                }
+            }
+        </div>
+    </div>
+</div>

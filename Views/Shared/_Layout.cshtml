@@ -7,11 +7,19 @@
 @inject Microsoft.AspNetCore.Antiforgery.IAntiforgery Antiforgery
 @{
     ApplicationUser? layoutUser = null;
+    UserProfile? layoutProfile = null;
+    var pendingConnections = 0;
     if (User.Identity?.IsAuthenticated == true)
     {
         var layoutUserId = UserManager.GetUserId(User);
-        if (layoutUserId != null) layoutUser = await DbContext.Users.FindAsync(layoutUserId);
+        if (layoutUserId != null)
+        {
+            layoutUser = await DbContext.Users.FindAsync(layoutUserId);
+            layoutProfile = await DbContext.UserProfiles.AsNoTracking().FirstOrDefaultAsync(p => p.UserId == layoutUserId);
+            pendingConnections = await DbContext.Connections.CountAsync(c => c.AddresseeId == layoutUserId && c.Status == ConnectionStatus.Pending && c.Requester.IsActive);
+        }
     }
+    var isInvestorUser = layoutProfile?.IsInvestor == true || User.IsInRole("Investor");
 }
 <!DOCTYPE html>
 <html lang="en" data-bs-theme="light">
@@ -43,6 +51,10 @@
                 <ul class="navbar-nav mx-auto mb-2 mb-lg-0">
                     <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="Index">Home</a></li>
                     <li class="nav-item"><a class="nav-link" asp-controller="Ideas" asp-action="Browse">Explore Ideas</a></li>
+                    @if (isInvestorUser)
+                    {
+                        <li class="nav-item"><a class="nav-link" asp-controller="Investor" asp-action="Dashboard"><i class="bi bi-graph-up-arrow me-1 text-cashmere"></i>Investor Hub</a></li>
+                    }
                     <li class="nav-item"><a class="nav-link" asp-controller="Challenges" asp-action="Index"><i class="bi bi-trophy me-1 text-cashmere"></i>Challenges</a></li>
                     <li class="nav-item"><a class="nav-link" asp-controller="Videos" asp-action="Index"><i class="bi bi-play-circle me-1 text-cashmere"></i>Videos</a></li>
                     <li class="nav-item"><a class="nav-link" asp-controller="Home" asp-action="HowItWorks">How It Works</a></li>
@@ -58,7 +70,7 @@
                         if (userId != null)
                         {
                             currentUser = layoutUser;
-                            currentProfile = await DbContext.UserProfiles.FirstOrDefaultAsync(p => p.UserId == userId);
+                            currentProfile = layoutProfile;
                             currentSettings = await DbContext.UserSettings.FirstOrDefaultAsync(s => s.UserId == userId);
                         }
                         var fullName = currentUser?.FullName ?? User.Identity.Name;
@@ -124,7 +136,13 @@
                                 <li><a class="dropdown-item py-2 d-flex align-items-center gap-2" asp-controller="Account" asp-action="Dashboard"><i class="bi bi-speedometer2 text-muted"></i> Dashboard</a></li>
                                 <li><a class="dropdown-item py-2 d-flex align-items-center gap-2" asp-controller="Account" asp-action="Profile"><i class="bi bi-person text-muted"></i> Profile</a></li>
                                 <li><a class="dropdown-item py-2 d-flex align-items-center gap-2" asp-controller="Ideas" asp-action="MyIdeas"><i class="bi bi-lightbulb text-muted"></i> My Ideas</a></li>
+                                <li><a class="dropdown-item py-2 d-flex align-items-center gap-2" asp-controller="Network" asp-action="Index"><i class="bi bi-diagram-3 text-muted"></i> My Network
+                                    @if (pendingConnections > 0) { <span class="badge rounded-pill bg-danger ms-auto" title="Pending connection requests">@pendingConnections</span> }</a></li>
                                 <li><a class="dropdown-item py-2 d-flex align-items-center gap-2" asp-controller="Workspace" asp-action="Index"><i class="bi bi-kanban text-muted"></i> My Teams</a></li>
+                                @if (isInvestorUser)
+                                {
+                                    <li><a class="dropdown-item py-2 d-flex align-items-center gap-2" asp-controller="Investor" asp-action="Dashboard"><i class="bi bi-graph-up-arrow text-muted"></i> Investor Dashboard</a></li>
+                                }
                                 <li><a class="dropdown-item py-2 d-flex align-items-center gap-2" asp-controller="Profile" asp-action="Analytics"><i class="bi bi-graph-up text-muted"></i> Founder Analytics</a></li>
                                 <li><a class="dropdown-item py-2 d-flex align-items-center gap-2" asp-controller="Matches" asp-action="Index"><i class="bi bi-people text-muted"></i> Smart Matches</a></li>
                                 <li><a class="dropdown-item py-2 d-flex align-items-center gap-2" asp-controller="Matches" asp-action="FindTeam"><i class="bi bi-search text-muted"></i> Find Co-founder & Team</a></li>
@@ -249,6 +267,10 @@
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
     <script src="~/lib/microsoft-signalr/signalr.min.js" asp-append-version="true"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <script src="~/js/connections.js" asp-append-version="true"></script>
+    }
     <!-- AOS Animation JS -->
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script>

@@ -24,7 +24,7 @@ public interface IAccountDeletionService
 /// Removes a user's data explicitly (many FKs are Restrict/NoAction to avoid SQL Server multiple
 /// cascade paths). Ideas the user submitted are deleted with all their activity; the user's own
 /// activity on other people's ideas (likes, comments, saves, reports, interests, team membership,
-/// team messages, verification requests) is deleted; anonymous traces (idea views, history editor,
+/// team messages, verification requests, connections) is deleted; anonymous traces (idea views, history editor,
 /// milestone assignee/creator, moderation reviewer) are anonymised.
 /// NOTE: when adding a model that references ApplicationUser or Idea, extend this service.
 /// </summary>
@@ -87,6 +87,7 @@ public sealed class AccountDeletionService : IAccountDeletionService
             await _db.SavedIdeas.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
             await _db.TeamMessages.Where(x => x.SenderUserId == userId).ExecuteDeleteAsync(ct);
             await _db.TeamMembers.Where(x => x.UserId == userId).ExecuteDeleteAsync(ct);
+            await _db.Connections.Where(c => c.RequesterId == userId || c.AddresseeId == userId).ExecuteDeleteAsync(ct);
             await _db.IdeaViews.Where(x => x.UserId == userId).ExecuteUpdateAsync(s => s.SetProperty(v => v.UserId, (string?)null), ct);
             await _db.IdeaHistories.Where(x => x.EditorId == userId).ExecuteUpdateAsync(s => s.SetProperty(h => h.EditorId, (string?)null), ct);
             // Milestones on other teams' ideas stay; they just lose this assignee/creator.

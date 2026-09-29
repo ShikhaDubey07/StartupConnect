@@ -7,6 +7,17 @@
     var isOwnProfile = !string.IsNullOrEmpty(currentUserId) && currentUserId == profileUserId;
     var categoryNames = ViewBag.CategoryNames as List<string> ?? new List<string>();
     var userIdeas = ViewBag.UserIdeas as List<StartupConnect.Models.Idea> ?? new List<StartupConnect.Models.Idea>();
+    var shownEmail = ViewBag.ShownEmail as string;
+    var connectionState = ViewBag.ConnectionState as ConnectionState? ?? ConnectionState.None;
+    var previewMode = ViewBag.PreviewMode as string;
+    var hint = ViewBag.PrivacyHint as ProfilePrivacyHint;
+    var location = string.Join(", ", new[] { Model.City, Model.State }.Where(v => !string.IsNullOrWhiteSpace(v)));
+    string VisibilityLabel(string v) => v switch
+    {
+        ProfileVisibilityOptions.Private => "Private — only you, admins, your connections and teammates",
+        ProfileVisibilityOptions.RegisteredUsers => "Members only — anyone signed in to StartupConnect",
+        _ => "Public — anyone, including visitors who aren't signed in"
+    };
 }
 
 <section class="sc-page-header">
@@ -17,20 +28,57 @@
 </section>
 
 <div class="container pb-5 mt-4">
+    @if (hint != null)
+    {
+        <div class="sc-privacy-hint p-3 mb-4 d-flex flex-wrap align-items-center gap-3">
+            <i class="bi @(hint.IsPreview ? "bi-eye" : "bi-shield-lock") fs-4 text-primary"></i>
+            <div class="flex-grow-1 min-w-0">
+                @if (hint.IsPreview)
+                {
+                    <div class="fw-semibold">Preview: this is how @(previewMode == "public" ? "signed-out visitors" : "other signed-in members") see your profile.</div>
+                }
+                else
+                {
+                    <div class="fw-semibold">This is your profile. Visibility: @VisibilityLabel(hint.Visibility).</div>
+                }
+                <div class="small text-muted">
+                    Email @(hint.ShowEmail ? "shown" : "hidden") · Location @(hint.ShowLocation ? "shown" : "hidden") · Age @(hint.ShowAge ? "shown" : "hidden") to others.
+                </div>
+            </div>
+            <div class="d-flex flex-wrap gap-2">
+                @if (hint.IsPreview)
+                {
+                    <a asp-action="Detail" asp-route-id="@profileUserId" class="btn btn-sm btn-primary rounded-pill">Exit preview</a>
+                }
+                else
+                {
+                    <a asp-action="Detail" asp-route-id="@profileUserId" asp-route-preview="public" class="btn btn-sm btn-outline-primary rounded-pill"><i class="bi bi-eye me-1"></i>Preview as public</a>
+                    <a asp-action="Detail" asp-route-id="@profileUserId" asp-route-preview="member" class="btn btn-sm btn-outline-primary rounded-pill">Preview as a member</a>
+                }
+                <a asp-controller="Settings" asp-action="Index" asp-route-tab="privacy" class="btn btn-sm btn-outline-secondary rounded-pill"><i class="bi bi-sliders me-1"></i>Privacy settings</a>
+            </div>
+        </div>
+    }
     <div class="row g-4">
         <div class="col-lg-4">
             <div class="sc-form-card text-center">
-                <div class="rounded-circle bg-primary d-inline-flex align-items-center justify-content-center mb-3 shadow" style="width:100px;height:100px;font-size:2.5rem;color:#000">
-                    @(Model.FullName?.FirstOrDefault())
-                </div>
+                <div class="d-inline-block mb-3"><partial name="_Avatar" model="@(new AvatarModel(Model.FullName, ViewBag.PhotoUrl as string, 100))" /></div>
                 <h4 class="fw-bold mb-1">@Model.FullName</h4>
                 @if (ViewBag.IsVerifiedFounder == true)
                 {
                     <div class="mb-2"><partial name="_VerifiedBadge" model="@("lg")" /></div>
                 }
-                @if (!string.IsNullOrEmpty(Model.City) || !string.IsNullOrEmpty(Model.State))
+                @if (location.Length > 0)
                 {
-                    <p class="text-muted mb-2"><i class="bi bi-geo-alt me-1"></i> @Model.City, @Model.State</p>
+                    <p class="text-muted mb-2"><i class="bi bi-geo-alt me-1"></i> @location</p>
+                }
+                @if (Model.Age.HasValue)
+                {
+                    <p class="text-muted mb-2"><i class="bi bi-person me-1"></i> @Model.Age years old</p>
+                }
+                @if (!string.IsNullOrEmpty(shownEmail))
+                {
+                    <p class="mb-2"><a href="mailto:@shownEmail" class="text-muted text-decoration-none"><i class="bi bi-envelope me-1"></i>@shownEmail</a></p>
                 }
                 
                 @if (Model.IsInvestor)
@@ -53,15 +101,32 @@
                     }
                 </div>
 
-                @if (!isOwnProfile && User.Identity?.IsAuthenticated == true)
+                @if (previewMode == "member")
                 {
                     <div class="mt-4 pt-3 border-top">
-                        <button type="button" onclick="connectUser('@profileUserId', this)" class="btn btn-primary-sc rounded-pill w-100 py-2">
-                            <i class="bi bi-person-plus-fill me-1"></i> Send Connection Request
-                        </button>
+                        <button type="button" class="btn btn-primary-sc rounded-pill w-100 py-2" disabled><i class="bi bi-person-plus-fill me-1"></i>Connect</button>
+                        <div class="small text-muted mt-2">Members see a Connect button here.</div>
                     </div>
                 }
-                else if (isOwnProfile)
+                else if (!isOwnProfile && User.Identity?.IsAuthenticated == true)
+                {
+                    <div class="mt-4 pt-3 border-top">
+                        <partial name="_ConnectButton" model="@(new ConnectButtonModel(profileUserId, connectionState, Model.FullName, "profile"))" />
+                        @if (ViewBag.ViaRelationship == true)
+                        {
+                            <div class="small text-muted mt-2"><i class="bi bi-lock me-1"></i>This profile is private — you can see it because you're connected or on a team together.</div>
+                        }
+                    </div>
+                }
+                else if (User.Identity?.IsAuthenticated != true || previewMode == "public")
+                {
+                    <div class="mt-4 pt-3 border-top">
+                        <a asp-controller="Account" asp-action="Login" asp-route-returnUrl="@($"/Profile/Detail/{profileUserId}")" class="btn btn-primary-sc rounded-pill w-100 py-2">
+                            <i class="bi bi-box-arrow-in-right me-1"></i>Sign in to connect
+                        </a>
+                    </div>
+                }
+                else if (isOwnProfile && previewMode == null)
                 {
                     <div class="mt-4 pt-3 border-top">
                         <a asp-controller="Account" asp-action="Profile" class="btn btn-outline-primary rounded-pill w-100 py-2">
@@ -88,7 +153,7 @@
                     {
                         <div class="col-md-6">
                             <h6 class="fw-bold text-dark"><i class="bi bi-cash me-2"></i>Investment Capacity</h6>
-                            <p class="text-muted mb-0">@Model.InvestmentCapacity</p>
+                            <p class="text-muted mb-0">@StartupConnect.Services.InvestorDashboardService.CapacityLabel(Model.InvestmentCapacity)</p>
                         </div>
                     }
                 </div>
@@ -154,48 +219,3 @@
         </div>
     </div>
 </div>
-
-@Html.AntiForgeryToken()
-
-@section Scripts {
-    <script>
-        function connectUser(userId, button) {
-            button.disabled = true;
-            const originalContent = button.innerHTML;
-            button.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Sending...';
-
-            const tokenElement = document.querySelector('input[name="__RequestVerificationToken"]');
-            const token = tokenElement ? tokenElement.value : '';
-
-            fetch('/Matches/Connect', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'RequestVerificationToken': token
-                },
-                body: new URLSearchParams({
-                    'targetUserId': userId
-                })
-            })
-            .then(response => {
-                if(response.ok) {
-                    button.classList.remove('btn-primary-sc');
-                    button.classList.add('btn-success');
-                    button.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Request Sent';
-                } else {
-                    response.text().then(text => {
-                        alert('Failed to send request: ' + text);
-                        button.disabled = false;
-                        button.innerHTML = originalContent;
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred. Please try again.');
-                button.disabled = false;
-                button.innerHTML = originalContent;
-            });
-        }
-    </script>
-}

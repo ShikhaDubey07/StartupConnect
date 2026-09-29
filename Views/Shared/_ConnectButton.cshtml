@@ -1,0 +1,54 @@
+@model ConnectButtonModel
+@*
+    Relationship-aware Connect button. Behaviour lives in wwwroot/js/connections.js (loaded by _Layout for signed-in users):
+    actions POST to /Network/{Send|Accept|Decline|Withdraw|Remove} and the button re-renders via /Network/Button.
+*@
+@if (Model.State != ConnectionState.Self && !string.IsNullOrEmpty(Model.TargetUserId))
+{
+    var wide = Model.Variant == "profile";
+    <div class="sc-connect @(wide ? "w-100" : "flex-grow-1")" data-user-id="@Model.TargetUserId" data-variant="@Model.Variant" data-name="@Model.TargetName">
+        @switch (Model.State)
+        {
+            case ConnectionState.Connected:
+                <div class="dropdown w-100">
+                    <button type="button" class="btn btn-success-subtle-sc rounded-pill w-100 dropdown-toggle @(wide ? "py-2" : "")" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-person-check-fill me-1"></i>Connected
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                        <li><a class="dropdown-item" asp-controller="Network" asp-action="Index"><i class="bi bi-people me-2"></i>My network</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><button type="button" class="dropdown-item text-danger sc-connect-action" data-connect="remove"><i class="bi bi-person-dash me-2"></i>Remove connection</button></li>
+                    </ul>
+                </div>
+                break;
+            case ConnectionState.OutgoingPending:
+                <div class="dropdown w-100">
+                    <button type="button" class="btn btn-outline-secondary rounded-pill w-100 dropdown-toggle @(wide ? "py-2" : "")" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-hourglass-split me-1"></i>Pending
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                        <li><span class="dropdown-item-text small text-muted">Waiting for a response</span></li>
+                        <li><button type="button" class="dropdown-item sc-connect-action" data-connect="withdraw"><i class="bi bi-x-circle me-2"></i>Withdraw request</button></li>
+                    </ul>
+                </div>
+                break;
+            case ConnectionState.IncomingPending:
+                <div class="dropdown w-100">
+                    <button type="button" class="btn btn-copper rounded-pill w-100 dropdown-toggle @(wide ? "py-2" : "")" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-reply-fill me-1"></i>Respond
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                        <li><span class="dropdown-item-text small text-muted">Wants to connect with you</span></li>
+                        <li><button type="button" class="dropdown-item sc-connect-action" data-connect="accept"><i class="bi bi-check-lg me-2 text-success"></i>Accept</button></li>
+                        <li><button type="button" class="dropdown-item sc-connect-action" data-connect="decline"><i class="bi bi-x-lg me-2"></i>Decline</button></li>
+                    </ul>
+                </div>
+                break;
+            default:
+                <button type="button" class="btn btn-primary-sc rounded-pill w-100 sc-connect-action @(wide ? "py-2" : "")" data-connect="send">
+                    <i class="bi bi-person-plus-fill me-1"></i>Connect
+                </button>
+                break;
+        }
+    </div>
+}

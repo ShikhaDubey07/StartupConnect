@@ -4,6 +4,7 @@
 @{
     ViewData["Title"] = "Find Co-founder & Team";
     var categories = ViewBag.Categories as List<Category> ?? new List<Category>();
+    var states = ViewBag.ConnectionStates as Dictionary<string, ConnectionState> ?? new Dictionary<string, ConnectionState>();
 }
 
 <div class="container py-5 mt-4">
@@ -80,14 +81,16 @@
                     {
                         <div class="col-md-6 col-xl-4">
                             <div class="card h-100 shadow-sm border-0 sc-hover-card text-center p-4">
-                                <div class="sc-avatar bg-accent text-black rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3 fs-3 shadow-sm" style="width:80px;height:80px">
-                                    @(match.Profile.User.FullName.FirstOrDefault().ToString().ToUpper())
-                                </div>
+                                <div class="mx-auto mb-3"><partial name="_Avatar" model="@(new AvatarModel(match.Profile.User.FullName, match.Profile.ProfilePhotoUrl, 80))" /></div>
                                 <h5 class="fw-bold mb-1">@match.Profile.User.FullName</h5>
                                 <div class="text-muted small mb-2 fw-semibold">
                                     @(match.Profile.IsInvestor ? "Investor" : "Founder")
                                 </div>
-                                <p class="text-muted small mb-2"><i class="bi bi-geo-alt"></i> @(string.IsNullOrEmpty(match.Profile.User.City) ? "Unknown Location" : $"{match.Profile.User.City}, {match.Profile.User.State}")</p>
+                                @{
+                                    var showLoc = match.Profile.User.Settings?.ShowLocation ?? true;
+                                    var loc = string.Join(", ", new[] { match.Profile.User.City, match.Profile.User.State }.Where(v => !string.IsNullOrWhiteSpace(v)));
+                                }
+                                <p class="text-muted small mb-2"><i class="bi bi-geo-alt"></i> @(showLoc && loc.Length > 0 ? loc : "Location not shared")</p>
                                 
                                 <div class="badge bg-success-subtle text-success mb-3 fs-6 px-3 py-2 border border-success border-opacity-25 rounded-pill shadow-sm">
                                     🔥 @match.MatchScore% Match
@@ -116,9 +119,7 @@
 
                                 <div class="d-flex gap-2 mt-auto pt-3">
                                     <a asp-controller="Profile" asp-action="Detail" asp-route-id="@match.Profile.UserId" class="btn btn-outline-primary rounded-pill flex-grow-1">View</a>
-                                    <button onclick="connectUser('@match.Profile.UserId', this)" class="btn btn-primary-sc rounded-pill flex-grow-1">
-                                        <i class="bi bi-person-plus-fill me-1"></i> Connect
-                                    </button>
+                                    <partial name="_ConnectButton" model="@(new ConnectButtonModel(match.Profile.UserId, states.GetValueOrDefault(match.Profile.UserId), match.Profile.User.FullName))" />
                                 </div>
                             </div>
                         </div>
@@ -130,54 +131,10 @@
                 <div class="alert alert-light border text-center p-5 rounded-4 shadow-sm">
                     <i class="bi bi-search fs-1 text-muted mb-3 d-block"></i>
                     <h5 class="fw-bold">No profiles found</h5>
-                    <p class="text-muted mb-0">Try adjusting your filters to see more results.</p>
+                    <p class="text-muted mb-3">Try adjusting your filters to see more results. Members with private profiles don't appear in search.</p>
+                    <a asp-action="FindTeam" class="btn btn-outline-secondary rounded-pill">Clear filters</a>
                 </div>
             }
         </div>
     </div>
 </div>
-
-@Html.AntiForgeryToken()
-
-@section Scripts {
-    <script>
-        function connectUser(userId, button) {
-            button.disabled = true;
-            const originalContent = button.innerHTML;
-            button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>...';
-
-            const tokenElement = document.querySelector('input[name="__RequestVerificationToken"]');
-            const token = tokenElement ? tokenElement.value : '';
-
-            fetch('/Matches/Connect', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'RequestVerificationToken': token
-                },
-                body: new URLSearchParams({
-                    'targetUserId': userId
-                })
-            })
-            .then(response => {
-                if(response.ok) {
-                    button.classList.remove('btn-primary-sc');
-                    button.classList.add('btn-success');
-                    button.innerHTML = '<i class="bi bi-check-lg"></i> Sent';
-                } else {
-                    response.text().then(text => {
-                        alert('Failed: ' + text);
-                        button.disabled = false;
-                        button.innerHTML = originalContent;
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error occurred.');
-                button.disabled = false;
-                button.innerHTML = originalContent;
-            });
-        }
-    </script>
-}

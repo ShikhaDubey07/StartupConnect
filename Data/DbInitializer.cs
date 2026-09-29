@@ -198,6 +198,7 @@ public static class DbInitializer
         if (seedDemo && !string.IsNullOrWhiteSpace(demoPassword))
         {
             await CollaborationSeed.SeedAsync(context, userManager, demoPassword, logger);
+            await NetworkSeed.SeedAsync(context, userManager, demoPassword, logger);
         }
     }
 }

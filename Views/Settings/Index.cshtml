@@ -164,8 +164,12 @@
                                         <input asp-for="Security.ConfirmPassword" class="form-control" />
                                         <span asp-validation-for="Security.ConfirmPassword" class="text-danger small"></span>
                                     </div>
-                                    <div class="col-12 mt-4 text-end">
+                                    <div class="col-12 mt-4 d-flex flex-wrap justify-content-between align-items-center gap-2">
+                                        <a asp-controller="Account" asp-action="ForgotPassword" class="small">Forgot your current password? Reset it by email</a>
                                         <button type="submit" class="btn btn-primary rounded-pill px-4">Update Password</button>
+                                    </div>
+                                    <div class="col-12">
+                                        <p class="text-muted small mb-0"><i class="bi bi-info-circle me-1"></i>We'll email you when your password changes, and other signed-in devices will be signed out.</p>
                                     </div>
                                 </div>
                             </form>
@@ -177,43 +181,54 @@
                 <div class="tab-pane fade @(Model.ActiveTab == "notifications" ? "show active" : "")" id="v-pills-notifications" role="tabpanel" aria-labelledby="v-pills-notifications-tab">
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body p-4 p-lg-5">
-                            <h4 class="fw-bold mb-4">Notification Preferences</h4>
+                            <h4 class="fw-bold mb-1">Notification Preferences</h4>
+                            <p class="text-muted small mb-4">Choose how StartupConnect keeps you posted. Emails include a link back to the relevant page.</p>
                             <form asp-action="UpdateNotifications" method="post">
-                                <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                                <h6 class="fw-bold text-uppercase small text-muted mb-3">Channels</h6>
+                                <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3 gap-3">
                                     <div>
-                                        <div class="fw-medium">Email Notifications</div>
-                                        <div class="text-muted small">Receive important updates and daily summaries via email.</div>
-                                    </div>
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input fs-5" type="checkbox" asp-for="Notifications.EmailNotifications" />
-                                    </div>
-                                </div>
-                                <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
-                                    <div>
-                                        <div class="fw-medium">In-App Notifications</div>
-                                        <div class="text-muted small">Show real-time toast alerts while you are browsing.</div>
+                                        <label class="fw-medium" for="Notifications_InAppNotifications">In-app notifications</label>
+                                        <div class="text-muted small">The bell menu, live pop-ups and your notification centre. When off, new notifications aren't saved.</div>
                                     </div>
                                     <div class="form-check form-switch">
                                         <input class="form-check-input fs-5" type="checkbox" asp-for="Notifications.InAppNotifications" />
                                     </div>
                                 </div>
-                                <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3">
+                                <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4 gap-3">
                                     <div>
-                                        <div class="fw-medium">Match Alerts</div>
-                                        <div class="text-muted small">Get notified when a highly relevant idea matches your profile.</div>
+                                        <label class="fw-medium" for="emailMaster">Email notifications</label>
+                                        <div class="text-muted small">Master switch for notification emails to <strong>@(User.Identity?.Name)</strong>.</div>
                                     </div>
                                     <div class="form-check form-switch">
-                                        <input class="form-check-input fs-5" type="checkbox" asp-for="Notifications.NotifyOnMatches" />
+                                        <input class="form-check-input fs-5" type="checkbox" asp-for="Notifications.EmailNotifications" id="emailMaster" />
                                     </div>
                                 </div>
-                                <div class="d-flex justify-content-between align-items-center mb-3">
-                                    <div>
-                                        <div class="fw-medium">Message Alerts</div>
-                                        <div class="text-muted small">Get notified when someone sends you a message or request.</div>
+
+                                <h6 class="fw-bold text-uppercase small text-muted mb-3">Email me about</h6>
+                                <div id="emailCategories">
+                                    <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3 gap-3">
+                                        <div>
+                                            <label class="fw-medium" for="Notifications_NotifyOnMatches">Idea matches</label>
+                                            <div class="text-muted small">When a newly approved idea closely matches one of yours.</div>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input fs-5" type="checkbox" asp-for="Notifications.NotifyOnMatches" />
+                                        </div>
                                     </div>
-                                    <div class="form-check form-switch">
-                                        <input class="form-check-input fs-5" type="checkbox" asp-for="Notifications.NotifyOnMessages" />
+                                    <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-3 gap-3">
+                                        <div>
+                                            <label class="fw-medium" for="Notifications_NotifyOnMessages">Messages & requests</label>
+                                            <div class="text-muted small">Connection requests, collaboration and investment interest, and replies to them.</div>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input fs-5" type="checkbox" asp-for="Notifications.NotifyOnMessages" />
+                                        </div>
                                     </div>
+                                </div>
+                                <div class="bg-light rounded-3 p-3 small text-muted">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    While email is on, we also email you about comments on your ideas, team and milestone updates, challenge results and moderation decisions.
+                                    Likes only appear in the app. Security emails (password resets, email confirmation) are always sent.
                                 </div>
                                 <div class="mt-4 text-end">
                                     <button type="submit" class="btn btn-primary rounded-pill px-4">Save Preferences</button>
@@ -227,15 +242,26 @@
                 <div class="tab-pane fade @(Model.ActiveTab == "privacy" ? "show active" : "")" id="v-pills-privacy" role="tabpanel" aria-labelledby="v-pills-privacy-tab">
                     <div class="card border-0 shadow-sm rounded-4">
                         <div class="card-body p-4 p-lg-5">
-                            <h4 class="fw-bold mb-4">Privacy Settings</h4>
+                            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                                <h4 class="fw-bold mb-0">Privacy Settings</h4>
+                                <a asp-controller="Profile" asp-action="Detail" asp-route-id="@(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value)" asp-route-preview="public" class="btn btn-sm btn-outline-primary rounded-pill"><i class="bi bi-eye me-1"></i>Preview my public profile</a>
+                            </div>
                             <form asp-action="UpdatePrivacy" method="post">
-                                <div class="mb-4">
-                                    <label class="form-label fw-medium">Profile Visibility</label>
+                                <div class="mb-3">
+                                    <label class="form-label fw-medium" for="Privacy_ProfileVisibility">Profile Visibility</label>
                                     <select asp-for="Privacy.ProfileVisibility" class="form-select">
-                                        <option value="Public">Public (Everyone can see your profile)</option>
-                                        <option value="RegisteredUsers">Registered Users (Only logged in users can see)</option>
-                                        <option value="Private">Private (Hide profile from search and matching)</option>
+                                        <option value="Public">Public — anyone, including signed-out visitors</option>
+                                        <option value="RegisteredUsers">Members only — anyone signed in to StartupConnect</option>
+                                        <option value="Private">Private — only my connections and teammates</option>
                                     </select>
+                                </div>
+                                <div class="bg-light rounded-3 p-3 small text-muted mb-4">
+                                    <div class="fw-semibold text-dark mb-1"><i class="bi bi-shield-lock me-1"></i>Who can see what</div>
+                                    <ul class="mb-0 ps-3">
+                                        <li><strong>Private</strong> profiles are visible only to you, platform admins, your accepted connections and people on a team with you. They're left out of Smart Matches, Find Team, investor lists and the public API. Other members see just your name and a Connect button.</li>
+                                        <li>Your approved ideas stay public and show your name as the founder; your location appears there only if "Show my location" is on.</li>
+                                        <li>Email, location and age are shown to others only when switched on below — admins and you always see them.</li>
+                                    </ul>
                                 </div>
                                 
                                 <h6 class="fw-bold mb-3">Visible Information</h6>
@@ -248,10 +274,12 @@
                                 <div class="form-check form-switch mb-3">
                                     <input class="form-check-input" type="checkbox" asp-for="Privacy.ShowLocation" />
                                     <label class="form-check-label fw-medium" asp-for="Privacy.ShowLocation"></label>
+                                    <div class="text-muted small">Your city and state on your profile, match cards and ideas.</div>
                                 </div>
                                 <div class="form-check form-switch mb-3">
                                     <input class="form-check-input" type="checkbox" asp-for="Privacy.ShowAge" />
                                     <label class="form-check-label fw-medium" asp-for="Privacy.ShowAge"></label>
+                                    <div class="text-muted small">Your age on your profile page.</div>
                                 </div>
                                 
                                 <div class="mt-4 text-end">
@@ -342,6 +370,15 @@
                 $('#deletePassword, #deleteConfirmation').val('');
                 updateDeleteBtn();
             });
+
+            function syncEmailCategories() {
+                var on = $('#emailMaster').is(':checked');
+                $('#emailCategories').toggleClass('opacity-50', !on).find('input').prop('disabled', !on);
+            }
+            $('#emailMaster').on('change', syncEmailCategories);
+            syncEmailCategories();
+            // Disabled checkboxes aren't posted; re-enable just before submit so category choices are kept.
+            $('#emailMaster').closest('form').on('submit', function () { $('#emailCategories input').prop('disabled', false); });
 
             $('#investorSwitch').on('change', function () {
                 if ($(this).is(':checked')) {

@@ -34,10 +34,18 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
 
     // Unconfirmed users may sign in; [RequireConfirmedEmail] gates idea submission / interest.
     options.SignIn.RequireConfirmedEmail = false;
+
+    // Password reset links use a dedicated, short-lived token provider (see Auth:PasswordResetTokenHours).
+    options.Tokens.PasswordResetTokenProvider = PasswordResetTokenProviderOptions.ProviderName;
 })
 .AddEntityFrameworkStores<ApplicationDbContext>()
 .AddSignInManager<AppSignInManager>()
-.AddDefaultTokenProviders();
+.AddDefaultTokenProviders()
+.AddTokenProvider<PasswordResetTokenProvider<ApplicationUser>>(PasswordResetTokenProviderOptions.ProviderName);
+
+var resetTokenHours = Math.Clamp(builder.Configuration.GetValue<int?>(PasswordResetTokenProviderOptions.ConfigKey)
+    ?? PasswordResetTokenProviderOptions.DefaultHours, 1, 48);
+builder.Services.Configure<PasswordResetTokenProviderOptions>(o => o.TokenLifespan = TimeSpan.FromHours(resetTokenHours));
 
 // Re-check the security stamp / suspension status regularly so suspended users are signed out.
 builder.Services.Configure<SecurityStampValidatorOptions>(o => o.ValidationInterval = TimeSpan.FromMinutes(5));
@@ -75,11 +83,19 @@ builder.Services.AddScoped<IActivityService, ActivityService>();
 builder.Services.AddScoped<ITeamService, TeamService>();
 builder.Services.AddScoped<IChallengeService, ChallengeService>();
 builder.Services.AddScoped<IModerationService, ModerationService>();
+builder.Services.AddScoped<IPrivacyService, PrivacyService>();
+builder.Services.AddScoped<IConnectionService, ConnectionService>();
+builder.Services.AddScoped<IInvestorDashboardService, InvestorDashboardService>();
+
+// Absolute links in emails: App:BaseUrl when configured, otherwise the current request's host.
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddSingleton<IAppUrls, AppUrls>();
 builder.Services.AddHttpClient<IAIAnalysisService, AIAnalysisService>();
 
 // Background work (AI analysis etc.) runs on a Channel-backed queue with its own DI scopes.
 builder.Services.AddSingleton<IBackgroundTaskQueue>(_ => new BackgroundTaskQueue(capacity: 200));
 builder.Services.AddHostedService<QueuedHostedService>();
+builder.Services.AddSingleton<IEmailQueue, EmailQueue>();
 builder.Services.AddSingleton<IAnalysisJobTracker, AnalysisJobTracker>();
 builder.Services.AddSingleton<IIdeaAnalysisScheduler, IdeaAnalysisScheduler>();
 
@@ -108,6 +124,7 @@ int Limit(string key, int prod, int dev) => builder.Configuration.GetValue<int?>
 var aiLimit = Limit("AiGeneratePerTenMinutes", 5, 5);
 var emailLimit = Limit("EmailSendPerFifteenMinutes", 5, 100);
 var loginLimit = Limit("LoginPerFiveMinutes", 20, 200);
+var apiLimit = Limit("ApiPerMinute", 60, 600);
 
 builder.Services.AddRateLimiter(options =>
 {
@@ -131,13 +148,18 @@ builder.Services.AddRateLimiter(options =>
         "login:" + (ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown"),
         _ => new FixedWindowRateLimiterOptions { PermitLimit = loginLimit, Window = TimeSpan.FromMinutes(5), QueueLimit = 0 }));
 
+    // Public read-only JSON API (/api/*) per client IP.
+    options.AddPolicy(RateLimitPolicies.PublicApi, ctx => RateLimitPartition.GetFixedWindowLimiter(
+        "api:" + (ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown"),
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = apiLimit, Window = TimeSpan.FromMinutes(1), QueueLimit = 0 }));
+
     options.OnRejected = async (context, ct) =>
     {
         const string message = "You're doing that too often. Please wait a few minutes and try again.";
         var http = context.HttpContext;
         http.Response.StatusCode = StatusCodes.Status429TooManyRequests;
 
-        if (RequireConfirmedEmailAttribute.IsAjax(http.Request))
+        if (RequireConfirmedEmailAttribute.IsAjax(http.Request) || http.Request.Path.StartsWithSegments("/api"))
         {
             await http.Response.WriteAsJsonAsync(new { success = false, message }, ct);
             return;
@@ -158,14 +180,17 @@ builder.Services.AddRateLimiter(options =>
     };
 });
 
+// CORS is off unless Cors:AllowedOrigins lists origins (e.g. a separate frontend). It only ever applies to the
+// read-only public API (GET), never to the cookie-authenticated MVC pages.
+var corsOrigins = (builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>())
+    .Select(o => o.Trim().TrimEnd('/'))
+    .Where(UrlSafety.IsSafeHttpUrl)
+    .Distinct(StringComparer.OrdinalIgnoreCase)
+    .ToArray();
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("ReactPolicy", policy =>
-    {
-        policy.WithOrigins("http://localhost:5173")
-              .AllowAnyHeader()
-              .AllowAnyMethod();
-    });
+    if (corsOrigins.Length > 0)
+        options.AddPolicy(CorsPolicies.PublicApi, policy => policy.WithOrigins(corsOrigins).WithMethods("GET").WithHeaders("Accept", "Content-Type"));
 });
 builder.Services.AddSignalR();
 
@@ -195,7 +220,8 @@ app.UseStaticFiles(new StaticFileOptions
     }
 });
 app.UseRouting();
-app.UseCors("ReactPolicy");
+// Without Cors:AllowedOrigins no policy is registered, so no CORS headers are ever emitted.
+app.UseCors();
 app.UseRateLimiter();
 
 app.UseAuthentication();
@@ -226,4 +252,10 @@ public static class RateLimitPolicies
     public const string AiGenerate = "ai-generate";
     public const string EmailSend = "email-send";
     public const string Login = "login";
+    public const string PublicApi = "public-api";
+}
+
+public static class CorsPolicies
+{
+    public const string PublicApi = "public-api";
 }

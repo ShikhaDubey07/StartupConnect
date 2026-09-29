@@ -61,11 +61,12 @@ public class MatchingService : IMatchingService
         if (currentUserProfile == null) return new List<(UserProfile, double)>();
 
         var otherProfiles = await _context.UserProfiles
-            .Include(p => p.User)
+            .Include(p => p.User).ThenInclude(u => u.Settings)
             .Include(p => p.Skills)
             .Include(p => p.InterestTags)
                 .ThenInclude(t => t.Category)
-            .Where(p => p.UserId != userId && p.User.IsActive)
+            .Where(p => p.UserId != userId)
+            .WhereDiscoverable()
             .ToListAsync();
 
         var results = new List<(UserProfile Profile, double Score)>();
@@ -145,11 +146,12 @@ public class MatchingService : IMatchingService
         if (currentUserProfile == null) return new List<(UserProfile, double)>();
 
         var query = _context.UserProfiles
-            .Include(p => p.User)
+            .Include(p => p.User).ThenInclude(u => u.Settings)
             .Include(p => p.Skills)
             .Include(p => p.InterestTags)
                 .ThenInclude(t => t.Category)
-            .Where(p => p.UserId != userId && p.User.IsActive)
+            .Where(p => p.UserId != userId)
+            .WhereDiscoverable()
             .AsQueryable();
 
         if (!string.IsNullOrEmpty(role) && role != "Any")
@@ -233,8 +235,12 @@ public class MatchingService : IMatchingService
         var requiredCapacity = GetCapacityForAmount(maxFundingNeeded);
 
         return await _context.UserProfiles
-            .Include(p => p.User)
+            .Include(p => p.User).ThenInclude(u => u.Settings)
+            .Include(p => p.InterestTags).ThenInclude(t => t.Category)
             .Where(p => p.UserId != userId && p.IsInvestor && p.InvestmentCapacity >= requiredCapacity)
+            .WhereDiscoverable()
+            .OrderByDescending(p => p.InvestmentCapacity)
+            .ThenByDescending(p => p.ProfileCompletionPercent)
             .Take(count)
             .ToListAsync();
     }
@@ -255,6 +261,7 @@ public class MatchingService : IMatchingService
         .Include(i => i.Submitter)
         .Where(i =>
             i.Status == IdeaStatus.Approved &&
+            i.SubmitterUserId != userId &&
             i.MinimumFundRequired > 0);
 
     // For capacities up to 1 Lakh, apply maximum limit

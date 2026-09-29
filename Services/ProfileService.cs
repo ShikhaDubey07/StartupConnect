@@ -305,7 +305,7 @@ public class InterestService : IInterestService
             $"Someone showed interest in your idea \"{idea.Title}\".", "/Interests/Manage", save: false);
         await _context.SaveChangesAsync();
         await _notifications.CreateAsync(idea.SubmitterUserId, "New Interest!",
-            $"Someone showed interest in your idea '{idea.Title}'.", $"/Ideas/Detail/{idea.Id}");
+            $"Someone showed interest in your idea '{idea.Title}'.", "/Interests/Manage", category: NotificationCategory.Interest);
 
         return (true, "Your interest has been submitted successfully!");
     }
@@ -361,7 +361,7 @@ public class InterestService : IInterestService
             workspaceLink != null
                 ? $"Your collaboration request for '{interest.Idea.Title}' was accepted — welcome to the team workspace!"
                 : $"Your collaboration request for '{interest.Idea.Title}' was accepted.",
-            workspaceLink ?? $"/Ideas/Detail/{interest.IdeaId}");
+            workspaceLink ?? $"/Ideas/Detail/{interest.IdeaId}", category: NotificationCategory.Interest);
         return true;
     }
 
@@ -375,7 +375,7 @@ public class InterestService : IInterestService
 
         interest.Status = InterestStatus.Rejected;
         await _context.SaveChangesAsync();
-        await _notifications.CreateAsync(interest.UserId, "Request Update", $"Your request for '{interest.Idea.Title}' was declined.", $"/Ideas/Detail/{interest.IdeaId}");
+        await _notifications.CreateAsync(interest.UserId, "Request Update", $"Your request for '{interest.Idea.Title}' was declined.", $"/Ideas/Detail/{interest.IdeaId}", category: NotificationCategory.Interest);
         return true;
     }
 
@@ -389,87 +389,7 @@ public class InterestService : IInterestService
 
         interest.Status = InterestStatus.Cancelled;
         await _context.SaveChangesAsync();
-        await _notifications.CreateAsync(interest.Idea.SubmitterUserId, "Request Cancelled", $"A collaboration request for '{interest.Idea.Title}' was cancelled by the sender.");
+        await _notifications.CreateAsync(interest.Idea.SubmitterUserId, "Request Cancelled", $"A collaboration request for '{interest.Idea.Title}' was cancelled by the sender.", "/Interests/Manage", category: NotificationCategory.Interest);
         return true;
-    }
-}
-
-public interface INotificationService
-{
-    Task CreateAsync(string userId, string title, string message, string? linkUrl = null);
-    Task<List<Notification>> GetUnreadAsync(string userId);
-    Task<List<Notification>> GetAllAsync(string userId);
-    Task MarkAsReadAsync(int id, string userId);
-    Task MarkAllAsReadAsync(string userId);
-    Task<int> GetUnreadCountAsync(string userId);
-}
-
-public class NotificationService : INotificationService
-{
-    private readonly ApplicationDbContext _context;
-    private readonly IHubContext<NotificationHub> _hubContext;
-
-    public NotificationService(ApplicationDbContext context, IHubContext<NotificationHub> hubContext)
-    {
-        _context = context;
-        _hubContext = hubContext;
-    }
-
-    public async Task CreateAsync(string userId, string title, string message, string? linkUrl = null)
-    {
-        var notification = new Notification
-        {
-            UserId = userId,
-            Title = title,
-            Message = message,
-            LinkUrl = linkUrl,
-            CreatedAt = DateTime.UtcNow
-        };
-        _context.Notifications.Add(notification);
-        await _context.SaveChangesAsync();
-        
-        await _hubContext.Clients.User(userId).SendAsync("ReceiveNotification", new {
-            id = notification.Id,
-            title = notification.Title,
-            message = notification.Message,
-            linkUrl = notification.LinkUrl,
-            createdAt = notification.CreatedAt
-        });
-    }
-
-    public async Task<List<Notification>> GetUnreadAsync(string userId)
-    {
-        return await _context.Notifications
-            .Where(n => n.UserId == userId && !n.IsRead)
-            .OrderByDescending(n => n.CreatedAt)
-            .Take(10)
-            .ToListAsync();
-    }
-
-    public async Task<List<Notification>> GetAllAsync(string userId)
-    {
-        return await _context.Notifications
-            .Where(n => n.UserId == userId)
-            .OrderByDescending(n => n.CreatedAt)
-            .Take(50)
-            .ToListAsync();
-    }
-
-    public async Task MarkAsReadAsync(int id, string userId)
-    {
-        var n = await _context.Notifications.FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
-        if (n != null) { n.IsRead = true; await _context.SaveChangesAsync(); }
-    }
-
-    public async Task MarkAllAsReadAsync(string userId)
-    {
-        await _context.Notifications
-            .Where(n => n.UserId == userId && !n.IsRead)
-            .ExecuteUpdateAsync(s => s.SetProperty(n => n.IsRead, true));
-    }
-
-    public async Task<int> GetUnreadCountAsync(string userId)
-    {
-        return await _context.Notifications.CountAsync(n => n.UserId == userId && !n.IsRead);
     }
 }

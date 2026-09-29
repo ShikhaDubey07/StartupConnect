@@ -195,7 +195,8 @@ On first launch, these accounts are automatically created:
 | Role | Email | Password |
 |---|---|---|
 | **Admin / Panel** | dmin@startupconnect.in | Admin@123 |
-| **Member** (demo) | ahul@demo.in | Demo@123 |
+| **Member** (demo) | 
+ahul@demo.in | Demo@123 |
 
 > ⚠️ Change these credentials before deploying to production!
 
@@ -249,6 +250,19 @@ On first launch, these accounts are automatically created:
   "AllowedHosts": "*"
 }
 `
+
+### Links, password reset, CORS and the public API
+
+| Key | Default | Purpose |
+|---|---|---|
+| `App:BaseUrl` | *(request host)* | Absolute base URL used in email links (set it in production, e.g. `https://startupconnect.in`). |
+| `Auth:PasswordResetTokenHours` | `2` | Lifetime of password reset links (1–48). |
+| `Cors:AllowedOrigins` | *(empty = CORS off)* | Origins allowed to call the read-only `/api/*` endpoints from a browser (GET only). |
+| `RateLimiting:ApiPerMinute` | `60` (Dev 600) | Public API requests per IP per minute. |
+
+Read-only JSON API (anonymous, approved data only, privacy-aware):
+`GET /api/categories`, `GET /api/ideas?search=&categoryId=&stage=&page=1&pageSize=20` (max 50), `GET /api/ideas/{id}`.
+Founder names appear only for Public profiles (location only if shared); emails/ages are never exposed.
 
 ### Identity Password Policy (configured in Program.cs)
 

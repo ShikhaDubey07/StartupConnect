@@ -17,7 +17,8 @@ public static class EmailTemplates
         IEnumerable<string> paragraphs,
         string? buttonText = null,
         string? buttonUrl = null,
-        string? footnote = null)
+        string? footnote = null,
+        string? manageUrl = null)
     {
         var enc = HtmlEncoder.Default;
         var paras = paragraphs.ToList();
@@ -38,7 +39,10 @@ public static class EmailTemplates
         }
         if (!string.IsNullOrEmpty(footnote))
             html.Append($"<p style=\"font-size:13px;color:#6b7280;margin:16px 0 0\">{enc.Encode(footnote)}</p>");
-        html.Append("</td></tr><tr><td style=\"padding:16px 28px;background:#f9fafb;font-size:12px;color:#9ca3af\">You received this email because of activity on your StartupConnect account.</td></tr>");
+        html.Append("</td></tr><tr><td style=\"padding:16px 28px;background:#f9fafb;font-size:12px;color:#6b7280\">You received this email because of activity on your StartupConnect account.");
+        if (!string.IsNullOrEmpty(manageUrl))
+            html.Append($" <a href=\"{enc.Encode(manageUrl)}\" style=\"color:#6b7280\">Manage email preferences or unsubscribe</a>.");
+        html.Append("</td></tr>");
         html.Append("</table></td></tr></table></body></html>");
 
         var text = new StringBuilder();
@@ -48,6 +52,8 @@ public static class EmailTemplates
             text.AppendLine($"{buttonText}: {buttonUrl}").AppendLine();
         if (!string.IsNullOrEmpty(footnote)) text.AppendLine(footnote);
         text.AppendLine().Append("— The StartupConnect team");
+        if (!string.IsNullOrEmpty(manageUrl))
+            text.AppendLine().AppendLine().Append($"Manage email preferences or unsubscribe: {manageUrl}");
 
         return new EmailMessage(to, subject, html.ToString(), text.ToString());
     }
@@ -63,6 +69,42 @@ public static class EmailTemplates
         "Confirm my email",
         confirmUrl,
         "This link expires in 24 hours. If you didn't create a StartupConnect account, you can ignore this email.");
+
+    public static EmailMessage PasswordReset(string to, string fullName, string resetUrl, int validHours) => Build(
+        to,
+        "Reset your StartupConnect password",
+        $"Hi {FirstName(fullName)},",
+        new[]
+        {
+            "We received a request to reset the password for your StartupConnect account. Click the button below to choose a new password.",
+        },
+        "Choose a new password",
+        resetUrl,
+        $"This link expires in {validHours} hour{(validHours == 1 ? "" : "s")} and can only be used once. If you didn't ask to reset your password, you can ignore this email — your password stays the same.");
+
+    public static EmailMessage PasswordChanged(string to, string fullName, string? loginUrl, string? resetUrl) => Build(
+        to,
+        "Your StartupConnect password was changed",
+        $"Hi {FirstName(fullName)},",
+        new[]
+        {
+            $"The password for your StartupConnect account was changed on {Infrastructure.AppTime.FormatIst(DateTime.UtcNow)}. Any other signed-in devices will be signed out.",
+            "If this was you, there's nothing else to do. If it wasn't, reset your password right away and contact our support team.",
+        },
+        resetUrl != null ? "Reset my password" : null,
+        resetUrl,
+        loginUrl != null ? $"Sign in: {loginUrl}" : null);
+
+    /// <summary>Email copy of an in-app notification, with a link back to the app and a preferences footer.</summary>
+    public static EmailMessage Notification(string to, string fullName, string title, string message, string? linkUrl, string? manageUrl) => Build(
+        to,
+        $"{title} — StartupConnect",
+        $"Hi {FirstName(fullName)},",
+        new[] { message },
+        linkUrl != null ? "Open StartupConnect" : null,
+        linkUrl,
+        "You can choose which emails you get from the Notifications tab in your settings.",
+        manageUrl);
 
     private static string FirstName(string fullName)
     {

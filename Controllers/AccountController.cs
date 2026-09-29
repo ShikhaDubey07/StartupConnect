@@ -4,7 +4,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using StartupConnect.Data;
+using StartupConnect.Infrastructure;
 using StartupConnect.Models;
 using StartupConnect.Services;
 using StartupConnect.Services.Email;
@@ -24,6 +26,9 @@ public class AccountController : Controller
     private readonly IProfileService _profileService;
     private readonly ApplicationDbContext _context;
     private readonly IEmailSender _emailSender;
+    private readonly IEmailQueue _emailQueue;
+    private readonly IAppUrls _urls;
+    private readonly PasswordResetTokenProviderOptions _resetOptions;
     private readonly ILogger<AccountController> _logger;
 
     public AccountController(
@@ -32,6 +37,9 @@ public class AccountController : Controller
         IProfileService profileService,
         ApplicationDbContext context,
         IEmailSender emailSender,
+        IEmailQueue emailQueue,
+        IAppUrls urls,
+        IOptions<PasswordResetTokenProviderOptions> resetOptions,
         ILogger<AccountController> logger)
     {
         _userManager = userManager;
@@ -39,6 +47,9 @@ public class AccountController : Controller
         _profileService = profileService;
         _context = context;
         _emailSender = emailSender;
+        _emailQueue = emailQueue;
+        _urls = urls;
+        _resetOptions = resetOptions.Value;
         _logger = logger;
     }
 
@@ -196,7 +207,7 @@ public class AccountController : Controller
         {
             var token = await _userManager.GenerateEmailConfirmationTokenAsync(user);
             var code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
-            var url = Url.Action(nameof(ConfirmEmail), "Account", new { userId = user.Id, code }, Request.Scheme)!;
+            var url = _urls.Absolute(Url.Action(nameof(ConfirmEmail), "Account", new { userId = user.Id, code }))!;
             await _emailSender.SendAsync(EmailTemplates.ConfirmEmail(user.Email!, user.FullName, url));
         }
         catch (Exception ex)
@@ -206,33 +217,123 @@ public class AccountController : Controller
         }
     }
 
+    // ---------------- Password reset ----------------
+
     [HttpGet]
-    public IActionResult ForgotPassword()
-    {
-        return View();
-    }
+    public IActionResult ForgotPassword() => View(new ForgotPasswordViewModel());
 
     [HttpPost, ValidateAntiForgeryToken]
+    [EnableRateLimiting(RateLimitPolicies.EmailSend)]
     public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
     {
-        if (ModelState.IsValid)
+        if (!ModelState.IsValid) return View(model);
+
+        var user = await _userManager.FindByEmailAsync(model.Email.Trim());
+        if (user != null && user.IsActive)
         {
-            var user = await _userManager.FindByEmailAsync(model.Email);
-            if (user != null)
+            try
             {
-                // In a real application, we would generate a token and send an email here.
-                return RedirectToAction("ForgotPasswordConfirmation");
+                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+                var code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+                var url = _urls.Absolute(Url.Action(nameof(ResetPassword), "Account", new { uid = user.Id, code }))!;
+                var hours = Math.Max(1, (int)Math.Round(_resetOptions.TokenLifespan.TotalHours));
+                // Queued so the response time is the same whether or not the account exists.
+                await _emailQueue.QueueAsync(EmailTemplates.PasswordReset(user.Email!, user.FullName, url, hours), "password-reset");
             }
-            
-            ModelState.AddModelError("Email", "Email address not found.");
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to queue password reset email for user {UserId}", user.Id);
+            }
         }
-        return View(model);
+
+        // Same response whether or not the email is registered (no account enumeration).
+        TempData["ResetEmail"] = model.Email.Trim();
+        return RedirectToAction(nameof(ForgotPasswordConfirmation));
     }
 
     [HttpGet]
     public IActionResult ForgotPasswordConfirmation()
     {
+        ViewBag.Email = TempData["ResetEmail"] as string;
+        ViewBag.ValidHours = Math.Max(1, (int)Math.Round(_resetOptions.TokenLifespan.TotalHours));
         return View();
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ResetPassword(string? uid, string? code)
+    {
+        var model = new ResetPasswordViewModel { UserId = uid ?? string.Empty, Code = code ?? string.Empty };
+        var user = string.IsNullOrEmpty(uid) ? null : await _userManager.FindByIdAsync(uid);
+        var token = DecodeToken(code);
+        // Check the link up front so an expired/used link is explained before the user types a new password.
+        model.LinkInvalid = user == null || token == null || !user.IsActive
+            || !await _userManager.VerifyUserTokenAsync(user, _userManager.Options.Tokens.PasswordResetTokenProvider,
+                UserManager<ApplicationUser>.ResetPasswordTokenPurpose, token);
+        if (!model.LinkInvalid) model.Email = user!.Email;
+        return View(model);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    [EnableRateLimiting(RateLimitPolicies.Login)]
+    public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+    {
+        var user = string.IsNullOrEmpty(model.UserId) ? null : await _userManager.FindByIdAsync(model.UserId);
+        var token = DecodeToken(model.Code);
+        if (user == null || token == null || !user.IsActive)
+        {
+            model.LinkInvalid = true;
+            return View(model);
+        }
+        model.Email = user.Email;
+        if (!ModelState.IsValid) return View(model);
+
+        var result = await _userManager.ResetPasswordAsync(user, token, model.Password);
+        if (!result.Succeeded)
+        {
+            if (result.Errors.Any(e => e.Code == nameof(IdentityErrorDescriber.InvalidToken)))
+            {
+                model.LinkInvalid = true;
+                return View(model);
+            }
+            foreach (var error in result.Errors) ModelState.AddModelError(nameof(model.Password), error.Description);
+            return View(model);
+        }
+
+        // The link proves the user controls the inbox: confirm it and lift any lockout from failed sign-ins.
+        if (!user.EmailConfirmed)
+        {
+            user.EmailConfirmed = true;
+            await _userManager.UpdateAsync(user);
+        }
+        await _userManager.ResetAccessFailedCountAsync(user);
+        await _userManager.SetLockoutEndDateAsync(user, null);
+        await QueuePasswordChangedEmailAsync(user);
+        _logger.LogInformation("Password reset completed for user {UserId}", user.Id);
+
+        return RedirectToAction(nameof(ResetPasswordConfirmation));
+    }
+
+    [HttpGet]
+    public IActionResult ResetPasswordConfirmation() => View();
+
+    private static string? DecodeToken(string? code)
+    {
+        if (string.IsNullOrEmpty(code)) return null;
+        try
+        {
+            return Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(code));
+        }
+        catch (FormatException)
+        {
+            return null;
+        }
+    }
+
+    private async Task QueuePasswordChangedEmailAsync(ApplicationUser user)
+    {
+        if (string.IsNullOrEmpty(user.Email)) return;
+        await _emailQueue.QueueAsync(EmailTemplates.PasswordChanged(user.Email, user.FullName,
+            _urls.Absolute(Url.Action(nameof(Login), "Account")), _urls.Absolute(Url.Action(nameof(ForgotPassword), "Account"))), "password-changed");
     }
 
     [HttpGet]

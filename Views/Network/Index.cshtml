@@ -1,0 +1,155 @@
+@model NetworkViewModel
+@using StartupConnect.Infrastructure
+@{
+    ViewData["Title"] = "My Network";
+    var returnUrl = $"/Network?tab={Model.Tab}";
+    var list = Model.Tab switch { "incoming" => Model.Incoming, "sent" => Model.Sent, _ => Model.Connections };
+}
+
+<section class="sc-page-header">
+    <div class="container d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <h1><i class="bi bi-diagram-3 me-2"></i>My Network</h1>
+            <p class="opacity-75 mb-0">People you're connected with, and requests waiting on you or them.</p>
+        </div>
+        <a asp-controller="Matches" asp-action="FindTeam" class="btn btn-accent"><i class="bi bi-person-plus me-1"></i>Find people</a>
+    </div>
+</section>
+
+<div class="container pb-5">
+    <ul class="nav nav-pills sc-tabs mb-4 flex-nowrap overflow-auto" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link text-nowrap @(Model.Tab == "connections" ? "active" : "")" asp-action="Index" asp-route-tab="connections">
+                <i class="bi bi-people me-1"></i>Connections <span class="badge rounded-pill ms-1 sc-tab-count">@Model.Connections.Count</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link text-nowrap @(Model.Tab == "incoming" ? "active" : "")" asp-action="Index" asp-route-tab="incoming">
+                <i class="bi bi-inbox me-1"></i>Incoming <span class="badge rounded-pill ms-1 sc-tab-count">@Model.Incoming.Count</span>
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link text-nowrap @(Model.Tab == "sent" ? "active" : "")" asp-action="Index" asp-route-tab="sent">
+                <i class="bi bi-send me-1"></i>Sent <span class="badge rounded-pill ms-1 sc-tab-count">@Model.Sent.Count</span>
+            </a>
+        </li>
+    </ul>
+
+    @if (!list.Any())
+    {
+        <div class="sc-empty-state">
+            @switch (Model.Tab)
+            {
+                case "incoming":
+                    <div class="sc-empty-icon"><i class="bi bi-inbox"></i></div>
+                    <h5>No pending requests</h5>
+                    <p class="text-muted mb-3">When someone asks to connect with you, you'll see their note here and can accept or decline.</p>
+                    <a asp-action="Index" asp-route-tab="connections" class="btn btn-outline-secondary"><i class="bi bi-people me-1"></i>View my connections</a>
+                    break;
+                case "sent":
+                    <div class="sc-empty-icon"><i class="bi bi-send"></i></div>
+                    <h5>No requests waiting</h5>
+                    <p class="text-muted mb-3">Requests you send stay here until the other person responds. Find co-founders, teammates or investors to reach out to.</p>
+                    <a asp-controller="Matches" asp-action="Index" class="btn btn-primary-sc"><i class="bi bi-stars me-1"></i>See my smart matches</a>
+                    break;
+                default:
+                    <div class="sc-empty-icon"><i class="bi bi-diagram-3"></i></div>
+                    <h5>Start building your network</h5>
+                    <p class="text-muted mb-3">Connect with founders, builders and investors whose work interests you. Connections can see each other's full profiles — even private ones.</p>
+                    <div class="d-flex flex-wrap justify-content-center gap-2">
+                        <a asp-controller="Matches" asp-action="Index" class="btn btn-primary-sc"><i class="bi bi-stars me-1"></i>Smart matches</a>
+                        <a asp-controller="Matches" asp-action="FindTeam" class="btn btn-outline-secondary"><i class="bi bi-search me-1"></i>Find co-founders & team</a>
+                    </div>
+                    break;
+            }
+        </div>
+    }
+    else
+    {
+        <div class="row g-3">
+            @foreach (var p in list)
+            {
+                <div class="col-md-6 col-xl-4">
+                    <article class="sc-person-card">
+                        <div class="d-flex gap-3 align-items-start mb-2">
+                            <partial name="_Avatar" model="@(new AvatarModel(p.FullName, p.PhotoUrl, 52))" />
+                            <div class="min-w-0 flex-grow-1">
+                                <div class="d-flex align-items-center gap-1">
+                                    @if (p.CanViewProfile)
+                                    {
+                                        <a asp-controller="Profile" asp-action="Detail" asp-route-id="@p.UserId" class="sc-person-name text-truncate">@p.FullName</a>
+                                    }
+                                    else
+                                    {
+                                        <span class="sc-person-name text-truncate">@p.FullName</span>
+                                    }
+                                    @if (p.IsVerified) { <partial name="_VerifiedBadge" /> }
+                                </div>
+                                <div class="small text-muted">
+                                    @(p.IsInvestor ? "Investor" : "Founder / Builder")
+                                    @if (p.Location != null) { <span>· <i class="bi bi-geo-alt"></i> @p.Location</span> }
+                                </div>
+                                <div class="small text-muted">
+                                    @(Model.Tab == "connections" ? "Connected" : Model.Tab == "sent" ? "Sent" : "Received") @AppTime.Ago(p.Date, DateTime.UtcNow)
+                                </div>
+                            </div>
+                        </div>
+
+                        @if (p.Skills.Any())
+                        {
+                            <div class="d-flex flex-wrap gap-1 mb-2">
+                                @foreach (var s in p.Skills.Take(4)) { <span class="sc-role-tag">@s</span> }
+                            </div>
+                        }
+                        @if (!string.IsNullOrEmpty(p.Message) && Model.Tab != "connections")
+                        {
+                            <div class="sc-request-note mb-3">@p.Message</div>
+                        }
+
+                        <div class="d-flex flex-wrap gap-2 mt-auto pt-2">
+                            @switch (Model.Tab)
+                            {
+                                case "incoming":
+                                    <form asp-action="Accept" method="post" class="flex-grow-1">
+                                        <input type="hidden" name="userId" value="@p.UserId" />
+                                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                        <button type="submit" class="btn btn-primary-sc rounded-pill w-100"><i class="bi bi-check-lg me-1"></i>Accept</button>
+                                    </form>
+                                    <form asp-action="Decline" method="post" class="flex-grow-1">
+                                        <input type="hidden" name="userId" value="@p.UserId" />
+                                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                        <button type="submit" class="btn btn-outline-secondary rounded-pill w-100">Decline</button>
+                                    </form>
+                                    break;
+                                case "sent":
+                                    <form asp-action="Withdraw" method="post" class="flex-grow-1">
+                                        <input type="hidden" name="userId" value="@p.UserId" />
+                                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                        <button type="submit" class="btn btn-outline-secondary rounded-pill w-100"><i class="bi bi-x-circle me-1"></i>Withdraw request</button>
+                                    </form>
+                                    break;
+                                default:
+                                    @if (p.CanViewProfile)
+                                    {
+                                        <a asp-controller="Profile" asp-action="Detail" asp-route-id="@p.UserId" class="btn btn-outline-primary rounded-pill flex-grow-1">View profile</a>
+                                    }
+                                    <form asp-action="Remove" method="post" onsubmit="return confirm('Remove this connection?');">
+                                        <input type="hidden" name="userId" value="@p.UserId" />
+                                        <input type="hidden" name="returnUrl" value="@returnUrl" />
+                                        <button type="submit" class="btn btn-outline-danger rounded-pill px-3" aria-label="Remove connection with @p.FullName"><i class="bi bi-person-dash me-1"></i>Remove</button>
+                                    </form>
+                                    break;
+                            }
+                        </div>
+                    </article>
+                </div>
+            }
+        </div>
+    }
+
+    <p class="text-muted small mt-4 mb-0">
+        <i class="bi bi-shield-lock me-1"></i>
+        Accepted connections can see your full profile even when it's set to Private. You can manage who sees what in
+        <a asp-controller="Settings" asp-action="Index" asp-route-tab="privacy">privacy settings</a>.
+    </p>
+</div>

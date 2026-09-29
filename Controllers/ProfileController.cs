@@ -19,25 +19,90 @@ public class ProfileController : Controller
 
     private readonly IModerationService _moderation;
     private readonly IActivityService _activity;
+    private readonly IPrivacyService _privacy;
+    private readonly IConnectionService _connections;
 
     public ProfileController(IProfileService profileService, UserManager<ApplicationUser> userManager, StartupConnect.Data.ApplicationDbContext context,
-        IModerationService moderation, IActivityService activity)
+        IModerationService moderation, IActivityService activity, IPrivacyService privacy, IConnectionService connections)
     {
         _profileService = profileService;
         _userManager = userManager;
         _context = context;
         _moderation = moderation;
         _activity = activity;
+        _privacy = privacy;
+        _connections = connections;
     }
 
-    public async Task<IActionResult> Detail(string id)
+    /// <summary>Viewer id used when an owner previews their profile "as a signed-in member" (matches no one).</summary>
+    private const string PreviewMemberViewerId = "preview-member";
+
+    /// <summary>
+    /// Public profile page. Visibility follows <see cref="IPrivacyService"/>; owners can preview it as a
+    /// signed-out visitor (?preview=public) or as a signed-in member who isn't connected (?preview=member).
+    /// </summary>
+    [AllowAnonymous]
+    public async Task<IActionResult> Detail(string id, string? preview = null)
     {
         if (string.IsNullOrEmpty(id)) return NotFound();
+
+        var target = await _context.Users.AsNoTracking()
+            .Where(u => u.Id == id)
+            .Select(u => new { u.Id, u.FullName, u.Email, u.IsActive, PhotoUrl = u.Profile != null ? u.Profile.ProfilePhotoUrl : null })
+            .FirstOrDefaultAsync();
+        var viewerId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        var isAdmin = User.IsInRole("Admin");
+        if (target == null || (!target.IsActive && !isAdmin)) return NotFound();
+
+        var isOwner = viewerId == id;
+        var previewMode = isOwner ? preview switch { "public" => "public", "member" => "member", _ => null } : null;
+        var access = previewMode switch
+        {
+            "public" => await _privacy.GetAccessAsync(id, null, false),
+            "member" => await _privacy.GetAccessAsync(id, PreviewMemberViewerId, false),
+            _ => await _privacy.GetAccessAsync(id, viewerId, isAdmin)
+        };
+        var connectionState = viewerId != null && previewMode == null
+            ? await _connections.GetStateAsync(viewerId, id)
+            : previewMode == "member" ? ConnectionState.None : ConnectionState.Self;
+
+        if (!access.CanView)
+        {
+            return View("Restricted", new PrivateProfileViewModel
+            {
+                UserId = id,
+                FullName = target.FullName,
+                PhotoUrl = target.PhotoUrl,
+                SignInRequired = access.Reason == ProfileDenialReason.SignInRequired,
+                ConnectionState = previewMode == "public" ? ConnectionState.Self : connectionState,
+                IsOwnerPreview = previewMode != null
+            });
+        }
 
         var profile = await _profileService.GetProfileAsync(id);
         if (profile == null) return NotFound();
 
+        // Apply the member's field-level privacy for this viewer.
+        if (!access.ShowLocation) { profile.City = null; profile.State = null; }
+        if (!access.ShowAge) profile.Age = null;
+        ViewBag.ShownEmail = access.ShowEmail ? target.Email : null;
+        ViewBag.ConnectionState = connectionState;
+        ViewBag.PreviewMode = previewMode;
+        ViewBag.ViaRelationship = access.ViaRelationship;
+        if (isOwner)
+        {
+            ViewBag.PrivacyHint = new ProfilePrivacyHint
+            {
+                Visibility = access.Privacy.Visibility,
+                ShowEmail = access.Privacy.ShowEmail,
+                ShowLocation = access.Privacy.ShowLocation,
+                ShowAge = access.Privacy.ShowAge,
+                IsPreview = previewMode != null
+            };
+        }
+
         ViewBag.ProfileUserId = id;
+        ViewBag.PhotoUrl = target.PhotoUrl;
 
         // Fetch category names for interest tags
         var categoryIds = profile.SelectedCategoryIds;

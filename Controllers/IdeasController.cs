@@ -21,6 +21,7 @@ public class IdeasController : Controller
     private readonly IAnalysisJobTracker _analysisTracker;
     private readonly IAIAnalysisService _aiService;
     private readonly IConfiguration _configuration;
+    private readonly IPrivacyService _privacy;
 
     public const int MaxCommentLength = 1000;
     public const int MaxReportReasonLength = 500;
@@ -33,8 +34,10 @@ public class IdeasController : Controller
         IIdeaAnalysisScheduler analysisScheduler,
         IAnalysisJobTracker analysisTracker,
         IAIAnalysisService aiService,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IPrivacyService privacy)
     {
+        _privacy = privacy;
         _ideaService = ideaService;
         _context = context;
         _matchingService = matchingService;
@@ -120,7 +123,17 @@ public class IdeasController : Controller
                     }).ToList()
                 })
                 .FirstOrDefaultAsync();
-            ViewBag.TeamMembers = team?.Members ?? new List<WorkspaceMemberViewModel>();
+            var members = team?.Members ?? new List<WorkspaceMemberViewModel>();
+            ViewBag.TeamMembers = members;
+
+            // Privacy: which profiles this viewer may open, whose names to hide, and the submitter's location.
+            var shownUserIds = members.Select(m => m.UserId).Append(idea.SubmitterUserId).ToList();
+            var isAdmin = User.IsInRole("Admin");
+            var privacy = await _privacy.GetPrivacyAsync(shownUserIds);
+            var viewable = await _privacy.GetViewableAsync(shownUserIds, userId, isAdmin);
+            ViewBag.ViewableProfiles = viewable;
+            ViewBag.HiddenMembers = members.Where(m => privacy[m.UserId].IsPrivate && !viewable.Contains(m.UserId)).Select(m => m.UserId).ToHashSet();
+            if (!model.IsOwner && !isAdmin && !privacy[idea.SubmitterUserId].ShowLocation) model.SubmitterCity = null;
             ViewBag.TeamStatus = team?.Status;
             // Founders can always open (or create) the workspace; members get a direct link.
             ViewBag.CanOpenWorkspace = userId != null && (idea.SubmitterUserId == userId || (team?.Members.Any(m => m.UserId == userId) ?? false));
@@ -530,7 +543,7 @@ public class IdeasController : Controller
             if (idea != null && idea.SubmitterUserId != userId)
             {
                 var user = await _context.Users.FindAsync(userId);
-                await _notifications.CreateAsync(idea.SubmitterUserId, "New Like", $"{user?.FullName ?? "Someone"} liked your idea '{idea.Title}'.", $"/Ideas/Detail/{id}");
+                await _notifications.CreateAsync(idea.SubmitterUserId, "New Like", $"{user?.FullName ?? "Someone"} liked your idea '{idea.Title}'.", $"/Ideas/Detail/{id}", category: NotificationCategory.Like);
             }
         }
         var likesCount = await _context.IdeaLikes.CountAsync(l => l.IdeaId == id);
@@ -590,7 +603,7 @@ public class IdeasController : Controller
         if (idea != null && idea.SubmitterUserId != userId)
         {
             var user = await _context.Users.FindAsync(userId);
-            await _notifications.CreateAsync(idea.SubmitterUserId, "New Comment", $"{user?.FullName ?? "Someone"} commented on your idea '{idea.Title}'.", $"/Ideas/Detail/{id}");
+            await _notifications.CreateAsync(idea.SubmitterUserId, "New Comment", $"{user?.FullName ?? "Someone"} commented on your idea '{idea.Title}'.", $"/Ideas/Detail/{id}", category: NotificationCategory.Comment);
         }
         
         return RedirectToAction("Detail", new { id = id });

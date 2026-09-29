@@ -5,6 +5,13 @@
     var ideas = (List<StartupConnect.Models.Idea>)ViewBag.IdeasToInvest;
     var coFounderRationales = ViewBag.CoFounderRationales as Dictionary<string, string> ?? new Dictionary<string, string>();
     var investorPitches = ViewBag.InvestorPitches as Dictionary<int, string> ?? new Dictionary<int, string>();
+    var states = ViewBag.ConnectionStates as Dictionary<string, ConnectionState> ?? new Dictionary<string, ConnectionState>();
+    string? Location(StartupConnect.Models.ApplicationUser u)
+    {
+        if (u.Settings != null && !u.Settings.ShowLocation) return null;
+        var loc = string.Join(", ", new[] { u.City, u.State }.Where(v => !string.IsNullOrWhiteSpace(v)));
+        return loc.Length == 0 ? null : loc;
+    }
 }
 
 <div class="container py-5 mt-4">
@@ -46,14 +53,15 @@
                     {
                         <div class="col-md-6 col-lg-4">
                             <div class="card h-100 shadow-sm border-0 sc-hover-card text-center p-4">
-                                <div class="sc-avatar bg-accent text-black rounded-circle d-flex align-items-center justify-content-center mx-auto mb-3 fs-3" style="width:80px;height:80px">
-                                    @(match.Profile.User.FullName.FirstOrDefault().ToString().ToUpper())
-                                </div>
+                                <div class="mx-auto mb-3"><partial name="_Avatar" model="@(new AvatarModel(match.Profile.User.FullName, match.Profile.ProfilePhotoUrl, 80))" /></div>
                                 <h5 class="fw-bold mb-1">@match.Profile.User.FullName</h5>
                                 <div class="text-muted small mb-2 fw-semibold">
                                     @(match.Profile.IsInvestor ? "Investor" : "Founder")
                                 </div>
-                                <p class="text-muted small mb-2"><i class="bi bi-geo-alt"></i> @match.Profile.User.City, @match.Profile.User.State</p>
+                                @if (Location(match.Profile.User) is string loc)
+                                {
+                                    <p class="text-muted small mb-2"><i class="bi bi-geo-alt"></i> @loc</p>
+                                }
                                 <div class="badge bg-success-subtle text-success mb-3 fs-6 px-3 py-2 border border-success border-opacity-25 rounded-pill shadow-sm">
                                     🔥 @match.Score% Match
                                 </div>
@@ -91,9 +99,7 @@
 
                                 <div class="d-flex gap-2 mt-auto">
                                     <a asp-controller="Profile" asp-action="Detail" asp-route-id="@match.Profile.UserId" class="btn btn-outline-primary rounded-pill flex-grow-1">View</a>
-                                    <button onclick="connectUser('@match.Profile.UserId', this)" class="btn btn-primary-sc rounded-pill flex-grow-1">
-                                        <i class="bi bi-person-plus-fill me-1"></i> Connect
-                                    </button>
+                                    <partial name="_ConnectButton" model="@(new ConnectButtonModel(match.Profile.UserId, states.GetValueOrDefault(match.Profile.UserId), match.Profile.User.FullName))" />
                                 </div>
                             </div>
                         </div>
@@ -117,9 +123,27 @@
                 {
                     <div class="col-md-6 col-lg-4">
                         <div class="card h-100 shadow-sm border-0 sc-hover-card p-4">
-                            <h5 class="fw-bold">@inv.User.FullName</h5>
-                            <p class="text-muted small mb-3">Capacity: @inv.InvestmentCapacity</p>
-                            <a asp-controller="Profile" asp-action="Detail" asp-route-id="@inv.UserId" class="btn btn-primary-sc rounded-pill mt-auto">View Investor</a>
+                            <div class="d-flex align-items-center gap-3 mb-3">
+                                <partial name="_Avatar" model="@(new AvatarModel(inv.User.FullName, inv.ProfilePhotoUrl, 52))" />
+                                <div class="min-w-0">
+                                    <h5 class="fw-bold mb-0 text-truncate">@inv.User.FullName</h5>
+                                    @if (Location(inv.User) is string invLoc)
+                                    {
+                                        <div class="text-muted small"><i class="bi bi-geo-alt"></i> @invLoc</div>
+                                    }
+                                </div>
+                            </div>
+                            <p class="text-muted small mb-2"><i class="bi bi-cash-coin me-1"></i>Ticket size: <strong class="text-dark">@StartupConnect.Services.InvestorDashboardService.CapacityLabel(inv.InvestmentCapacity)</strong></p>
+                            @if (inv.InterestTags.Any())
+                            {
+                                <div class="d-flex flex-wrap gap-1 mb-3">
+                                    @foreach (var tag in inv.InterestTags.Take(4)) { <span class="badge bg-white text-dark border">@tag.Category.Name</span> }
+                                </div>
+                            }
+                            <div class="d-flex gap-2 mt-auto">
+                                <a asp-controller="Profile" asp-action="Detail" asp-route-id="@inv.UserId" class="btn btn-outline-primary rounded-pill flex-grow-1">View</a>
+                                <partial name="_ConnectButton" model="@(new ConnectButtonModel(inv.UserId, states.GetValueOrDefault(inv.UserId), inv.User.FullName))" />
+                            </div>
                         </div>
                     </div>
                 }
@@ -150,49 +174,3 @@
         </div>
     </div>
 </div>
-
-@Html.AntiForgeryToken()
-
-@section Scripts {
-    <script>
-        function connectUser(userId, button) {
-            button.disabled = true;
-            const originalContent = button.innerHTML;
-            button.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...';
-
-            // We need AntiForgeryToken for POST
-            const tokenElement = document.querySelector('input[name="__RequestVerificationToken"]');
-            const token = tokenElement ? tokenElement.value : '';
-
-            fetch('/Matches/Connect', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'RequestVerificationToken': token
-                },
-                body: new URLSearchParams({
-                    'targetUserId': userId
-                })
-            })
-            .then(response => {
-                if(response.ok) {
-                    button.classList.remove('btn-primary-sc');
-                    button.classList.add('btn-success');
-                    button.innerHTML = '<i class="bi bi-check-circle-fill me-1"></i> Sent';
-                } else {
-                    response.text().then(text => {
-                        alert('Failed to send request: ' + text);
-                        button.disabled = false;
-                        button.innerHTML = originalContent;
-                    });
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred. Please try again.');
-                button.disabled = false;
-                button.innerHTML = originalContent;
-            });
-        }
-    </script>
-}

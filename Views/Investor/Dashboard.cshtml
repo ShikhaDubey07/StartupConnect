@@ -1,89 +1,299 @@
+@model InvestorDashboardViewModel
+@using StartupConnect.Services
+@using StartupConnect.Infrastructure
 @{
     ViewData["Title"] = "Investor Dashboard";
-    var matchedIdeas = ViewBag.MatchedIdeas as List<StartupConnect.Models.Idea>;
-    var totalFundsRequested = ViewBag.TotalFundsRequested as decimal?;
+    var f = Model.Filter;
+    string StatusClass(InterestStatus s) => s switch
+    {
+        InterestStatus.Accepted => "bg-success-subtle text-success-emphasis",
+        InterestStatus.Rejected => "bg-danger-subtle text-danger-emphasis",
+        InterestStatus.Cancelled => "bg-secondary-subtle text-secondary-emphasis",
+        _ => "bg-warning-subtle text-warning-emphasis"
+    };
+    string StatusLabel(InterestStatus s) => s switch
+    {
+        InterestStatus.Rejected => "Declined",
+        InterestStatus.Cancelled => "Withdrawn",
+        _ => s.ToString()
+    };
 }
 
-<div class="container py-5">
-    <div class="row mb-5">
-        <div class="col-12">
-            <h1 class="fw-bold mb-2">Investor Dashboard</h1>
-            <p class="text-muted">Curated startup ideas based on your investment interests and tags.</p>
+<section class="sc-page-header">
+    <div class="container d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <h1><i class="bi bi-graph-up-arrow me-2"></i>Investor Dashboard</h1>
+            <p class="opacity-75 mb-0">Deal flow ranked for your focus areas and cheque size — with the reasons behind every match.</p>
         </div>
+        @if (Model.IsInvestor)
+        {
+            <a asp-controller="Settings" asp-action="Index" asp-route-tab="profile" class="btn btn-accent"><i class="bi bi-sliders me-1"></i>Edit investor profile</a>
+        }
     </div>
+</section>
 
-    <div class="row g-4 mb-5">
-        <div class="col-md-4">
-            <div class="card sc-idea-card h-100 bg-primary text-black border-0">
-                <div class="card-body p-4 text-center">
-                    <i class="bi bi-briefcase display-4 mb-3 d-block opacity-75"></i>
-                    <h5 class="fw-bold opacity-75">Matched Opportunities</h5>
-                    <h2 class="display-4 fw-bold mb-0">@(matchedIdeas?.Count ?? 0)</h2>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card sc-idea-card h-100 bg-success text-black border-0">
-                <div class="card-body p-4 text-center">
-                    <i class="bi bi-cash-stack display-4 mb-3 d-block opacity-75"></i>
-                    <h5 class="fw-bold opacity-75">Total Capital Needed</h5>
-                    <h2 class="fw-bold mb-0">₹@(totalFundsRequested?.ToString("N0") ?? "0")</h2>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4">
-            <div class="card sc-idea-card h-100 border-0 bg-white text-black">
-                <div class="card-body p-4">
-                    <h5 class="fw-bold mb-3">Your Interest Tags</h5>
-                    <div class="d-flex flex-wrap gap-2">
-                        <!-- Normally we'd pass tags from viewbag, static for now -->
-                        <span class="badge bg-white bg-opacity-25 px-3 py-2">FinTech</span>
-                        <span class="badge bg-white bg-opacity-25 px-3 py-2">AI</span>
-                        <span class="badge bg-white bg-opacity-25 px-3 py-2">SaaS</span>
-                    </div>
-                    <a asp-controller="Profile" asp-action="Index" class="btn btn-outline-dark btn-sm mt-4 w-100">Update Interests</a>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <h3 class="fw-bold mb-4">Top Matches For You</h3>
-    @if (matchedIdeas != null && matchedIdeas.Any())
+<div class="container pb-5">
+    @if (!Model.IsInvestor)
     {
-        <div class="row g-4">
-            @foreach (var idea in matchedIdeas)
-            {
-                <div class="col-md-6 col-lg-4">
-                    <div class="card h-100 sc-idea-card border-0 shadow-sm rounded-4">
-                        <div class="card-body p-4">
-                            <span class="badge bg-primary bg-opacity-10 text-primary mb-2">@idea.Category?.Name</span>
-                            <h5 class="fw-bold mb-1">
-                                <a asp-controller="Ideas" asp-action="Detail" asp-route-id="@idea.Id" class="text-dark text-decoration-none">@idea.Title</a>
-                            </h5>
-                            <p class="text-muted small mb-3">@idea.Tagline</p>
-                            
-                            <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top">
-                                <div>
-                                    <small class="text-muted d-block">Ask</small>
-                                    <strong class="text-success">₹@idea.MinimumFundRequired.ToString("N0")</strong>
-                                </div>
-                                <div>
-                                    <small class="text-muted d-block">Engagement</small>
-                                    <strong class="text-primary"><i class="bi bi-fire text-warning"></i> @idea.EngagementScore</strong>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            }
+        <div class="sc-empty-state">
+            <div class="sc-empty-icon"><i class="bi bi-briefcase"></i></div>
+            <h5>Set up your investor profile</h5>
+            <p class="text-muted mb-3">
+                Turn on <strong>"I am looking to invest"</strong> in your profile settings, pick your ticket size and the sectors you care about,
+                and we'll rank approved startup ideas for you here.
+            </p>
+            <div class="d-flex flex-wrap justify-content-center gap-2">
+                <a asp-controller="Settings" asp-action="Index" asp-route-tab="profile" class="btn btn-primary-sc"><i class="bi bi-person-gear me-1"></i>Complete investor profile</a>
+                <a asp-controller="Ideas" asp-action="Browse" class="btn btn-outline-secondary"><i class="bi bi-compass me-1"></i>Browse ideas</a>
+            </div>
         </div>
     }
     else
     {
-        <div class="alert alert-info text-center py-5">
-            <i class="bi bi-search display-4 mb-3 d-block"></i>
-            <h5>No matches found right now.</h5>
-            <p>Try updating your interest tags in your profile to see more startups.</p>
+        @if (Model.NeedsProfileSetup)
+        {
+            <div class="alert alert-warning d-flex flex-wrap align-items-center gap-2 rounded-4 border-0 shadow-sm" role="status">
+                <i class="bi bi-lightbulb fs-5"></i>
+                <div class="flex-grow-1">
+                    <strong>Sharpen your matches.</strong>
+                    @(Model.Capacity == InvestmentCapacity.None ? "Add your investment capacity" : "")@(Model.Capacity == InvestmentCapacity.None && Model.InterestCategories.Count == 0 ? " and " : "")@(Model.InterestCategories.Count == 0 ? "pick your focus sectors" : "")
+                    so we can rank ideas by fit, not just popularity.
+                </div>
+                <a asp-controller="Settings" asp-action="Index" asp-route-tab="profile" class="btn btn-sm btn-dark rounded-pill">Complete profile</a>
+            </div>
+        }
+
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-4 small">
+            <span class="text-muted"><i class="bi bi-cash-coin me-1"></i>Ticket size:</span>
+            <span class="badge bg-white text-dark border px-3 py-2">@InvestorDashboardService.CapacityLabel(Model.Capacity)</span>
+            <span class="text-muted ms-md-3"><i class="bi bi-bullseye me-1"></i>Focus:</span>
+            @if (Model.InterestCategories.Any())
+            {
+                @foreach (var c in Model.InterestCategories)
+                {
+                    <span class="badge bg-primary bg-opacity-10 text-primary border px-3 py-2"><i class="bi @c.IconClass me-1"></i>@c.Name</span>
+                }
+            }
+            else
+            {
+                <span class="text-muted">No sectors selected</span>
+            }
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-lg-3"><div class="sc-mini-stat">Matching ideas<span>@Model.CandidateCount</span></div></div>
+            <div class="col-6 col-lg-3"><div class="sc-mini-stat">Total proposed<span>₹@Model.TotalProposed.ToString("N0")</span></div></div>
+            <div class="col-6 col-lg-3"><div class="sc-mini-stat">Accepted commitments<span>₹@Model.AcceptedTotal.ToString("N0")</span></div></div>
+            <div class="col-6 col-lg-3"><div class="sc-mini-stat">Saved ideas<span>@Model.SavedIdeas.Count</span></div></div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-8">
+                <form method="get" asp-action="Dashboard" class="card border-0 shadow-sm rounded-4 mb-4">
+                    <div class="card-body p-3 p-md-4">
+                        <div class="row g-2 align-items-end">
+                            <div class="col-sm-6 col-md-4">
+                                <label for="CategoryId" class="form-label small fw-semibold text-muted mb-1">Sector</label>
+                                <select id="CategoryId" name="CategoryId" class="form-select">
+                                    <option value="">All sectors</option>
+                                    @foreach (var c in Model.AllCategories)
+                                    {
+                                        <option value="@c.Id" selected="@(f.CategoryId == c.Id)">@c.Name</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-sm-6 col-md-4">
+                                <label for="Stage" class="form-label small fw-semibold text-muted mb-1">Stage</label>
+                                <select id="Stage" name="Stage" class="form-select">
+                                    <option value="">Any stage</option>
+                                    @foreach (var st in Enum.GetValues<IdeaProgressStage>())
+                                    {
+                                        <option value="@st" selected="@(f.Stage == st)">@st</option>
+                                    }
+                                </select>
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <label for="MinFund" class="form-label small fw-semibold text-muted mb-1">Ask from ₹</label>
+                                <input id="MinFund" name="MinFund" type="number" min="0" step="1000" class="form-control" value="@f.MinFund" placeholder="0" />
+                            </div>
+                            <div class="col-6 col-md-2">
+                                <label for="MaxFund" class="form-label small fw-semibold text-muted mb-1">to ₹</label>
+                                <input id="MaxFund" name="MaxFund" type="number" min="0" step="1000" class="form-control" value="@f.MaxFund" placeholder="Any" />
+                            </div>
+                            <div class="col-12 d-flex flex-wrap align-items-center gap-3 mt-3">
+                                <div class="form-check form-switch mb-0">
+                                    <input class="form-check-input" type="checkbox" role="switch" id="MyCategories" name="MyCategories" value="true" @(f.MyCategories ? "checked" : "") @(Model.InterestCategories.Any() ? "" : "disabled") />
+                                    <label class="form-check-label small" for="MyCategories">Only my focus sectors</label>
+                                </div>
+                                <div class="ms-auto d-flex gap-2">
+                                    @if (f.IsActive)
+                                    {
+                                        <a asp-action="Dashboard" class="btn btn-outline-secondary rounded-pill px-3">Reset</a>
+                                    }
+                                    <button type="submit" class="btn btn-primary rounded-pill px-4"><i class="bi bi-funnel me-1"></i>Apply</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+
+                <h4 class="fw-bold mb-3">Top matches for you</h4>
+                @if (!Model.Matches.Any())
+                {
+                    <div class="sc-empty-state bg-white rounded-4 shadow-sm">
+                        <div class="sc-empty-icon"><i class="bi bi-search"></i></div>
+                        @if (f.IsActive)
+                        {
+                            <h5>No ideas match these filters</h5>
+                            <p class="text-muted mb-3">Try a wider funding range, another stage or sector.</p>
+                            <a asp-action="Dashboard" class="btn btn-outline-secondary">Clear filters</a>
+                        }
+                        else
+                        {
+                            <h5>No live ideas yet</h5>
+                            <p class="text-muted mb-3">New ideas appear here as soon as our moderators approve them.</p>
+                            <a asp-controller="Ideas" asp-action="Browse" class="btn btn-outline-secondary">Browse ideas</a>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="d-flex flex-column gap-3">
+                        @foreach (var m in Model.Matches)
+                        {
+                            var pct = m.FundingAsk > 0 ? (int)Math.Min(100, Math.Round(m.Committed / m.FundingAsk * 100)) : 0;
+                            var scoreClass = m.Score >= 60 ? "" : m.Score >= 35 ? "mid" : "low";
+                            <article class="card border-0 shadow-sm rounded-4">
+                                <div class="card-body p-3 p-md-4">
+                                    <div class="d-flex gap-3">
+                                        <div class="sc-match-score @scoreClass" title="Match score out of 100">@m.Score</div>
+                                        <div class="min-w-0 flex-grow-1">
+                                            <div class="d-flex flex-wrap gap-2 align-items-center mb-1">
+                                                <span class="badge bg-primary bg-opacity-10 text-primary"><i class="bi @m.CategoryIcon me-1"></i>@m.CategoryName</span>
+                                                <span class="badge bg-light text-dark border">@m.Stage</span>
+                                                @if (m.MyInterestStatus.HasValue)
+                                                {
+                                                    <span class="badge @StatusClass(m.MyInterestStatus.Value)">You: @StatusLabel(m.MyInterestStatus.Value)</span>
+                                                }
+                                                @if (m.IsSaved) { <span class="badge bg-light text-dark border"><i class="bi bi-bookmark-fill me-1"></i>Saved</span> }
+                                            </div>
+                                            <h5 class="fw-bold mb-1">
+                                                <a asp-controller="Ideas" asp-action="Detail" asp-route-id="@m.IdeaId" class="text-dark text-decoration-none">@m.Title</a>
+                                            </h5>
+                                            <p class="text-muted small mb-2 sc-clamp-2">@m.Tagline</p>
+                                            <div class="small text-muted mb-2">
+                                                by @m.FounderName @if (m.FounderVerified) { <partial name="_VerifiedBadge" /> }
+                                                · <i class="bi bi-eye"></i> @m.Views · <i class="bi bi-heart"></i> @m.Likes · <i class="bi bi-chat"></i> @m.Comments
+                                            </div>
+                                            @if (m.Reasons.Any())
+                                            {
+                                                <ul class="list-unstyled sc-reasons mb-3">
+                                                    @foreach (var r in m.Reasons) { <li><i class="bi bi-check2-circle"></i><span>@r</span></li> }
+                                                </ul>
+                                            }
+                                            <div class="d-flex flex-wrap align-items-center gap-3">
+                                                <div class="flex-grow-1" style="min-width:180px">
+                                                    <div class="d-flex justify-content-between small mb-1">
+                                                        <span class="text-muted">Ask <strong class="text-dark">₹@m.FundingAsk.ToString("N0")</strong></span>
+                                                        <span class="text-muted">@pct% committed</span>
+                                                    </div>
+                                                    <div class="progress" style="height:6px" role="progressbar" aria-label="Committed funding" aria-valuenow="@pct" aria-valuemin="0" aria-valuemax="100">
+                                                        <div class="progress-bar bg-success" style="width:@pct%"></div>
+                                                    </div>
+                                                </div>
+                                                <a asp-controller="Ideas" asp-action="Detail" asp-route-id="@m.IdeaId" class="btn btn-sm btn-primary-sc rounded-pill px-3">
+                                                    @(m.MyInterestStatus.HasValue ? "View idea" : "View & invest")
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </article>
+                        }
+                    </div>
+                    @if (Model.CandidateCount > Model.Matches.Count)
+                    {
+                        <p class="text-muted small mt-3">Showing the top @Model.Matches.Count of @Model.CandidateCount ideas. Narrow the filters to see others.</p>
+                    }
+                }
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm rounded-4 mb-4">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold mb-0"><i class="bi bi-cash-stack me-1 text-success"></i>My investment interests</h6>
+                            <a asp-controller="Interests" asp-action="Manage" class="small">Manage</a>
+                        </div>
+                        @if (!Model.Interests.Any())
+                        {
+                            <p class="text-muted small mb-0">You haven't proposed an investment yet. Open an idea and choose <strong>Show Interest → Invest</strong> to send the founder your proposal.</p>
+                        }
+                        else
+                        {
+                            <ul class="list-unstyled mb-0">
+                                @foreach (var i in Model.Interests.Take(8))
+                                {
+                                    <li class="d-flex justify-content-between align-items-start gap-2 py-2 border-bottom">
+                                        <div class="min-w-0">
+                                            @if (i.IdeaIsLive)
+                                            {
+                                                <a asp-controller="Ideas" asp-action="Detail" asp-route-id="@i.IdeaId" class="fw-semibold text-dark text-decoration-none d-block text-truncate">@i.IdeaTitle</a>
+                                            }
+                                            else
+                                            {
+                                                <span class="fw-semibold d-block text-truncate">@i.IdeaTitle</span>
+                                            }
+                                            <span class="small text-muted">₹@((i.Amount ?? 0).ToString("N0")) · @AppTime.Ago(i.CreatedAt, DateTime.UtcNow)</span>
+                                        </div>
+                                        <span class="badge @StatusClass(i.Status) flex-shrink-0">@StatusLabel(i.Status)</span>
+                                    </li>
+                                }
+                            </ul>
+                            <div class="small text-muted mt-3">
+                                @Model.PendingInterests pending · ₹@Model.TotalProposed.ToString("N0") proposed in total
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm rounded-4 mb-4">
+                    <div class="card-body p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold mb-0"><i class="bi bi-bookmark me-1 text-primary"></i>Saved ideas</h6>
+                            <a asp-controller="Ideas" asp-action="Saved" class="small">All saved</a>
+                        </div>
+                        @if (!Model.SavedIdeas.Any())
+                        {
+                            <p class="text-muted small mb-0">Bookmark ideas you want to track — they'll show up here.</p>
+                        }
+                        else
+                        {
+                            <ul class="list-unstyled mb-0">
+                                @foreach (var s in Model.SavedIdeas)
+                                {
+                                    <li class="py-2 border-bottom">
+                                        <a asp-controller="Ideas" asp-action="Detail" asp-route-id="@s.IdeaId" class="fw-semibold text-dark text-decoration-none d-block text-truncate">@s.Title</a>
+                                        <span class="small text-muted">@s.CategoryName · Ask ₹@s.FundingAsk.ToString("N0")</span>
+                                    </li>
+                                }
+                            </ul>
+                        }
+                    </div>
+                </div>
+
+                <div class="card border-0 rounded-4 bg-transparent">
+                    <div class="card-body p-0 small text-muted">
+                        <h6 class="fw-bold text-dark"><i class="bi bi-info-circle me-1"></i>How matches are scored</h6>
+                        <ul class="ps-3 mb-0">
+                            <li><strong>40</strong> — idea is in one of your focus sectors</li>
+                            <li><strong>25</strong> — your ticket size fits what the founder still needs</li>
+                            <li><strong>20</strong> — community engagement (views, likes, comments, interest)</li>
+                            <li><strong>15</strong> — recently published</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
         </div>
     }
 </div>

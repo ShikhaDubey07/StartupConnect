@@ -18,6 +18,7 @@ public static class ActivityTypes
     public const string ChallengeSubmitted = "Submitted to Challenge";
     public const string ChallengeResult = "Challenge Result";
     public const string VerifiedFounder = "Verified Founder";
+    public const string Connected = "New Connection";
 
     public static (string Icon, string Color) Style(string actionType) => actionType switch
     {
@@ -31,6 +32,7 @@ public static class ActivityTypes
         ChallengeSubmitted => ("bi-trophy", "info"),
         ChallengeResult => ("bi-award", "warning"),
         VerifiedFounder => ("bi-patch-check-fill", "success"),
+        Connected => ("bi-person-check", "primary"),
         _ => ("bi-activity", "secondary")
     };
 }

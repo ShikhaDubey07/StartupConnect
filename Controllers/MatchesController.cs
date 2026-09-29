@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using StartupConnect.Infrastructure;
 using StartupConnect.Services;
 using System.Security.Claims;
 
@@ -12,11 +11,13 @@ public class MatchesController : Controller
 {
     private readonly IMatchingService _matchingService;
     private readonly IAIAnalysisService _aiService;
+    private readonly IConnectionService _connections;
 
-    public MatchesController(IMatchingService matchingService, IAIAnalysisService aiService)
+    public MatchesController(IMatchingService matchingService, IAIAnalysisService aiService, IConnectionService connections)
     {
         _matchingService = matchingService;
         _aiService = aiService;
+        _connections = connections;
     }
 
     public async Task<IActionResult> Index()
@@ -30,6 +31,8 @@ public class MatchesController : Controller
         ViewBag.CoFounders    = coFounders;
         ViewBag.Investors     = investors;
         ViewBag.IdeasToInvest = ideas;
+        ViewBag.ConnectionStates = await _connections.GetStatesAsync(userId,
+            coFounders.Select(m => m.Profile.UserId).Concat(investors.Select(i => i.UserId)));
 
         // --- AI: co-founder match rationales (top 5, cached per pair) ---
         var rationaleDict = new Dictionary<string, string>();
@@ -105,37 +108,8 @@ public class MatchesController : Controller
             filter.Availability, 
             30 // Increased count for directory page
         );
+        ViewBag.ConnectionStates = await _connections.GetStatesAsync(userId, filter.Matches.Select(m => m.Profile.UserId));
 
         return View(filter);
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    [RequireConfirmedEmail]
-    public async Task<IActionResult> Connect(string targetUserId)
-    {
-        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        if (currentUserId == targetUserId) return BadRequest("Cannot connect with yourself.");
-
-        var targetProfile = await HttpContext.RequestServices.GetRequiredService<StartupConnect.Data.ApplicationDbContext>()
-            .UserProfiles.Include(p => p.User)
-            .FirstOrDefaultAsync(p => p.UserId == targetUserId);
-            
-        if (targetProfile == null) return NotFound("Target user not found.");
-
-        var currentUser = await HttpContext.RequestServices.GetRequiredService<StartupConnect.Data.ApplicationDbContext>()
-            .Users.FindAsync(currentUserId);
-
-        var notificationService = HttpContext.RequestServices.GetRequiredService<StartupConnect.Services.INotificationService>();
-
-        // Send a notification to the target user
-        await notificationService.CreateAsync(
-            targetUserId, 
-            "New Connection Request", 
-            $"{currentUser?.FullName ?? "Someone"} wants to connect with you!", 
-            $"/Profile/Detail/{currentUserId}"
-        );
-
-        return Json(new { success = true, message = "Connection request sent successfully." });
     }
 }

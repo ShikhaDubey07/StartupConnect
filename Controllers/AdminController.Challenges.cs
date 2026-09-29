@@ -150,7 +150,7 @@ public partial class AdminController
         foreach (var userId in submitterIds)
         {
             await _notifications.CreateAsync(userId, "Challenge cancelled",
-                $"The challenge \"{title}\" was cancelled by the organisers. Your ideas are unaffected.", "/Challenges");
+                $"The challenge \"{title}\" was cancelled by the organisers. Your ideas are unaffected.", "/Challenges", category: NotificationCategory.Challenge);
         }
         TempData["Success"] = $"Challenge \"{title}\" deleted.";
         return RedirectToAction(nameof(Challenges));

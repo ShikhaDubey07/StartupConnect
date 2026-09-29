@@ -156,7 +156,7 @@ public sealed class ChallengeService : IChallengeService
                         : $"\"{s.Idea.Title}\" was shortlisted in {challenge.Title}.",
                     link, save: false);
             }
-            await _notifications.CreateAsync(s.Idea.SubmitterUserId, title, message, link);
+            await _notifications.CreateAsync(s.Idea.SubmitterUserId, title, message, link, category: NotificationCategory.Challenge);
         }
         await _db.SaveChangesAsync();
         return ServiceResult.Ok($"Results announced — {challenge.Submissions.Count} submitter(s) notified.");

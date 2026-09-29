@@ -235,7 +235,7 @@ public sealed class TeamService : ITeamService
         member.Role = role;
         await _db.SaveChangesAsync();
         await _notifications.CreateAsync(member.UserId, "Your team role changed",
-            $"You're now \"{role}\" on the {team.Name}.", $"/Workspace/Team/{teamId}");
+            $"You're now \"{role}\" on the {team.Name}.", $"/Workspace/Team/{teamId}", category: NotificationCategory.Team);
         await BroadcastTeamChangedAsync(teamId, "members");
         return ServiceResult.Ok("Role updated.");
     }
@@ -254,7 +254,7 @@ public sealed class TeamService : ITeamService
         await _db.SaveChangesAsync();
 
         await _notifications.CreateAsync(member.UserId, "Removed from team",
-            $"You're no longer a member of the {team.Name}.", "/Workspace");
+            $"You're no longer a member of the {team.Name}.", "/Workspace", category: NotificationCategory.Team);
         await _hub.Clients.User(member.UserId).SendAsync(TeamHub.TeamChangedEvent, new { teamId, what = "removed" });
         await BroadcastTeamChangedAsync(teamId, "members");
         return ServiceResult.Ok($"{member.User.FullName} was removed from the team.");
@@ -273,7 +273,7 @@ public sealed class TeamService : ITeamService
         await _db.SaveChangesAsync();
 
         await _notifications.CreateAsync(team.Idea.SubmitterUserId, "A member left your team",
-            $"{member.User.FullName} left the {team.Name}.", $"/Workspace/Team/{teamId}");
+            $"{member.User.FullName} left the {team.Name}.", $"/Workspace/Team/{teamId}", category: NotificationCategory.Team);
         await BroadcastTeamChangedAsync(teamId, "members");
         return ServiceResult.Ok($"You left the {team.Name}.");
     }
@@ -292,7 +292,7 @@ public sealed class TeamService : ITeamService
         foreach (var id in memberIds.Where(id => id != actingUserId))
         {
             await _notifications.CreateAsync(id, "Team status updated",
-                $"The {team.Name} is now {status}.", $"/Workspace/Team/{teamId}");
+                $"The {team.Name} is now {status}.", $"/Workspace/Team/{teamId}", category: NotificationCategory.Team);
         }
         await BroadcastTeamChangedAsync(teamId, "status");
         return ServiceResult.Ok($"Team status set to {status}.");
@@ -389,7 +389,7 @@ public sealed class TeamService : ITeamService
         {
             var who = await _db.Users.Where(u => u.Id == actingUserId).Select(u => u.FullName).FirstOrDefaultAsync() ?? "A teammate";
             await _notifications.CreateAsync(team.Idea.SubmitterUserId, "Milestone completed 🎯",
-                $"{who} completed \"{milestone.Title}\" for {team.Idea.Title}.", $"/Workspace/Team/{teamId}");
+                $"{who} completed \"{milestone.Title}\" for {team.Idea.Title}.", $"/Workspace/Team/{teamId}", category: NotificationCategory.Team);
         }
         await BroadcastTeamChangedAsync(teamId, "milestones");
         return ServiceResult.Ok(completed ? "Milestone completed — nice work!" : "Milestone reopened.");
@@ -412,7 +412,7 @@ public sealed class TeamService : ITeamService
     {
         if (string.IsNullOrEmpty(milestone.AssigneeUserId) || milestone.AssigneeUserId == actingUserId) return;
         await _notifications.CreateAsync(milestone.AssigneeUserId, "New milestone assigned",
-            $"You were assigned \"{milestone.Title}\" in the {team.Name}.", $"/Workspace/Team/{team.Id}");
+            $"You were assigned \"{milestone.Title}\" in the {team.Name}.", $"/Workspace/Team/{team.Id}", category: NotificationCategory.Team);
     }
 
     private Task UnassignMilestonesAsync(int ideaId, string userId) =>

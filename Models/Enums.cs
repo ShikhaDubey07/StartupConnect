@@ -59,3 +59,29 @@ public enum IdeaProgressStage
     Testing,
     Launch
 }
+
+/// <summary>
+/// What a notification is about. Drives which user preference applies (see NotificationPreferences)
+/// and the icon shown in the notification centre. Values are persisted — append only.
+/// </summary>
+public enum NotificationCategory
+{
+    System = 0,
+    Interest = 1,
+    Comment = 2,
+    Like = 3,
+    Connection = 4,
+    Message = 5,
+    Team = 6,
+    Challenge = 7,
+    Moderation = 8,
+    Match = 9
+}
+
+/// <summary>Allowed values of <see cref="UserSettings.ProfileVisibility"/>.</summary>
+public static class ProfileVisibilityOptions
+{
+    public const string Public = "Public";
+    public const string RegisteredUsers = "RegisteredUsers";
+    public const string Private = "Private";
+}

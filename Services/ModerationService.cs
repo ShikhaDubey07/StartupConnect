@@ -151,7 +151,7 @@ public sealed class ModerationService : IModerationService
         await _db.SaveChangesAsync();
 
         await _notifications.CreateAsync(request.UserId, "You're a Verified Founder ✅",
-            "Your founder verification was approved. The verified badge now shows on your profile and ideas.", "/Account/Profile");
+            "Your founder verification was approved. The verified badge now shows on your profile and ideas.", "/Account/Profile", category: NotificationCategory.Moderation);
         return ServiceResult.Ok($"{request.User.FullName} is now a Verified Founder.");
     }
 
@@ -174,7 +174,7 @@ public sealed class ModerationService : IModerationService
         await _db.SaveChangesAsync();
 
         await _notifications.CreateAsync(request.UserId, "Founder verification update",
-            $"Your verification request wasn't approved: {reason} You can update your details and apply again.", "/Account/Profile");
+            $"Your verification request wasn't approved: {reason} You can update your details and apply again.", "/Account/Profile", category: NotificationCategory.Moderation);
         return ServiceResult.Ok($"Request from {request.User.FullName} was rejected and they've been notified.");
     }
 
@@ -251,7 +251,7 @@ public sealed class ModerationService : IModerationService
         foreach (var reporterId in reporterIds)
         {
             await _notifications.CreateAsync(reporterId, "Update on your report",
-                $"Thanks for flagging \"{title}\". Our moderators reviewed it and resolved the issue.");
+                $"Thanks for flagging \"{title}\". Our moderators reviewed it and resolved the issue.", category: NotificationCategory.Moderation);
         }
         return ServiceResult.Ok($"Marked {count} report{(count == 1 ? "" : "s")} as resolved.");
     }
@@ -277,11 +277,11 @@ public sealed class ModerationService : IModerationService
         await CloseOpenReportsAsync(ideaId, null, ReportStatus.Resolved, $"Idea unpublished: {reason}", adminId);
 
         await _notifications.CreateAsync(idea.SubmitterUserId, "Your idea was unpublished",
-            $"\"{idea.Title}\" was hidden by our moderators: {reason} Edit it to address this and resubmit it for review.", "/Ideas/MyIdeas");
+            $"\"{idea.Title}\" was hidden by our moderators: {reason} Edit it to address this and resubmit it for review.", "/Ideas/MyIdeas", category: NotificationCategory.Moderation);
         foreach (var reporterId in reporterIds)
         {
             await _notifications.CreateAsync(reporterId, "Update on your report",
-                $"Thanks for flagging \"{idea.Title}\". Our moderators have taken it down.");
+                $"Thanks for flagging \"{idea.Title}\". Our moderators have taken it down.", category: NotificationCategory.Moderation);
         }
         return ServiceResult.Ok($"\"{idea.Title}\" was unpublished and the owner has been notified.");
     }

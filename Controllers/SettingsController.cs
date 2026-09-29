@@ -3,7 +3,9 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using StartupConnect.Data;
 using StartupConnect.Models;
+using StartupConnect.Infrastructure;
 using StartupConnect.Services;
+using StartupConnect.Services.Email;
 using StartupConnect.ViewModels;
 using System.Security.Claims;
 using Microsoft.EntityFrameworkCore;
@@ -91,7 +93,7 @@ public class SettingsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> UpdateSecurity(SettingsIndexViewModel model)
+    public async Task<IActionResult> UpdateSecurity(SettingsIndexViewModel model, [FromServices] IEmailQueue emailQueue, [FromServices] IAppUrls urls)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         
@@ -105,7 +107,12 @@ public class SettingsController : Controller
                 if (result.Succeeded)
                 {
                     await _signInManager.RefreshSignInAsync(user);
-                    TempData["Success"] = "Password changed successfully.";
+                    if (!string.IsNullOrEmpty(user.Email))
+                    {
+                        await emailQueue.QueueAsync(EmailTemplates.PasswordChanged(user.Email, user.FullName,
+                            urls.Absolute(Url.Action("Login", "Account")), urls.Absolute(Url.Action("ForgotPassword", "Account"))), "password-changed");
+                    }
+                    TempData["Success"] = "Password changed successfully. Other signed-in devices will be signed out shortly.";
                     return RedirectToAction(nameof(Index), new { tab = "security" });
                 }
                 foreach (var error in result.Errors)
