@@ -38,15 +38,7 @@ builder.Services.AddHttpClient<IAIAnalysisService, AIAnalysisService>();
 
 builder.Services.AddControllersWithViews();
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("ReactPolicy", policy =>
-    {
-        policy.WithOrigins("http://localhost:5173")
-              .AllowAnyHeader()
-              .AllowAnyMethod();
-    });
-});
+
 builder.Services.AddSignalR();
 
 var app = builder.Build();
@@ -60,8 +52,6 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
-app.UseCors("ReactPolicy");
-
 app.Use(async (context, next) =>
 {
     context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
