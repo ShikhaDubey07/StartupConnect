@@ -203,14 +203,33 @@ public class SettingsController : Controller
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         var user = await _userManager.FindByIdAsync(userId);
-        
+
         if (user != null)
         {
+            // Must manually delete records with RESTRICT cascade before deleting the user
+            // Otherwise SQL Server throws FK constraint violation
+
+            // 1. Delete all interests submitted BY this user (Interests.UserId → User CASCADE is fine,
+            //    but Interests.IdeaId → Idea → User has RESTRICT, so we handle it explicitly)
+            var userInterests = _context.Interests.Where(i => i.UserId == userId);
+            _context.Interests.RemoveRange(userInterests);
+
+            // 2. Delete interests on user's ideas (incoming interests pointing to their ideas)
+            var ideaIds = _context.Ideas.Where(i => i.SubmitterUserId == userId).Select(i => i.Id);
+            var incomingInterests = _context.Interests.Where(i => ideaIds.Contains(i.IdeaId));
+            _context.Interests.RemoveRange(incomingInterests);
+
+            // 3. Delete IdeaReports by this user (RESTRICT cascade)
+            var userReports = _context.IdeaReports.Where(r => r.UserId == userId);
+            _context.IdeaReports.RemoveRange(userReports);
+
+            await _context.SaveChangesAsync();
+
             await _signInManager.SignOutAsync();
             await _userManager.DeleteAsync(user);
             return RedirectToAction("Index", "Home");
         }
-        
+
         return RedirectToAction(nameof(Index));
     }
 }
