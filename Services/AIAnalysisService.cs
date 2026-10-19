@@ -85,7 +85,7 @@ public class AIAnalysisService : IAIAnalysisService
         Idea idea,
         string apiKey)
     {
-        const string model = "gemini-3.6-flash";
+        const string model = "gemini-1.5-flash";
 
         var url =
             $"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent";
@@ -402,7 +402,7 @@ public class AIAnalysisService : IAIAnalysisService
     /// </summary>
     private async Task<string> CallGeminiLiteAsync(string prompt, int maxOutputTokens)
     {
-        const string model = "gemini-3.6-flash";
+        const string model = "gemini-1.5-flash";
         var apiKey = _configuration["GoogleGemini:ApiKey"]
             ?? throw new InvalidOperationException("Gemini API key missing.");
 
