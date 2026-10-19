@@ -389,6 +389,7 @@ public interface INotificationService
     Task<List<Notification>> GetUnreadAsync(string userId);
     Task<List<Notification>> GetAllAsync(string userId);
     Task MarkAsReadAsync(int id, string userId);
+    Task MarkAllAsReadAsync(string userId);  // Bulk mark-all — avoids N+1 DB calls
     Task<int> GetUnreadCountAsync(string userId);
 }
 
@@ -447,6 +448,14 @@ public class NotificationService : INotificationService
     {
         var n = await _context.Notifications.FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId);
         if (n != null) { n.IsRead = true; await _context.SaveChangesAsync(); }
+    }
+
+    public async Task MarkAllAsReadAsync(string userId)
+    {
+        // Single bulk UPDATE — no N+1 problem
+        await _context.Notifications
+            .Where(n => n.UserId == userId && !n.IsRead)
+            .ExecuteUpdateAsync(s => s.SetProperty(n => n.IsRead, true));
     }
 
     public async Task<int> GetUnreadCountAsync(string userId)

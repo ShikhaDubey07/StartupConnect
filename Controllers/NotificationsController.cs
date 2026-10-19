@@ -32,6 +32,7 @@ public class NotificationsController : Controller
     }
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> MarkRead(int id)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
@@ -40,14 +41,14 @@ public class NotificationsController : Controller
     }
 
     [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> MarkAllAsRead()
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var unread = await _notificationService.GetUnreadAsync(userId);
-        foreach (var n in unread)
-        {
-            await _notificationService.MarkAsReadAsync(n.Id, userId);
-        }
+
+        // Single bulk UPDATE instead of N separate DB calls
+        await _notificationService.MarkAllAsReadAsync(userId);
+
         return RedirectToAction("Index");
     }
 }
