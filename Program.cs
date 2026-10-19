@@ -36,6 +36,11 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IVideoService, VideoService>();
 builder.Services.AddHttpClient<IAIAnalysisService, AIAnalysisService>();
 
+// Email service — configure SMTP settings from appsettings.json
+builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
+builder.Services.AddScoped<IEmailSender, SmtpEmailSender>();
+
+
 builder.Services.AddControllersWithViews();
 
 
@@ -52,6 +57,10 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
+
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.Use(async (context, next) =>
 {
     context.Response.Headers.Append("Cache-Control", "no-cache, no-store, must-revalidate");
@@ -60,19 +69,17 @@ app.Use(async (context, next) =>
     await next();
 });
 
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Home}/{action=Index}/{id?}");
-app.MapHub<NotificationHub>("/hubs/notifications");
-
-// MUST be before app.Run() — app.Run() blocks forever
+// Seed database BEFORE starting the server
 using (var scope = app.Services.CreateScope())
 {
     await DbInitializer.InitializeAsync(scope.ServiceProvider);
 }
 
+// Register all route mappings BEFORE app.Run()
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
+app.MapHub<NotificationHub>("/hubs/notifications");
 app.MapControllers();
+
 app.Run();

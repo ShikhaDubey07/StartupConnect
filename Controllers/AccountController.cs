@@ -19,18 +19,23 @@ public class AccountController : Controller
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly IProfileService _profileService;
     private readonly ApplicationDbContext _context;
+    private readonly IEmailSender _emailSender;
 
     public AccountController(
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
         IProfileService profileService,
-        ApplicationDbContext context)
+          
+        ApplicationDbContext context,
+        IEmailSender emailSender)
     {
         _userManager = userManager;
         _signInManager = signInManager;
         _profileService = profileService;
         _context = context;
+        _emailSender = emailSender;
     }
+
 
     [HttpGet]
     public async Task<IActionResult> Register()
@@ -102,22 +107,98 @@ public class AccountController : Controller
     [HttpPost, ValidateAntiForgeryToken]
     public async Task<IActionResult> ForgotPassword(ForgotPasswordViewModel model)
     {
-        if (ModelState.IsValid)
+        if (!ModelState.IsValid) return View(model);
+
+        var user = await _userManager.FindByEmailAsync(model.Email);
+
+        // Security: don't reveal whether email exists — always redirect to confirmation
+        if (user != null)
         {
-            var user = await _userManager.FindByEmailAsync(model.Email);
-            if (user != null)
+            // Generate a secure, time-limited password reset token
+            var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+
+            // Build the reset link with token and email embedded
+            var resetLink = Url.Action(
+                action: "ResetPassword",
+                controller: "Account",
+                values: new { token, email = user.Email },
+                protocol: Request.Scheme);
+
+            // Build HTML email body
+            var emailBody = $@"
+                <h2>Password Reset — StartupConnect</h2>
+                <p>Hello {user.FullName},</p>
+                <p>We received a request to reset your password. Click the button below to create a new password:</p>
+                <p>
+                    <a href='{resetLink}' 
+                       style='background:#4F46E5;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;display:inline-block;'>
+                        Reset My Password
+                    </a>
+                </p>
+                <p>If you did not request a password reset, you can safely ignore this email. The link will expire in 24 hours.</p>
+                <hr/>
+                <small>StartupConnect — Connecting Founders, Co-Founders & Investors</small>";
+
+            try
             {
-                // In a real application, we would generate a token and send an email here.
-                return RedirectToAction("ForgotPasswordConfirmation");
+                await _emailSender.SendEmailAsync(user.Email!, "Reset Your Password — StartupConnect", emailBody);
             }
-            
-            ModelState.AddModelError("Email", "Email address not found.");
+            catch
+            {
+                // Log is handled inside SmtpEmailSender; show generic error to user
+                ModelState.AddModelError("", "Could not send reset email. Please try again later.");
+                return View(model);
+            }
         }
-        return View(model);
+
+        // Always redirect to confirmation — don't leak whether email exists
+        return RedirectToAction("ForgotPasswordConfirmation");
     }
 
     [HttpGet]
     public IActionResult ForgotPasswordConfirmation()
+    {
+        return View();
+    }
+
+    [HttpGet]
+    public IActionResult ResetPassword(string? token, string? email)
+    {
+        if (token == null || email == null)
+        {
+            TempData["Error"] = "Invalid password reset link.";
+            return RedirectToAction("Login");
+        }
+        var model = new ResetPasswordViewModel { Token = token, Email = email };
+        return View(model);
+    }
+
+    [HttpPost, ValidateAntiForgeryToken]
+    public async Task<IActionResult> ResetPassword(ResetPasswordViewModel model)
+    {
+        if (!ModelState.IsValid) return View(model);
+
+        var user = await _userManager.FindByEmailAsync(model.Email);
+        if (user == null)
+        {
+            // Don't reveal user doesn't exist — redirect to success page
+            return RedirectToAction("ResetPasswordConfirmation");
+        }
+
+        var result = await _userManager.ResetPasswordAsync(user, model.Token, model.NewPassword);
+        if (result.Succeeded)
+        {
+            return RedirectToAction("ResetPasswordConfirmation");
+        }
+
+        foreach (var error in result.Errors)
+            ModelState.AddModelError("", error.Description);
+
+        return View(model);
+    }
+
+    [HttpGet]
+    public IActionResult ResetPasswordConfirmation()
     {
         return View();
     }
