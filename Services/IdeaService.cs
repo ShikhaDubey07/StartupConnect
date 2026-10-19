@@ -58,6 +58,8 @@ public class IdeaService : IIdeaService
 
     public async Task<IdeaDetailViewModel?> GetIdeaDetailAsync(int id, string? currentUserId)
     {
+        // Load the idea — owner can see it in any status (Draft, Rejected, etc.)
+        // Everyone else only sees Approved ideas
         var idea = await _context.Ideas
             .Include(i => i.Category)
             .Include(i => i.Submitter)
@@ -70,7 +72,9 @@ public class IdeaService : IIdeaService
             .Include(i => i.History)
                 .ThenInclude(h => h.Category)
             .Include(i => i.Analysis)
-            .FirstOrDefaultAsync(i => i.Id == id && i.Status == IdeaStatus.Approved);
+            .FirstOrDefaultAsync(i =>
+                i.Id == id &&
+                (i.Status == IdeaStatus.Approved || i.SubmitterUserId == currentUserId));
 
         if (idea == null) return null;
 

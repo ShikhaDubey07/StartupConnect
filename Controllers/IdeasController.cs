@@ -762,7 +762,8 @@ public class IdeasController : Controller
                 MinimumFundRequired = i.MinimumFundRequired,
                 ExpectedTeamSize = i.ExpectedTeamSize,
                 InterestCount = i.Interests.Count,
-                LikesCount = i.Likes.Count
+                LikesCount = i.Likes.Count,
+                EngagementScore = (i.Views.Count * 1) + (i.Likes.Count * 5) + (i.Comments.Count * 10)
             })
             .ToListAsync();
             
