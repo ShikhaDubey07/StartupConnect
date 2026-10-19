@@ -1,0 +1,105 @@
+@model AdminAnalyticsViewModel
+@{
+    ViewData["Title"] = "Admin Analytics";
+    Layout = "_Layout";
+}
+
+<div class="sc-admin-dashboard pt-4 pb-5">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="h3 fw-bold text-dark mb-1"><i class="bi bi-graph-up-arrow text-primary me-2"></i>Platform Analytics</h1>
+                <p class="text-muted mb-0">Overview of overall platform engagement and health</p>
+            </div>
+            <a asp-action="Dashboard" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-2"></i>Back to Dashboard</a>
+        </div>
+
+        <!-- High-level stats -->
+        <div class="row g-4 mb-5">
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm rounded-4 text-center p-4">
+                    <i class="bi bi-people display-4 text-primary mb-2"></i>
+                    <h3 class="fw-bold mb-0">@Model.TotalUsers</h3>
+                    <p class="text-muted mb-0 small text-uppercase">Total Users</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm rounded-4 text-center p-4">
+                    <i class="bi bi-lightbulb display-4 text-warning mb-2"></i>
+                    <h3 class="fw-bold mb-0">@Model.TotalIdeas</h3>
+                    <p class="text-muted mb-0 small text-uppercase">Total Ideas</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm rounded-4 text-center p-4">
+                    <i class="bi bi-hand-index-thumb display-4 text-info mb-2"></i>
+                    <h3 class="fw-bold mb-0">@Model.TotalInterests</h3>
+                    <p class="text-muted mb-0 small text-uppercase">Total Interests</p>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card border-0 shadow-sm rounded-4 text-center p-4">
+                    <i class="bi bi-check-circle display-4 text-success mb-2"></i>
+                    <h3 class="fw-bold mb-0">@Model.TotalMatches</h3>
+                    <p class="text-muted mb-0 small text-uppercase">Successful Matches</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
+                    <h5 class="fw-bold mb-4">Idea Pipeline Status</h5>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                            <span><i class="bi bi-pencil me-2 text-secondary"></i> Draft</span>
+                            <span class="badge bg-secondary rounded-pill">@Model.DraftIdeas</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                            <span><i class="bi bi-send me-2 text-primary"></i> Submitted</span>
+                            <span class="badge bg-primary rounded-pill">@Model.SubmittedIdeas</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                            <span><i class="bi bi-search me-2 text-warning"></i> Under Review</span>
+                            <span class="badge bg-warning text-dark rounded-pill">@Model.UnderReviewIdeas</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                            <span><i class="bi bi-check-circle me-2 text-success"></i> Approved</span>
+                            <span class="badge bg-success rounded-pill">@Model.ApprovedIdeas</span>
+                        </li>
+                        <li class="list-group-item d-flex justify-content-between align-items-center border-0 px-0">
+                            <span><i class="bi bi-x-circle me-2 text-danger"></i> Rejected</span>
+                            <span class="badge bg-danger rounded-pill">@Model.RejectedIdeas</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm rounded-4 p-4 h-100">
+                    <h5 class="fw-bold mb-4">Idea Submissions (Last 7 Days)</h5>
+                    <div style="height: 250px;" class="d-flex align-items-end gap-2 px-2">
+                        @if (Model.ActivityData.Any() && Model.ActivityData.Max() > 0)
+                        {
+                            var max = Model.ActivityData.Max();
+                            for(int i=0; i < Model.ActivityData.Count; i++)
+                            {
+                                var h = (Model.ActivityData[i] / (float)max) * 100;
+                                <div class="d-flex flex-column align-items-center flex-grow-1" style="height: 100%;">
+                                    <div class="w-100 bg-primary rounded-top mt-auto" style="height: @(h)%; opacity: 0.8; min-height: 4px;" title="@Model.ActivityData[i] ideas"></div>
+                                    <small class="text-muted mt-2" style="font-size:0.75rem">@Model.Labels[i]</small>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="w-100 h-100 d-flex align-items-center justify-content-center text-muted">
+                                No activity in the last 7 days
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -175,4 +175,36 @@ public class AdminController : Controller
             .ToListAsync();
         return View(reports);
     }
+    [HttpGet]
+    public async Task<IActionResult> Analytics()
+    {
+        var model = new AdminAnalyticsViewModel
+        {
+            TotalUsers = await _context.Users.CountAsync(),
+            TotalIdeas = await _context.Ideas.CountAsync(),
+            TotalInterests = await _context.Interests.CountAsync(),
+            TotalMatches = await _context.Interests.CountAsync(i => i.Status == InterestStatus.Accepted),
+            
+            DraftIdeas = await _context.Ideas.CountAsync(i => i.Status == IdeaStatus.Draft),
+            SubmittedIdeas = await _context.Ideas.CountAsync(i => i.Status == IdeaStatus.Submitted),
+            UnderReviewIdeas = await _context.Ideas.CountAsync(i => i.Status == IdeaStatus.UnderReview),
+            ApprovedIdeas = await _context.Ideas.CountAsync(i => i.Status == IdeaStatus.Approved),
+            RejectedIdeas = await _context.Ideas.CountAsync(i => i.Status == IdeaStatus.Rejected)
+        };
+
+        // Populate last 7 days of activity
+        var startDate = DateTime.UtcNow.Date.AddDays(-6);
+        var endDate = DateTime.UtcNow.Date;
+
+        for (var date = startDate; date <= endDate; date = date.AddDays(1))
+        {
+            model.Labels.Add(date.ToString("MMM dd"));
+            
+            // Example activity metric: number of new ideas created that day
+            var activityCount = await _context.Ideas.CountAsync(i => i.CreatedAt.Date == date);
+            model.ActivityData.Add(activityCount);
+        }
+
+        return View(model);
+    }
 }
