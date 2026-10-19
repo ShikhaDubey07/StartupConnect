@@ -11,110 +11,135 @@
     <title>@ViewData["Title"] - StartupConnect</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <style>
+        :root {
+            --sc-bg: #F5F2EC;
+            --sc-card-bg: #FFFCF8;
+            --sc-text-main: #29232F;
+            --sc-text-muted: #716B76;
+            --sc-border-beige: #E2DDD5;
+            --sc-purple: #603B78;
+            --sc-purple-hover: #4D2D63;
+        }
+
         body {
-            font-family: 'Inter', sans-serif;
-            background-color: #000;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--sc-bg);
+            color: var(--sc-text-main);
+            min-height: 100vh;
         }
+
+        h1, h2, h3, h4, h5, h6 {
+            font-family: 'Outfit', 'Inter', sans-serif;
+            color: var(--sc-text-main);
+        }
+
+        .sc-form-card {
+            background-color: var(--sc-card-bg);
+            border-radius: 16px;
+            border: 1px solid var(--sc-border-beige);
+            box-shadow: 0 4px 24px rgba(41, 35, 47, 0.05), 0 1px 3px rgba(41, 35, 47, 0.02);
+            padding: 2.5rem;
+        }
+
+        @@media (max-width: 576px) {
+            .sc-form-card {
+                padding: 2rem 1.25rem;
+            }
+        }
+
+        .form-label {
+            color: var(--sc-text-muted) !important;
+            font-weight: 600;
+            font-size: 0.72rem;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            margin-bottom: 0.4rem;
+        }
+
+        .form-control {
+            background-color: #FFFFFF !important;
+            border: 1.5px solid var(--sc-border-beige) !important;
+            border-radius: 10px !important;
+            padding: 0.65rem 1rem !important;
+            color: var(--sc-text-main) !important;
+            font-size: 0.95rem;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .form-control::placeholder {
+            color: #A39D98;
+        }
+
         .form-control:focus {
-            box-shadow: none;
-            border-color: #000 !important;
+            background-color: #FFFFFF !important;
+            border-color: var(--sc-purple) !important;
+            box-shadow: 0 0 0 3px rgba(96, 59, 120, 0.15) !important;
+            color: var(--sc-text-main) !important;
         }
-        .border-bottom-only {
-            border: 0;
-            border-bottom: 1px solid #ccc !important;
-            border-radius: 0;
-            padding-left: 0;
-            padding-right: 0;
-            padding-bottom: 8px;
-        }
-        .border-bottom-only:focus {
-            border-bottom: 1px solid #000 !important;
-        }
+
         .login-btn {
-            background-color: #f1f1f1;
-            color: #a0a0a0;
-            border: none;
+            background-color: var(--sc-purple) !important;
+            color: #FFFFFF !important;
+            border: none !important;
+            border-radius: 10px;
             font-weight: 600;
             padding: 12px;
             letter-spacing: 0.5px;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 14px rgba(96, 59, 120, 0.25);
         }
+
+        .login-btn:hover {
+            background-color: var(--sc-purple-hover) !important;
+            color: #FFFFFF !important;
+            box-shadow: 0 6px 20px rgba(96, 59, 120, 0.35);
+            transform: translateY(-1px);
+        }
+
+        .login-btn:active {
+            transform: translateY(0);
+        }
+
         .login-btn.active {
-            background-color: #000;
-            color: #000;
+            background-color: var(--sc-purple) !important;
+            color: #FFFFFF !important;
         }
-        .login-btn.active:hover {
-            background-color: #333;
+
+        .brand-icon-box {
+            width: 52px;
+            height: 52px;
+            border-radius: 14px;
+            background: rgba(96, 59, 120, 0.1);
+            color: var(--sc-purple);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
         }
-        .social-btn {
-            border: 1px solid #000;
-            border-radius: 0;
-            background: #000;
-            color: #000;
-            font-weight: 500;
-            padding: 12px;
-            position: relative;
-            transition: background 0.2s;
-        }
-        .social-btn:hover {
-            background: #f8f8f8;
-        }
-        .social-icon {
-            position: absolute;
-            left: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 1.2rem;
-        }
-        .divider {
-            position: relative;
-            text-align: center;
-        }
-        .divider::before {
-            content: "";
-            position: absolute;
-            top: 50%;
-            left: 0;
-            right: 0;
-            border-top: 1px solid #e0e0e0;
-            z-index: 1;
-        }
-        .divider span {
-            background-color: #000;
-            padding: 0 10px;
-            color: #888;
-            font-size: 0.75rem;
-            position: relative;
-            z-index: 2;
-        }
-        @@media (min-width: 768px) {
-            .divider::before {
-                top: 0;
-                bottom: 0;
-                left: 50%;
-                border-top: none;
-                border-left: 1px solid #e0e0e0;
-                right: auto;
-            }
-            .divider span {
-                padding: 10px 0;
-                display: inline-block;
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-            }
-        }
+
         .back-link {
-            transition: opacity 0.2s;
-            opacity: 0.6;
+            color: var(--sc-text-main) !important;
+            transition: all 0.2s ease;
+            opacity: 0.75;
         }
+
         .back-link:hover {
+            color: var(--sc-purple) !important;
             opacity: 1;
+        }
+
+        .auth-link {
+            color: var(--sc-text-main);
+            text-decoration: none;
+            transition: color 0.2s ease;
+        }
+
+        .auth-link:hover {
+            color: var(--sc-purple);
         }
     </style>
 </head>
@@ -122,60 +147,56 @@
 
     <!-- Back Button -->
     <div class="position-absolute top-0 start-0 p-4 z-3">
-        <a asp-controller="Home" asp-action="Index" class="text-dark text-decoration-none fw-semibold d-inline-flex align-items-center back-link">
+        <a asp-controller="Home" asp-action="Index" class="back-link text-decoration-none fw-semibold d-inline-flex align-items-center">
             <i class="bi bi-arrow-left fs-5 me-2"></i> Back
         </a>
     </div>
 
-    <div class="flex-grow-1 d-flex flex-column align-items-center justify-content-center px-4 py-5" data-aos="zoom-in" data-aos-duration="600">
-        
-        <div class="mb-3">
-            <i class="bi bi-layers-fill fs-2" style="display: inline-block;"></i>
-        </div>
+    <div class="flex-grow-1 d-flex flex-column align-items-center justify-content-center px-3 py-5">
+        <div class="sc-form-card w-100" style="max-width: 460px;">
+            <div class="text-center mb-4">
+                <div class="brand-icon-box mb-3">
+                    <i class="bi bi-layers-fill"></i>
+                </div>
+                <h2 class="fw-bold mb-1" style="font-size: 1.65rem;">Log into StartupConnect</h2>
+                <p class="text-muted small mb-0">Welcome back! Please enter your details.</p>
+            </div>
 
-        <h2 class="fw-bold mb-5 pb-3">Log into StartupConnect</h2>
+            <form asp-action="Login" method="post" id="loginForm">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+                
+                <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
 
-        <div class="row w-100 justify-content-center" style="max-width: 500px;">
-            <div class="col-12 mb-5 mb-md-0">
-                <form asp-action="Login" method="post" id="loginForm">
-                    @Html.AntiForgeryToken()
-                    <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
-                    
-                    <div asp-validation-summary="ModelOnly" class="text-danger small mb-3"></div>
+                <div class="mb-3">
+                    <label asp-for="Email" class="form-label">Email Address</label>
+                    <input asp-for="Email" class="form-control" placeholder="name@example.com" value="" autocomplete="off" />
+                    <span asp-validation-for="Email" class="text-danger small"></span>
+                </div>
 
-                    <div class="mb-4">
-                        <label asp-for="Email" class="form-label text-muted fw-semibold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">Email Address</label>
-                        <input asp-for="Email" class="form-control border-bottom-only" placeholder="name@example.com" value="" autocomplete="off" />
-                        <span asp-validation-for="Email" class="text-danger small"></span>
+                <div class="mb-4">
+                    <label asp-for="Password" class="form-label">Password</label>
+                    <div class="position-relative">
+                        <input asp-for="Password" class="form-control pe-5" placeholder="Password" />
+                        <i class="bi bi-eye position-absolute text-muted" id="togglePassword" style="right: 14px; top: 50%; transform: translateY(-50%); cursor: pointer; font-size: 1.1rem;"></i>
                     </div>
+                    <span asp-validation-for="Password" class="text-danger small"></span>
+                </div>
 
-                    <div class="mb-4 position-relative">
-                        <label asp-for="Password" class="form-label text-muted fw-semibold text-uppercase" style="font-size: 0.7rem; letter-spacing: 0.5px;">Password</label>
-                        <input asp-for="Password" class="form-control border-bottom-only pe-4" placeholder="Password" />
-                        <i class="bi bi-eye position-absolute cursor-pointer text-muted" id="togglePassword" style="right: 0; bottom: 8px; cursor: pointer;"></i>
-                        <span asp-validation-for="Password" class="text-danger small"></span>
-                    </div>
+                <div class="d-none">
+                    <input asp-for="RememberMe" class="form-check-input" checked />
+                </div>
 
-                    <div class="d-none">
-                        <input asp-for="RememberMe" class="form-check-input" checked />
-                    </div>
+                <button type="submit" class="btn login-btn w-100 mt-2" id="loginBtn">
+                    LOG IN
+                </button>
+            </form>
 
-                    <button type="submit" class="btn login-btn w-100 mt-2" id="loginBtn">
-                        LOG IN
-                    </button>
-                </form>
+            <div class="mt-4 pt-3 border-top text-center d-flex flex-column gap-2" style="border-color: var(--sc-border-beige) !important;">
+                <a asp-action="ForgotPassword" class="auth-link fw-bold" style="font-size: 0.8rem;">CAN'T LOG IN?</a>
+                <a asp-action="Register" class="auth-link fw-bold" style="font-size: 0.8rem;">NEW USER? REGISTER HERE</a>
             </div>
         </div>
-        
-        <div class="mt-4 pt-4 text-center d-flex flex-column gap-3">
-            <a asp-action="ForgotPassword" class="text-dark text-decoration-none fw-bold" style="font-size: 0.8rem;">CAN'T LOG IN?</a>
-            <a asp-action="Register" class="text-dark text-decoration-none fw-bold" style="font-size: 0.8rem;">NEW USER? REGISTER HERE</a>
-        </div>
-        
-        <!-- <div class="text-center small text-muted mt-5 pt-4">
-            <strong>Demo Admin:</strong> admin@startupconnect.in / Admin@123<br>
-            <strong>Demo User:</strong> rahul@demo.in / Demo@123
-        </div> -->
     </div>
 
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
