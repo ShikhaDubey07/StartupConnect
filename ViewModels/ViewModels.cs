@@ -50,6 +50,25 @@ public class ForgotPasswordViewModel
     public string Email { get; set; } = string.Empty;
 }
 
+public class ResetPasswordViewModel
+{
+    [Required]
+    public string Token { get; set; } = string.Empty;
+
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+
+    [Required, DataType(DataType.Password)]
+    [StringLength(100, MinimumLength = 6, ErrorMessage = "Password must be at least 6 characters.")]
+    [Display(Name = "New Password")]
+    public string NewPassword { get; set; } = string.Empty;
+
+    [Required, DataType(DataType.Password)]
+    [Compare("NewPassword", ErrorMessage = "Passwords do not match.")]
+    [Display(Name = "Confirm Password")]
+    public string ConfirmPassword { get; set; } = string.Empty;
+}
+
 public class LoginViewModel
 {
     [Required, EmailAddress]
@@ -175,8 +194,26 @@ public class IdeaCardViewModel
     public DateTime? PublishedAt { get; set; }
     /// <summary>AI OverallScore (0–100) from IdeaAnalysis. Null if not yet analyzed.</summary>
     public int? AiScore { get; set; }
+    public double EngagementScore { get; set; }
 }
 
+public class AdminAnalyticsViewModel
+{
+    public int TotalUsers { get; set; }
+    public int TotalIdeas { get; set; }
+    public int TotalInterests { get; set; }
+    public int TotalMatches { get; set; }
+    
+    // Idea progress distribution
+    public int DraftIdeas { get; set; }
+    public int SubmittedIdeas { get; set; }
+    public int UnderReviewIdeas { get; set; }
+    public int ApprovedIdeas { get; set; }
+    public int RejectedIdeas { get; set; }
+
+    public List<string> Labels { get; set; } = new();
+    public List<int> ActivityData { get; set; } = new();
+}
 
 public class IdeaDetailViewModel
 {
