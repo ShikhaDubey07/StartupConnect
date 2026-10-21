@@ -113,7 +113,7 @@ public class IdeaService : IIdeaService
             IsOwner = currentUserId == idea.SubmitterUserId,
             IsLikedByCurrentUser = currentUserId != null && idea.Likes.Any(l => l.UserId == currentUserId),
             IsSavedByCurrentUser = currentUserId != null && idea.SavedByUsers.Any(s => s.UserId == currentUserId),
-            LikesCount = idea.Likes.Count,
+            LikesCount = idea.Likes.Select(l => l.UserId).Distinct().Count(),
             PublishedAt = idea.PublishedAt,
             Comments = idea.Comments.OrderByDescending(c => c.CreatedAt).Select(c => new IdeaCommentViewModel
             {
@@ -368,7 +368,7 @@ public class IdeaService : IIdeaService
         MinimumFundRequired = i.MinimumFundRequired,
         ExpectedTeamSize = i.ExpectedTeamSize,
         InterestCount = i.Interests.Count,
-        LikesCount = i.Likes?.Count ?? 0,
+        LikesCount = i.Likes != null ? i.Likes.Select(l => l.UserId).Distinct().Count() : 0,
         IsSavedByCurrentUser = currentUserId != null && (i.SavedByUsers?.Any(s => s.UserId == currentUserId) ?? false),
         RolesNeeded = i.RolesNeeded.Select(r => r.RoleName).ToList(),
         PublishedAt = i.PublishedAt,

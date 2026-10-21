@@ -2610,3 +2610,25 @@ a {
     background: var(--sc-accent);
     color: #071426;
 }
+
+/* Social Media Like Button Heart Pop Animation */
+@keyframes heartPop {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.38); }
+    70% { transform: scale(0.9); }
+    100% { transform: scale(1); }
+}
+
+.animate-like {
+    animation: heartPop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    display: inline-block;
+}
+
+.toggle-like-btn {
+    transition: all 0.2s ease-in-out;
+    user-select: none;
+}
+
+.toggle-like-btn:active {
+    transform: scale(0.96);
+}

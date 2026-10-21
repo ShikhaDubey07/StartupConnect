@@ -388,20 +388,30 @@ public class IdeasController : Controller
     public async Task<IActionResult> ToggleLike(int id)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
-        var existingLike = await _context.IdeaLikes.FirstOrDefaultAsync(l => l.IdeaId == id && l.UserId == userId);
+        var userLikes = await _context.IdeaLikes.Where(l => l.IdeaId == id && l.UserId == userId).ToListAsync();
         
         bool liked = false;
-        if (existingLike != null)
+        if (userLikes.Count > 0)
         {
-            _context.IdeaLikes.Remove(existingLike);
+            _context.IdeaLikes.RemoveRange(userLikes);
+            await _context.SaveChangesAsync();
+            liked = false;
         }
         else
         {
-            _context.IdeaLikes.Add(new IdeaLike { IdeaId = id, UserId = userId });
-            liked = true;
+            _context.IdeaLikes.Add(new IdeaLike { IdeaId = id, UserId = userId, CreatedAt = DateTime.UtcNow });
+            try
+            {
+                await _context.SaveChangesAsync();
+                liked = true;
+            }
+            catch (DbUpdateException)
+            {
+                // Unique constraint caught duplicate concurrent insert; reload state cleanly
+                _context.ChangeTracker.Clear();
+                liked = true;
+            }
         }
-        
-        await _context.SaveChangesAsync();
         
         if (liked)
         {
@@ -412,7 +422,12 @@ public class IdeasController : Controller
                 await _notifications.CreateAsync(idea.SubmitterUserId, "New Like", $"{user?.FullName ?? "Someone"} liked your idea '{idea.Title}'.", $"/Ideas/Detail/{id}");
             }
         }
-        var likesCount = await _context.IdeaLikes.CountAsync(l => l.IdeaId == id);
+
+        var likesCount = await _context.IdeaLikes
+            .Where(l => l.IdeaId == id)
+            .Select(l => l.UserId)
+            .Distinct()
+            .CountAsync();
         
         return Json(new { liked = liked, count = likesCount });
     }

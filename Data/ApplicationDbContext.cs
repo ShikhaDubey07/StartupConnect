@@ -129,6 +129,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
 
         // Social features cascade configurations
         builder.Entity<IdeaLike>()
+            .HasIndex(l => new { l.IdeaId, l.UserId })
+            .IsUnique();
+
+        builder.Entity<IdeaLike>()
             .HasOne(l => l.Idea)
             .WithMany(i => i.Likes)
             .HasForeignKey(l => l.IdeaId)

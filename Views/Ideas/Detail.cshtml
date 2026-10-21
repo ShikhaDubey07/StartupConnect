@@ -187,6 +187,7 @@
             <div class="d-flex gap-3 align-items-center mt-4 pb-4 border-bottom">
                 @if (User.Identity?.IsAuthenticated == true)
                 {
+                    @Html.AntiForgeryToken()
                     <button class="btn @(Model.IsLikedByCurrentUser ? "btn-danger" : "btn-outline-danger") rounded-pill px-4 toggle-like-btn" data-id="@Model.Id">
                         <i class="bi @(Model.IsLikedByCurrentUser ? "bi-heart-fill" : "bi-heart") me-2"></i>
                         <span class="like-text">@(Model.IsLikedByCurrentUser ? "Liked" : "Like")</span> 
@@ -500,49 +501,6 @@
             </div>
         </div>
     </div>
-
-    <!-- AJAX Scripts for Like and Share -->
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const likeBtn = document.querySelector('.toggle-like-btn');
-            if (likeBtn) {
-                likeBtn.addEventListener('click', async (e) => {
-                    const btn = e.currentTarget;
-                    const ideaId = btn.getAttribute('data-id');
-                    
-                    try {
-                        const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
-                        const formData = new FormData();
-                        formData.append('id', ideaId);
-                        
-                        const response = await fetch('@Url.Action("ToggleLike", "Ideas")', {
-                            method: 'POST',
-                            headers: {
-                                'RequestVerificationToken': token
-                            },
-                            body: formData
-                        });
-                        
-                        if (response.ok) {
-                            const data = await response.json();
-                            btn.classList.toggle('btn-danger', data.liked);
-                            btn.classList.toggle('btn-outline-danger', !data.liked);
-                            
-                            const icon = btn.querySelector('.bi');
-                            icon.classList.toggle('bi-heart-fill', data.liked);
-                            icon.classList.toggle('bi-heart', !data.liked);
-                            
-                            btn.querySelector('.like-text').textContent = data.liked ? 'Liked' : 'Like';
-                            btn.querySelector('.likes-count').textContent = data.count;
-                            document.getElementById('likesCountHero').textContent = data.count;
-                        }
-                    } catch (err) {
-                        console.error('Error toggling like:', err);
-                    }
-                });
-            }
-        });
-    </script>
 }
 
 <script>

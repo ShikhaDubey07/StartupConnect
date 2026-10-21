@@ -21,30 +21,84 @@ $(function () {
         }
     });
 
-    // Toggle Like
-    $('.toggle-like-btn').on('click', function (e) {
+    // Toggle Like (Real social media like experience: optimistic update, anti-spam debounce, server sync, pop animation)
+    $(document).on('click', '.toggle-like-btn', function (e) {
         e.preventDefault();
         var btn = $(this);
-        var id = btn.data('id');
         
-        $.post('/Ideas/ToggleLike', {
-            id: id,
-            __RequestVerificationToken: $('input[name="__RequestVerificationToken"]').val()
-        }, function (res) {
-            btn.find('.likes-count').text(res.count);
-            var icon = btn.find('i.bi');
-            var text = btn.find('.like-text');
-            
-            if (res.liked) {
+        // Prevent concurrent clicks while a request is in flight
+        if (btn.data('is-liking')) {
+            return;
+        }
+        btn.data('is-liking', true);
+
+        var id = btn.data('id');
+        var icon = btn.find('i.bi');
+        var text = btn.find('.like-text');
+        var countSpan = btn.find('.likes-count');
+        var heroCount = $('#likesCountHero');
+
+        // Current state before click
+        var isCurrentlyLiked = btn.hasClass('btn-danger') || icon.hasClass('bi-heart-fill');
+        var currentCount = parseInt(countSpan.text(), 10);
+        if (isNaN(currentCount)) {
+            currentCount = 0;
+        }
+
+        // Target optimistic state
+        var optimisticLiked = !isCurrentlyLiked;
+        var optimisticCount = optimisticLiked ? (currentCount + 1) : Math.max(0, currentCount - 1);
+
+        function updateUI(liked, count) {
+            if (liked) {
                 btn.removeClass('btn-outline-danger').addClass('btn-danger');
                 icon.removeClass('bi-heart').addClass('bi-heart-fill');
                 text.text('Liked');
-                $('#likesCountHero').text(res.count);
             } else {
                 btn.removeClass('btn-danger').addClass('btn-outline-danger');
                 icon.removeClass('bi-heart-fill').addClass('bi-heart');
                 text.text('Like');
-                $('#likesCountHero').text(res.count);
+            }
+            countSpan.text(count);
+            if (heroCount.length) {
+                heroCount.text(count);
+            }
+        }
+
+        // Instant optimistic feedback
+        updateUI(optimisticLiked, optimisticCount);
+
+        // Heart pop animation
+        icon.addClass('animate-like');
+        setTimeout(function () {
+            icon.removeClass('animate-like');
+        }, 400);
+
+        var token = $('input[name="__RequestVerificationToken"]').val();
+
+        $.ajax({
+            url: '/Ideas/ToggleLike',
+            type: 'POST',
+            data: {
+                id: id,
+                __RequestVerificationToken: token
+            },
+            success: function (res) {
+                if (res && typeof res.liked !== 'undefined') {
+                    // Sync with authoritative server response
+                    updateUI(res.liked, res.count);
+                }
+            },
+            error: function (xhr) {
+                // Rollback on network or server error
+                updateUI(isCurrentlyLiked, currentCount);
+                if (xhr.status === 401) {
+                    window.location.href = '/Account/Login?returnUrl=' + encodeURIComponent(window.location.pathname);
+                }
+            },
+            complete: function () {
+                // Release lock after request finishes
+                btn.data('is-liking', false);
             }
         });
     });
