@@ -43,9 +43,9 @@
     /* Text */
     --sc-text: #211C27;
     /* Heading Text */
-    --sc-text-secondary: #514B58;
-    /* Body Text */
-    --sc-text-muted: #d4cddd;
+    --sc-text-secondary: #26202E;
+    /* Body / Paragraph Text */
+    --sc-text-muted: #514B58;
     /* Muted Text */
 
     /* Dark Surfaces - Using semantic naming but mapped to new text colors for clean design */
@@ -129,6 +129,10 @@ h6,
 
 p {
     color: var(--sc-text-secondary);
+}
+
+.text-muted {
+    color: #433D4B !important;
 }
 
 a {
@@ -589,10 +593,11 @@ a {
 
 .sc-hero-sub {
     font-size: clamp(1rem, 2.5vw, 1.2rem);
-    opacity: 0.85;
+    color: var(--sc-text);
+    opacity: 1;
     max-width: 540px;
     line-height: 1.7;
-    font-weight: 400;
+    font-weight: 450;
 }
 
 /* Hero Stats */
@@ -623,7 +628,8 @@ a {
     font-family: var(--sc-heading);
     font-size: 1.75rem;
     font-weight: 800;
-    background: linear-gradient(135deg, #c4b5fd, #a78bfa);
+    color: #48265E;
+    background: linear-gradient(135deg, #5B3A70 0%, #3D2250 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -631,10 +637,11 @@ a {
 
 .sc-stat-label {
     font-size: 0.78rem;
-    opacity: 0.7;
-    font-weight: 500;
+    color: var(--sc-text);
+    opacity: 1;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.06em;
 }
 
 .sc-hero-visual {
