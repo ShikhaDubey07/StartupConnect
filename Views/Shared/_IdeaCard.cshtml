@@ -1,26 +1,30 @@
 @model StartupConnect.ViewModels.IdeaCardViewModel
 <div class="sc-idea-card">
     <div class="sc-idea-card-header position-relative">
-        @if (User.Identity?.IsAuthenticated == true)
-        {
-            <form asp-controller="Ideas" asp-action="ToggleSave" asp-route-id="@Model.Id" method="post" class="position-absolute top-0 end-0 mt-3 me-3 toggle-save-form">
-                <button type="submit" class="btn btn-sm btn-dark rounded-circle shadow-sm save-btn" data-id="@Model.Id" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
-                    <i class="bi @(Model.IsSavedByCurrentUser ? "bi-bookmark-fill text-primary" : "bi-bookmark text-muted") fs-6 save-icon"></i>
-                </button>
-            </form>
-        }
-        @if (Model.AiScore.HasValue)
-        {
-            var scoreColor = Model.AiScore >= 70 ? "success" : (Model.AiScore >= 45 ? "warning" : "secondary");
-            <span class="position-absolute top-0 start-0 mt-3 ms-3 badge bg-@scoreColor bg-opacity-90 rounded-pill px-2 py-1" style="font-size:0.68rem;" title="AI Score: @Model.AiScore/100">
-                🤖 @Model.AiScore
-            </span>
-        }
-        <span class="sc-idea-category"><i class="bi @Model.CategoryIcon"></i> @Model.CategoryName</span>
-        <h5 class="mt-2 mb-0 text-black pe-4">@Model.Title</h5>
+        <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <span class="sc-idea-category"><i class="bi @Model.CategoryIcon"></i> @Model.CategoryName</span>
+                @if (Model.AiScore.HasValue)
+                {
+                    var scoreColor = Model.AiScore >= 70 ? "success" : (Model.AiScore >= 45 ? "warning" : "secondary");
+                    <span class="badge bg-@scoreColor bg-opacity-90 rounded-pill px-2 py-1" style="font-size:0.68rem;" title="AI Score: @Model.AiScore/100">
+                        🤖 @Model.AiScore
+                    </span>
+                }
+            </div>
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <form asp-controller="Ideas" asp-action="ToggleSave" asp-route-id="@Model.Id" method="post" class="toggle-save-form m-0 flex-shrink-0">
+                    <button type="submit" class="btn btn-sm btn-dark rounded-circle shadow-sm save-btn" data-id="@Model.Id" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;">
+                        <i class="bi @(Model.IsSavedByCurrentUser ? "bi-bookmark-fill text-primary" : "bi-bookmark text-muted") fs-6 save-icon"></i>
+                    </button>
+                </form>
+            }
+        </div>
+        <h5 class="mb-0 text-black">@Model.Title</h5>
     </div>
     <div class="sc-idea-card-body">
-        <p class="text-muted small flex-grow-1">@Model.Tagline</p>
+        <p class="sc-idea-subtitle text-muted small flex-grow-1">@Model.Tagline</p>
         <div class="mb-2">
             @foreach (var role in Model.RolesNeeded.Take(3))
             {

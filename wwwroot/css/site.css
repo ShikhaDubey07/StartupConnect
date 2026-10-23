@@ -815,6 +815,24 @@ a {
     font-weight: 600;
     backdrop-filter: blur(4px);
     border: 1px solid rgba(0, 0, 0, 0.1);
+    position: relative;
+    z-index: 2;
+    max-width: 100%;
+}
+
+.sc-idea-category i {
+    flex-shrink: 0;
+}
+
+.sc-idea-card-header h5 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    line-height: 1.35;
+    word-break: break-word;
+    color: #000;
+    position: relative;
+    z-index: 2;
+    margin: 0;
 }
 
 .sc-idea-card-body {
@@ -829,6 +847,17 @@ a {
     margin-bottom: 0.5rem;
     color: var(--sc-text);
     font-weight: 700;
+}
+
+/* Startup Card Subtitle / Tagline Readability */
+.sc-idea-card-body p,
+.sc-idea-card .card-text,
+.sc-idea-desc,
+.sc-idea-subtitle {
+    color: var(--sc-text) !important;
+    font-size: 0.88rem;
+    line-height: 1.55;
+    font-weight: 500;
 }
 
 .sc-idea-meta {

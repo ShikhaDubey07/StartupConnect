@@ -23,11 +23,13 @@
                 <div class="col-md-6 col-lg-4">
                     <div class="sc-idea-card">
                         <div class="sc-idea-card-header">
-                            <span class="sc-idea-category"><i class="bi @idea.CategoryIcon"></i> @idea.CategoryName</span>
-                            <h5 class="mt-2 mb-0 text-black">@idea.Title</h5>
+                            <div class="d-flex align-items-center justify-content-between gap-2 mb-2">
+                                <span class="sc-idea-category"><i class="bi @idea.CategoryIcon"></i> @idea.CategoryName</span>
+                            </div>
+                            <h5 class="mb-0 text-black">@idea.Title</h5>
                         </div>
                         <div class="sc-idea-card-body">
-                            <p class="text-muted small">@idea.Tagline</p>
+                            <p class="sc-idea-subtitle text-muted small">@idea.Tagline</p>
                             @{
                                 var status = statuses != null && statuses.ContainsKey(idea.Id) ? statuses[idea.Id].Status : StartupConnect.Models.IdeaStatus.Draft;
                                 var rejectionReason = statuses != null && statuses.ContainsKey(idea.Id) ? statuses[idea.Id].RejectionReason : null;
